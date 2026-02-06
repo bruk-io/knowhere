@@ -1,0 +1,72 @@
+name: Publish to knowhere
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".claude-plugin/**"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+{% if publish_mode == "url" %}
+      - name: Read plugin.json
+        id: plugin
+        run: |
+          echo "json=$(cat .claude-plugin/plugin.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Read mcp.json
+        id: mcp
+        run: |
+          if [ -f .claude-plugin/mcp.json ]; then
+            echo "json=$(cat .claude-plugin/mcp.json)" >> "$GITHUB_OUTPUT"
+          else
+            echo "json=null" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        env:
+          GH_TOKEN: {% raw %}${{ secrets.KNOWHERE_PAT }}
+{% endraw %}
+        run: |
+          gh api repos/bruk-io/knowhere/dispatches \
+            -f event_type=publish-url-plugin \
+            -f 'client_payload={
+              "plugin": {
+                "name": "{{ plugin_name }}",
+                "description": "{{ plugin_description }}",
+                "author": {"name": "{{ plugin_author }}"},
+                "category": "{{ plugin_category }}",
+                "homepage": "https://github.com/{{ org_repo }}",
+                "url": "https://github.com/{{ org_repo }}.git"
+              },
+              "shim": {
+                "plugin_json": {% raw %}${{ toJson(steps.plugin.outputs.json) }}{% endraw %},
+                "mcp_json": {% raw %}${{ toJson(steps.mcp.outputs.json) }}
+{% endraw %}
+              }
+            }'
+{% else %}
+      - name: Publish
+        env:
+          GH_TOKEN: {% raw %}${{ secrets.KNOWHERE_PAT }}
+{% endraw %}
+        run: |
+          gh api repos/bruk-io/knowhere/dispatches \
+            -f event_type=publish-inline-plugin \
+            -f "client_payload={
+              \"plugin\": {
+                \"name\": \"{{ plugin_name }}\",
+                \"description\": \"{{ plugin_description }}\",
+                \"author\": {\"name\": \"{{ plugin_author }}\"},
+                \"category\": \"{{ plugin_category }}\",
+                \"homepage\": \"https://github.com/{{ org_repo }}\"
+              },
+              \"source_repo\": \"{{ org_repo }}\",
+              \"source_ref\": \"$(git rev-parse HEAD)\",
+              \"source_path\": \".\"
+            }"
+{% endif %}

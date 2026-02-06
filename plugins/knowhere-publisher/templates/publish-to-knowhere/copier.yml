@@ -1,0 +1,43 @@
+_min_copier_version: "9.0.0"
+_answers_file: .copier-answers.yml
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+
+plugin_name:
+  type: str
+  help: Plugin name (from .claude-plugin/plugin.json)
+
+plugin_description:
+  type: str
+  help: Plugin description (from .claude-plugin/plugin.json)
+
+plugin_author:
+  type: str
+  default: bruk-io
+  help: Plugin author name
+
+plugin_category:
+  type: str
+  help: Plugin category
+  choices:
+    - database
+    - deployment
+    - design
+    - development
+    - learning
+    - monitoring
+    - productivity
+    - security
+    - testing
+
+publish_mode:
+  type: str
+  help: How the plugin should be published
+  choices:
+    "URL (source stays in this repo)": url
+    "Inline (source copied to marketplace)": inline
+
+org_repo:
+  type: str
+  help: "GitHub org/repo slug (e.g. bruk-io/my-plugin)"

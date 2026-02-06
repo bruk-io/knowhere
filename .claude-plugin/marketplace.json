@@ -6,5 +6,13 @@
     "name": "bruk-io",
     "email": "brukhabtu@gmail.com"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "knowhere-publisher",
+      "description": "Set up a repo to publish plugins to the bruk-io/knowhere marketplace",
+      "author": {"name": "bruk-io"},
+      "category": "development",
+      "source": "./plugins/knowhere-publisher"
+    }
+  ]
 }

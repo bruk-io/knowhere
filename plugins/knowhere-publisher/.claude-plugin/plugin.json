@@ -1,0 +1,6 @@
+{
+  "name": "knowhere-publisher",
+  "description": "Set up a repo to publish plugins to the bruk-io/knowhere marketplace",
+  "author": {"name": "bruk-io"},
+  "homepage": "https://github.com/bruk-io/knowhere"
+}
