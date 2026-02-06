@@ -1,0 +1,10 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "knowhere",
+  "description": "Personal Claude Code plugin marketplace for bruk-io projects",
+  "owner": {
+    "name": "bruk-io",
+    "email": "brukhabtu@gmail.com"
+  },
+  "plugins": []
+}

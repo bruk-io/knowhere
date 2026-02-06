@@ -1,0 +1,229 @@
+name: Publish Plugin
+
+on:
+  repository_dispatch:
+    types:
+      - publish-url-plugin
+      - publish-inline-plugin
+      - remove-plugin
+
+permissions:
+  contents: write
+
+jobs:
+  publish-url-plugin:
+    if: github.event.action == 'publish-url-plugin'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Validate payload
+        run: |
+          python .github/scripts/validate-plugin.py \
+            --mode payload \
+            --payload '${{ toJson(github.event.client_payload) }}'
+
+      - name: Create external plugin shim
+        run: |
+          PLUGIN_NAME="${{ github.event.client_payload.plugin.name }}"
+          SHIM_DIR="external_plugins/${PLUGIN_NAME}"
+          mkdir -p "${SHIM_DIR}/.claude-plugin"
+
+          # Write plugin.json shim
+          echo '${{ toJson(github.event.client_payload.shim.plugin_json) }}' \
+            | python -c "import sys,json; print(json.loads(sys.stdin.read()))" \
+            > "${SHIM_DIR}/.claude-plugin/plugin.json"
+
+          # Write mcp.json if provided
+          MCP_JSON='${{ toJson(github.event.client_payload.shim.mcp_json) }}'
+          if [ "${MCP_JSON}" != "null" ] && [ -n "${MCP_JSON}" ]; then
+            echo "${MCP_JSON}" \
+              | python -c "import sys,json; print(json.loads(sys.stdin.read()))" \
+              > "${SHIM_DIR}/.claude-plugin/mcp.json"
+          fi
+
+      - name: Build plugin entry
+        id: entry
+        run: |
+          PLUGIN='${{ toJson(github.event.client_payload.plugin) }}'
+          NAME=$(echo "${PLUGIN}" | python -c "import sys,json; print(json.load(sys.stdin)['name'])")
+
+          # Build the marketplace entry with URL source
+          ENTRY=$(python -c "
+          import json, sys
+          p = json.loads(sys.argv[1])
+          entry = {
+              'name': p['name'],
+              'description': p['description'],
+              'author': p.get('author', {}),
+              'category': p['category'],
+              'source': {'source': 'url', 'url': p['url']},
+          }
+          if 'homepage' in p:
+              entry['homepage'] = p['homepage']
+          print(json.dumps(entry))
+          " "${PLUGIN}")
+
+          echo "plugin_json=${ENTRY}" >> "$GITHUB_OUTPUT"
+
+      - name: Update marketplace.json
+        run: |
+          python .github/scripts/update-marketplace.py \
+            --mode upsert-url \
+            --plugin-json '${{ steps.entry.outputs.plugin_json }}'
+
+      - name: Validate marketplace
+        run: |
+          python .github/scripts/validate-plugin.py --mode marketplace
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          PLUGIN_NAME="${{ github.event.client_payload.plugin.name }}"
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "publish: ${PLUGIN_NAME} (url)"
+          git push
+
+  publish-inline-plugin:
+    if: github.event.action == 'publish-inline-plugin'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Validate payload
+        run: |
+          python .github/scripts/validate-plugin.py \
+            --mode payload \
+            --payload '${{ toJson(github.event.client_payload) }}'
+
+      - name: Clone source and copy plugin files
+        env:
+          GH_TOKEN: ${{ secrets.MARKETPLACE_PAT }}
+        run: |
+          PLUGIN_NAME="${{ github.event.client_payload.plugin.name }}"
+          SOURCE_REPO="${{ github.event.client_payload.source_repo }}"
+          SOURCE_REF="${{ github.event.client_payload.source_ref }}"
+          SOURCE_PATH="${{ github.event.client_payload.source_path }}"
+
+          # Clone the source repo at the specific ref
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/${SOURCE_REPO}.git" \
+            /tmp/source-repo
+          cd /tmp/source-repo
+          git fetch --depth 1 origin "${SOURCE_REF}"
+          git checkout "${SOURCE_REF}"
+          cd -
+
+          # Determine source directory
+          if [ "${SOURCE_PATH}" = "." ] || [ -z "${SOURCE_PATH}" ]; then
+            SRC="/tmp/source-repo"
+          else
+            SRC="/tmp/source-repo/${SOURCE_PATH}"
+          fi
+
+          # Copy plugin files
+          DEST="plugins/${PLUGIN_NAME}"
+          rm -rf "${DEST}"
+          mkdir -p "${DEST}"
+          cp -r "${SRC}/.claude-plugin" "${DEST}/"
+
+          # Copy additional plugin content if present
+          for item in commands skills agents hooks; do
+            if [ -d "${SRC}/.claude-plugin/${item}" ]; then
+              cp -r "${SRC}/.claude-plugin/${item}" "${DEST}/.claude-plugin/"
+            fi
+          done
+
+          # Copy AGENTS.md if present
+          if [ -f "${SRC}/AGENTS.md" ]; then
+            cp "${SRC}/AGENTS.md" "${DEST}/"
+          fi
+
+      - name: Build plugin entry
+        id: entry
+        run: |
+          PLUGIN='${{ toJson(github.event.client_payload.plugin) }}'
+          NAME=$(echo "${PLUGIN}" | python -c "import sys,json; print(json.load(sys.stdin)['name'])")
+
+          ENTRY=$(python -c "
+          import json, sys
+          p = json.loads(sys.argv[1])
+          entry = {
+              'name': p['name'],
+              'description': p['description'],
+              'author': p.get('author', {}),
+              'category': p['category'],
+              'source': './plugins/' + p['name'],
+          }
+          if 'homepage' in p:
+              entry['homepage'] = p['homepage']
+          print(json.dumps(entry))
+          " "${PLUGIN}")
+
+          echo "plugin_json=${ENTRY}" >> "$GITHUB_OUTPUT"
+
+      - name: Update marketplace.json
+        run: |
+          python .github/scripts/update-marketplace.py \
+            --mode upsert-inline \
+            --plugin-json '${{ steps.entry.outputs.plugin_json }}'
+
+      - name: Validate marketplace
+        run: |
+          python .github/scripts/validate-plugin.py --mode marketplace
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          PLUGIN_NAME="${{ github.event.client_payload.plugin.name }}"
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "publish: ${PLUGIN_NAME} (inline)"
+          git push
+
+  remove-plugin:
+    if: github.event.action == 'remove-plugin'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Remove plugin
+        run: |
+          PLUGIN_NAME="${{ github.event.client_payload.plugin.name }}"
+
+          # Remove from marketplace.json
+          python .github/scripts/update-marketplace.py \
+            --mode remove \
+            --name "${PLUGIN_NAME}"
+
+          # Remove plugin directory (inline or external)
+          rm -rf "plugins/${PLUGIN_NAME}" "external_plugins/${PLUGIN_NAME}"
+
+      - name: Validate marketplace
+        run: |
+          python .github/scripts/validate-plugin.py --mode marketplace
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          PLUGIN_NAME="${{ github.event.client_payload.plugin.name }}"
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "remove: ${PLUGIN_NAME}"
+          git push

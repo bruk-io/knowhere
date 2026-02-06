@@ -1,0 +1,48 @@
+name: Validate
+
+on:
+  pull_request:
+    paths:
+      - ".claude-plugin/marketplace.json"
+      - "plugins/**"
+      - "external_plugins/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Validate marketplace.json
+        run: python .github/scripts/validate-plugin.py --mode marketplace
+
+      - name: Validate JSON syntax
+        run: python -m json.tool .claude-plugin/marketplace.json > /dev/null
+
+      - name: Check inline plugin structure
+        run: |
+          for dir in plugins/*/; do
+            [ -d "${dir}" ] || continue
+            name=$(basename "${dir}")
+            if [ ! -f "${dir}.claude-plugin/plugin.json" ]; then
+              echo "ERROR: ${dir} missing .claude-plugin/plugin.json"
+              exit 1
+            fi
+            echo "OK: ${name}"
+          done
+
+      - name: Check external plugin structure
+        run: |
+          for dir in external_plugins/*/; do
+            [ -d "${dir}" ] || continue
+            name=$(basename "${dir}")
+            if [ ! -f "${dir}.claude-plugin/plugin.json" ]; then
+              echo "ERROR: ${dir} missing .claude-plugin/plugin.json"
+              exit 1
+            fi
+            echo "OK: ${name}"
+          done
