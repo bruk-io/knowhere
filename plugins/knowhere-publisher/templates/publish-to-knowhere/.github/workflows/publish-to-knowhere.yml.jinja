@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - ".claude-plugin/**"
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -16,57 +17,69 @@ jobs:
       - name: Read plugin.json
         id: plugin
         run: |
-          echo "json=$(cat .claude-plugin/plugin.json)" >> "$GITHUB_OUTPUT"
+          echo "json=$(jq -c . .claude-plugin/plugin.json)" >> "$GITHUB_OUTPUT"
 
       - name: Read mcp.json
         id: mcp
         run: |
           if [ -f .claude-plugin/mcp.json ]; then
-            echo "json=$(cat .claude-plugin/mcp.json)" >> "$GITHUB_OUTPUT"
+            echo "json=$(jq -c . .claude-plugin/mcp.json)" >> "$GITHUB_OUTPUT"
           else
             echo "json=null" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Publish
         env:
-          GH_TOKEN: {% raw %}${{ secrets.KNOWHERE_PAT }}
-{% endraw %}
+          GH_TOKEN: {% raw %}${{ secrets.KNOWHERE_PAT }}{% endraw %}
+
+          PLUGIN_JSON: {% raw %}${{ steps.plugin.outputs.json }}{% endraw %}
+
+          MCP_JSON: {% raw %}${{ steps.mcp.outputs.json }}{% endraw %}
+
         run: |
-          gh api repos/bruk-io/knowhere/dispatches \
-            -f event_type=publish-url-plugin \
-            -f 'client_payload={
-              "plugin": {
-                "name": "{{ plugin_name }}",
-                "description": "{{ plugin_description }}",
-                "author": {"name": "{{ plugin_author }}"},
-                "category": "{{ plugin_category }}",
-                "homepage": "https://github.com/{{ org_repo }}",
-                "url": "https://github.com/{{ org_repo }}.git"
-              },
-              "shim": {
-                "plugin_json": {% raw %}${{ toJson(steps.plugin.outputs.json) }}{% endraw %},
-                "mcp_json": {% raw %}${{ toJson(steps.mcp.outputs.json) }}
-{% endraw %}
+          jq -n \
+            --arg event_type "publish-url-plugin" \
+            --argjson plugin_json "$PLUGIN_JSON" \
+            --argjson mcp_json "${MCP_JSON:-null}" \
+            '{
+              event_type: $event_type,
+              client_payload: {
+                plugin: {
+                  name: "{{ plugin_name }}",
+                  description: "{{ plugin_description }}",
+                  author: {name: "{{ plugin_author }}"},
+                  category: "{{ plugin_category }}",
+                  homepage: "https://github.com/{{ org_repo }}",
+                  url: "https://github.com/{{ org_repo }}.git"
+                },
+                shim: {
+                  plugin_json: ($plugin_json | tostring),
+                  mcp_json: ($mcp_json | tostring)
+                }
               }
-            }'
+            }' | gh api repos/bruk-io/knowhere/dispatches --input -
 {% else %}
       - name: Publish
         env:
-          GH_TOKEN: {% raw %}${{ secrets.KNOWHERE_PAT }}
-{% endraw %}
+          GH_TOKEN: {% raw %}${{ secrets.KNOWHERE_PAT }}{% endraw %}
+
         run: |
-          gh api repos/bruk-io/knowhere/dispatches \
-            -f event_type=publish-inline-plugin \
-            -f "client_payload={
-              \"plugin\": {
-                \"name\": \"{{ plugin_name }}\",
-                \"description\": \"{{ plugin_description }}\",
-                \"author\": {\"name\": \"{{ plugin_author }}\"},
-                \"category\": \"{{ plugin_category }}\",
-                \"homepage\": \"https://github.com/{{ org_repo }}\"
-              },
-              \"source_repo\": \"{{ org_repo }}\",
-              \"source_ref\": \"$(git rev-parse HEAD)\",
-              \"source_path\": \".\"
-            }"
+          jq -n \
+            --arg event_type "publish-inline-plugin" \
+            --arg source_ref "$(git rev-parse HEAD)" \
+            '{
+              event_type: $event_type,
+              client_payload: {
+                plugin: {
+                  name: "{{ plugin_name }}",
+                  description: "{{ plugin_description }}",
+                  author: {name: "{{ plugin_author }}"},
+                  category: "{{ plugin_category }}",
+                  homepage: "https://github.com/{{ org_repo }}"
+                },
+                source_repo: "{{ org_repo }}",
+                source_ref: $source_ref,
+                source_path: "."
+              }
+            }' | gh api repos/bruk-io/knowhere/dispatches --input -
 {% endif %}
