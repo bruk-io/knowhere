@@ -1,0 +1,8 @@
+{
+  "name": "go",
+  "version": "0.1.0",
+  "description": "Go project scaffolding and best practices",
+  "author": {
+    "name": "bruk-io"
+  }
+}

@@ -1,0 +1,61 @@
+# Standard project interface for {{ app_name }}
+#
+# Core:    make test | make lint | make check
+{% if project_type == "service" %}
+# Service: make serve | make dev
+{% elif project_type == "library" %}
+# Library: make build | make bench
+{% endif %}
+
+APP_NAME := {{ app_name }}
+{% if project_type == "service" %}
+PORT := {{ port }}
+{% endif %}
+
+## Core
+
+.PHONY: test
+test: ## Run tests
+	cargo test
+
+.PHONY: lint
+lint: ## Run clippy
+	cargo clippy -- -D warnings
+
+.PHONY: check
+check: lint test ## Run lint + test
+
+{% if project_type == "service" %}
+## Service
+
+.PHONY: build
+build: ## Build release binary
+	cargo build --release
+
+.PHONY: serve
+serve: build ## Start in production mode
+	./target/release/$(APP_NAME)
+
+.PHONY: dev
+dev: ## Start with hot reload (requires cargo-watch)
+	cargo watch -x run
+
+{% elif project_type == "library" %}
+## Library
+
+.PHONY: build
+build: ## Build the library
+	cargo build --release
+
+.PHONY: bench
+bench: ## Run benchmarks
+	cargo bench
+
+{% endif %}
+## Helpers
+
+.PHONY: help
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+
+.DEFAULT_GOAL := help

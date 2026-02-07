@@ -1,0 +1,42 @@
+#!/bin/sh
+set -e
+
+case "${1}" in
+  test)
+    shift
+    exec pytest "$@"
+    ;;
+  lint)
+    shift
+    exec ruff check . "$@"
+    ;;
+  check)
+    shift
+    "$0" lint && "$0" test
+    ;;
+{% if project_type == "service" %}
+  serve)
+    shift
+    exec uvicorn {{ app_module }} --host 0.0.0.0 --port {{ port }} "$@"
+    ;;
+  dev)
+    shift
+    exec uvicorn {{ app_module }} --host 0.0.0.0 --port {{ port }} --reload "$@"
+    ;;
+{% elif project_type == "library" %}
+  build)
+    shift
+{% if uses_uv %}
+    exec uv build "$@"
+{% else %}
+    exec python -m build "$@"
+{% endif %}
+    ;;
+{% endif %}
+  shell)
+    exec /bin/sh
+    ;;
+  *)
+    exec "$@"
+    ;;
+esac

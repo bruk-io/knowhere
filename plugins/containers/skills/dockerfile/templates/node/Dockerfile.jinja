@@ -1,0 +1,139 @@
+# syntax=docker/dockerfile:1
+
+# ============================================================================
+# Multi-target Dockerfile for {{ app_name }}
+#
+# Targets:
+#   deps     - Dependency installation (base for all stages)
+#   ci       - CI/testing environment (GitHub Actions: target: ci)
+#   dev      - Development container (devcontainer: target: dev)
+#   prod     - Production image (deploy artifact)
+#
+# Entrypoint commands (defined in package.json scripts):
+#   test     - Run test suite
+#   lint     - Run linter
+#   check    - Run lint + test
+{% if project_type == "service" %}
+#   serve    - Start in production mode
+#   dev      - Start with hot reload
+{% elif project_type == "library" %}
+#   build    - Build the package
+{% endif %}
+#   shell    - Interactive shell
+#
+# Usage:
+#   docker build --target ci   -t {{ app_name }}:ci .
+#   docker build --target dev  -t {{ app_name }}:dev .
+#   docker build --target prod -t {{ app_name }}:prod .
+#   docker run {{ app_name }}:ci test
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# deps: Install production dependencies
+# ---------------------------------------------------------------------------
+FROM node:{{ node_version }}-slim AS deps
+
+WORKDIR /app
+
+{% if package_manager == "pnpm" %}
+RUN corepack enable pnpm
+
+COPY pnpm-lock.yaml package.json ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --prod
+{% elif package_manager == "yarn" %}
+RUN corepack enable yarn
+
+COPY yarn.lock package.json ./
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
+    yarn install --frozen-lockfile --production
+{% else %}
+COPY package-lock.json package.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev
+{% endif %}
+
+# ---------------------------------------------------------------------------
+# ci: Testing and CI (includes dev dependencies)
+# ---------------------------------------------------------------------------
+FROM node:{{ node_version }}-slim AS ci
+
+WORKDIR /app
+
+{% if package_manager == "pnpm" %}
+RUN corepack enable pnpm
+
+COPY pnpm-lock.yaml package.json ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+{% elif package_manager == "yarn" %}
+RUN corepack enable yarn
+
+COPY yarn.lock package.json ./
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
+    yarn install --frozen-lockfile
+{% else %}
+COPY package-lock.json package.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+{% endif %}
+
+COPY . .
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["test"]
+
+# ---------------------------------------------------------------------------
+# dev: Development container
+# ---------------------------------------------------------------------------
+FROM ci AS dev
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+EXPOSE {{ port }}
+
+{% if project_type == "service" %}
+CMD ["dev"]
+{% else %}
+CMD ["shell"]
+{% endif %}
+
+# ---------------------------------------------------------------------------
+# prod: Production image
+# ---------------------------------------------------------------------------
+FROM node:{{ node_version }}-slim AS prod
+
+RUN groupadd --system app && useradd --system --gid app app
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+{% if has_build_step %}
+{% if package_manager == "pnpm" %}
+RUN corepack enable pnpm && pnpm build
+{% elif package_manager == "yarn" %}
+RUN corepack enable yarn && yarn build
+{% else %}
+RUN npm run build
+{% endif %}
+{% endif %}
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+USER app
+EXPOSE {{ port }}
+
+ENTRYPOINT ["/entrypoint.sh"]
+{% if project_type == "service" %}
+CMD ["serve"]
+{% else %}
+CMD ["shell"]
+{% endif %}

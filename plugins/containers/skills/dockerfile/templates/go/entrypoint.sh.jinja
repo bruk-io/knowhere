@@ -1,0 +1,42 @@
+#!/bin/sh
+set -e
+
+case "${1}" in
+  test)
+    shift
+    exec go test -v -race ./... "$@"
+    ;;
+  lint)
+    shift
+    exec go vet ./... "$@"
+    ;;
+  check)
+    shift
+    "$0" lint && "$0" test
+    ;;
+{% if project_type == "service" %}
+  serve)
+    shift
+    exec go run . "$@"
+    ;;
+  dev)
+    shift
+    exec air "$@"
+    ;;
+{% elif project_type == "library" %}
+  build)
+    shift
+    exec go build ./... "$@"
+    ;;
+  bench)
+    shift
+    exec go test -bench=. -benchmem ./... "$@"
+    ;;
+{% endif %}
+  shell)
+    exec /bin/sh
+    ;;
+  *)
+    exec "$@"
+    ;;
+esac

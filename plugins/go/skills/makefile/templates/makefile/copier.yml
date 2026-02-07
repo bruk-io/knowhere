@@ -1,0 +1,25 @@
+_min_copier_version: "9.0.0"
+_answers_file: .copier-answers.yml
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+_templates_suffix: .jinja
+
+app_name:
+  type: str
+  help: Binary name
+  validator: "{% if not app_name %}Required{% endif %}"
+
+project_type:
+  type: str
+  default: service
+  help: Project type determines targets
+  choices:
+    "Service (API, web app, worker)": service
+    "Library (package, SDK)": library
+
+port:
+  type: int
+  help: Port for the service
+  default: 8080
+  when: "{{ project_type == 'service' }}"

@@ -1,0 +1,8 @@
+{
+  "name": "python",
+  "version": "0.1.0",
+  "description": "Python project scaffolding and best practices",
+  "author": {
+    "name": "bruk-io"
+  }
+}

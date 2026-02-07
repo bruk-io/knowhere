@@ -1,0 +1,117 @@
+# syntax=docker/dockerfile:1
+
+# ============================================================================
+# Multi-target Dockerfile for {{ app_name }}
+#
+# Targets:
+#   build    - Compile the Rust binary
+#   ci       - CI/testing environment (GitHub Actions: target: ci)
+#   dev      - Development container (devcontainer: target: dev)
+#   prod     - Production image (deploy artifact)
+#
+# Entrypoint commands (ci/dev targets):
+#   test     - Run test suite
+#   lint     - Run clippy
+#   check    - Run lint + test
+{% if project_type == "service" %}
+#   serve    - Start via cargo run --release
+#   dev      - Start with cargo-watch (hot reload)
+{% elif project_type == "library" %}
+#   build    - Compile the library
+#   bench    - Run benchmarks
+{% endif %}
+#   shell    - Interactive shell
+#
+# Usage:
+#   docker build --target ci   -t {{ app_name }}:ci .
+#   docker build --target dev  -t {{ app_name }}:dev .
+#   docker build --target prod -t {{ app_name }}:prod .
+#   docker run {{ app_name }}:ci test
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# chef: Prepare recipe for caching dependencies
+# ---------------------------------------------------------------------------
+FROM rust:{{ rust_version }}-slim AS chef
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo install cargo-chef
+WORKDIR /src
+
+# ---------------------------------------------------------------------------
+# planner: Compute the dependency recipe
+# ---------------------------------------------------------------------------
+FROM chef AS planner
+
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+# ---------------------------------------------------------------------------
+# build: Compile the binary with cached dependencies
+# ---------------------------------------------------------------------------
+FROM chef AS build
+
+COPY --from=planner /src/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+
+COPY . .
+RUN cargo build --release && \
+    cp target/release/{{ app_name }} /bin/{{ app_name }}
+
+# ---------------------------------------------------------------------------
+# ci: Testing and CI
+# ---------------------------------------------------------------------------
+FROM rust:{{ rust_version }}-slim AS ci
+
+WORKDIR /src
+
+COPY Cargo.toml Cargo.lock ./
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    mkdir src && echo "fn main() {}" > src/main.rs && \
+    cargo fetch && \
+    rm -rf src
+
+COPY . .
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["test"]
+
+# ---------------------------------------------------------------------------
+# dev: Development container
+# ---------------------------------------------------------------------------
+FROM ci AS dev
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo install cargo-watch
+
+EXPOSE {{ port }}
+
+{% if project_type == "service" %}
+CMD ["dev"]
+{% else %}
+CMD ["shell"]
+{% endif %}
+
+# ---------------------------------------------------------------------------
+# prod: Production image (scratch — minimal attack surface)
+# ---------------------------------------------------------------------------
+FROM scratch AS prod
+
+COPY --from=build /etc/passwd /etc/passwd
+COPY --from=build /etc/group /etc/group
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=build /bin/{{ app_name }} /{{ app_name }}
+
+USER nobody
+EXPOSE {{ port }}
+
+ENTRYPOINT ["/{{ app_name }}"]

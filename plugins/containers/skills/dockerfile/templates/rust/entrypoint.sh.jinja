@@ -1,0 +1,42 @@
+#!/bin/sh
+set -e
+
+case "${1}" in
+  test)
+    shift
+    exec cargo test "$@"
+    ;;
+  lint)
+    shift
+    exec cargo clippy -- -D warnings "$@"
+    ;;
+  check)
+    shift
+    "$0" lint && "$0" test
+    ;;
+{% if project_type == "service" %}
+  serve)
+    shift
+    exec cargo run --release "$@"
+    ;;
+  dev)
+    shift
+    exec cargo watch -x run "$@"
+    ;;
+{% elif project_type == "library" %}
+  build)
+    shift
+    exec cargo build --release "$@"
+    ;;
+  bench)
+    shift
+    exec cargo bench "$@"
+    ;;
+{% endif %}
+  shell)
+    exec /bin/sh
+    ;;
+  *)
+    exec "$@"
+    ;;
+esac

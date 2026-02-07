@@ -1,0 +1,102 @@
+# syntax=docker/dockerfile:1
+
+# ============================================================================
+# Multi-target Dockerfile for {{ app_name }}
+#
+# Targets:
+#   build    - Compile the Go binary
+#   ci       - CI/testing environment (GitHub Actions: target: ci)
+#   dev      - Development container (devcontainer: target: dev)
+#   prod     - Production image (deploy artifact)
+#
+# Entrypoint commands (ci/dev targets):
+#   test     - Run test suite
+#   lint     - Run go vet
+#   check    - Run lint + test
+{% if project_type == "service" %}
+#   serve    - Start via go run
+#   dev      - Start with air (hot reload)
+{% elif project_type == "library" %}
+#   build    - Compile the library
+#   bench    - Run benchmarks
+{% endif %}
+#   shell    - Interactive shell
+#
+# Usage:
+#   docker build --target ci   -t {{ app_name }}:ci .
+#   docker build --target dev  -t {{ app_name }}:dev .
+#   docker build --target prod -t {{ app_name }}:prod .
+#   docker run {{ app_name }}:ci test
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# build: Compile the binary
+# ---------------------------------------------------------------------------
+FROM golang:{{ go_version }} AS build
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+COPY . .
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -ldflags="-s -w" -o /bin/{{ app_name }} .
+
+# ---------------------------------------------------------------------------
+# ci: Testing and CI
+# ---------------------------------------------------------------------------
+FROM golang:{{ go_version }} AS ci
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+COPY . .
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["test"]
+
+# ---------------------------------------------------------------------------
+# dev: Development container
+# ---------------------------------------------------------------------------
+FROM ci AS dev
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go install github.com/air-verse/air@latest
+
+EXPOSE {{ port }}
+
+{% if project_type == "service" %}
+CMD ["dev"]
+{% else %}
+CMD ["shell"]
+{% endif %}
+
+# ---------------------------------------------------------------------------
+# prod: Production image (scratch — minimal attack surface)
+# ---------------------------------------------------------------------------
+FROM scratch AS prod
+
+COPY --from=build /etc/passwd /etc/passwd
+COPY --from=build /etc/group /etc/group
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=build /bin/{{ app_name }} /{{ app_name }}
+
+USER nobody
+EXPOSE {{ port }}
+
+ENTRYPOINT ["/{{ app_name }}"]

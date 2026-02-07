@@ -1,0 +1,49 @@
+#!/bin/sh
+set -e
+
+# Delegates to package.json scripts.
+# Ensure your package.json defines: test, lint{% if project_type == "service" %}, serve, dev{% elif project_type == "library" %}, build{% endif %}
+
+{% if package_manager == "pnpm" %}
+RUN="{{ "pnpm" }}"
+{% elif package_manager == "yarn" %}
+RUN="{{ "yarn" }}"
+{% else %}
+RUN="{{ "npm run" }}"
+{% endif %}
+
+case "${1}" in
+  test)
+    shift
+    exec ${RUN} test "$@"
+    ;;
+  lint)
+    shift
+    exec ${RUN} lint "$@"
+    ;;
+  check)
+    shift
+    "$0" lint && "$0" test
+    ;;
+{% if project_type == "service" %}
+  serve)
+    shift
+    exec ${RUN} serve "$@"
+    ;;
+  dev)
+    shift
+    exec ${RUN} dev "$@"
+    ;;
+{% elif project_type == "library" %}
+  build)
+    shift
+    exec ${RUN} build "$@"
+    ;;
+{% endif %}
+  shell)
+    exec /bin/sh
+    ;;
+  *)
+    exec "$@"
+    ;;
+esac

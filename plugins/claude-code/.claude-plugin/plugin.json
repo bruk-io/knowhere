@@ -1,0 +1,8 @@
+{
+  "name": "claude-code",
+  "version": "0.1.0",
+  "description": "Claude Code configuration scaffolding and best practices",
+  "author": {
+    "name": "bruk-io"
+  }
+}

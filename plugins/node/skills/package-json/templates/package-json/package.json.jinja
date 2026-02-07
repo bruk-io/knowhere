@@ -1,0 +1,49 @@
+{
+  "name": "{{ project_name }}",
+  "version": "0.1.0",
+{% if description %}
+  "description": "{{ description }}",
+{% endif %}
+{% if author_name %}
+  "author": "{{ author_name }}",
+{% endif %}
+  "license": "{{ license }}",
+{% if project_type == "library" %}
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+{% else %}
+  "type": "module",
+{% endif %}
+  "engines": {
+    "node": ">={{ node_version }}"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+{% if package_manager == "pnpm" %}
+    "check": "pnpm lint && pnpm test",
+{% elif package_manager == "yarn" %}
+    "check": "yarn lint && yarn test",
+{% else %}
+    "check": "npm run lint && npm run test",
+{% endif %}
+{% if project_type == "service" %}
+    "serve": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+{% elif project_type == "library" %}
+    "build": "tsc",
+{% endif %}
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+{% if project_type == "service" %}
+    "tsx": "^4.0.0",
+{% endif %}
+    "@types/node": "^{{ node_version }}.0.0"
+  }
+}

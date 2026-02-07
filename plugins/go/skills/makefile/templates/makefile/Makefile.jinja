@@ -1,0 +1,61 @@
+# Standard project interface for {{ app_name }}
+#
+# Core:    make test | make lint | make check
+{% if project_type == "service" %}
+# Service: make serve | make dev
+{% elif project_type == "library" %}
+# Library: make build | make bench
+{% endif %}
+
+APP_NAME := {{ app_name }}
+{% if project_type == "service" %}
+PORT := {{ port }}
+{% endif %}
+
+## Core
+
+.PHONY: test
+test: ## Run tests
+	go test -v -race ./...
+
+.PHONY: lint
+lint: ## Run linter
+	go vet ./...
+
+.PHONY: check
+check: lint test ## Run lint + test
+
+{% if project_type == "service" %}
+## Service
+
+.PHONY: build
+build: ## Build the binary
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/$(APP_NAME) .
+
+.PHONY: serve
+serve: build ## Start in production mode
+	./bin/$(APP_NAME)
+
+.PHONY: dev
+dev: ## Start with hot reload (requires air)
+	air
+
+{% elif project_type == "library" %}
+## Library
+
+.PHONY: build
+build: ## Compile the library
+	go build ./...
+
+.PHONY: bench
+bench: ## Run benchmarks
+	go test -bench=. -benchmem ./...
+
+{% endif %}
+## Helpers
+
+.PHONY: help
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+
+.DEFAULT_GOAL := help

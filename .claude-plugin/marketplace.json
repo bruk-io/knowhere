@@ -8,6 +8,33 @@
   },
   "plugins": [
     {
+      "name": "claude-code",
+      "description": "Claude Code configuration scaffolding and CLAUDE.md generation",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "development",
+      "source": "./plugins/claude-code"
+    },
+    {
+      "name": "containers",
+      "description": "Dockerfile generation, review, and container best practices for Python, Node.js, Go, and Rust",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "deployment",
+      "source": "./plugins/containers"
+    },
+    {
+      "name": "go",
+      "description": "Go project scaffolding with Makefile generation following the standard project interface",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "development",
+      "source": "./plugins/go"
+    },
+    {
       "name": "i-have-issues",
       "description": "GitHub Issues management with MCP tools and a project manager agent for issue workflow guidance",
       "author": {
@@ -28,6 +55,33 @@
       },
       "category": "development",
       "source": "./plugins/knowhere-publisher"
+    },
+    {
+      "name": "node",
+      "description": "Node.js/TypeScript project scaffolding with package.json generation following the standard project interface",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "development",
+      "source": "./plugins/node"
+    },
+    {
+      "name": "python",
+      "description": "Python project scaffolding with pyproject.toml generation for UV, Ruff, and Hatchling",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "development",
+      "source": "./plugins/python"
+    },
+    {
+      "name": "rust",
+      "description": "Rust project scaffolding with Makefile generation following the standard project interface",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "development",
+      "source": "./plugins/rust"
     }
   ]
 }

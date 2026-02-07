@@ -1,0 +1,27 @@
+_min_copier_version: "9.0.0"
+_answers_file: .copier-answers.yml
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+
+app_name:
+  type: str
+  help: Application name (used for labels and binary name)
+
+rust_version:
+  type: str
+  default: "1.84"
+  help: Rust version to use
+
+port:
+  type: int
+  default: 8080
+  help: Port the application listens on
+
+project_type:
+  type: str
+  default: service
+  help: Project type determines available entrypoint commands
+  choices:
+    "Service (API, web app, worker)": service
+    "Library (package, SDK, CLI tool)": library

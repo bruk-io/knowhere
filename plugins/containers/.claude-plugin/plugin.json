@@ -1,0 +1,8 @@
+{
+  "name": "containers",
+  "version": "0.1.0",
+  "description": "Dockerfile generation, review, and container best practices for Python, Node.js, Go, and Rust",
+  "author": {
+    "name": "bruk-io"
+  }
+}

@@ -1,0 +1,41 @@
+_min_copier_version: "9.0.0"
+_answers_file: .copier-answers.yml
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+
+app_name:
+  type: str
+  help: Application name (used for labels and binary name)
+
+node_version:
+  type: str
+  default: "22"
+  help: Node.js major version to use
+
+port:
+  type: int
+  default: 3000
+  help: Port the application listens on
+
+package_manager:
+  type: str
+  default: npm
+  help: Package manager
+  choices:
+    - npm
+    - pnpm
+    - yarn
+
+project_type:
+  type: str
+  default: service
+  help: Project type determines available entrypoint commands
+  choices:
+    "Service (API, web app, worker)": service
+    "Library (package, SDK, CLI tool)": library
+
+has_build_step:
+  type: bool
+  default: true
+  help: Project has a build step (npm run build / pnpm build / yarn build)
