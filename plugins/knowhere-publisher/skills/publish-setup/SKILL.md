@@ -35,15 +35,7 @@ Use AskUserQuestion to ask:
 - **Inline** — The plugin source is copied into the marketplace repo. Best for small plugins that live inside knowhere itself.
 
 **Category** — What category best describes this plugin?
-- database
-- deployment
-- design
-- development
-- learning
-- monitoring
-- productivity
-- security
-- testing
+Available categories: !`yq '.plugin_category.choices[]' ${CLAUDE_PLUGIN_ROOT}/templates/publish-to-knowhere/copier.yml`
 
 ### 5. Generate the workflow file with copier
 
