@@ -8,9 +8,24 @@
   },
   "plugins": [
     {
+      "name": "i-have-issues",
+      "description": "GitHub Issues management with MCP tools and a project manager agent for issue workflow guidance",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "productivity",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/bruk-io/i-have-issues.git"
+      },
+      "homepage": "https://github.com/bruk-io/i-have-issues"
+    },
+    {
       "name": "knowhere-publisher",
       "description": "Set up a repo to publish plugins to the bruk-io/knowhere marketplace",
-      "author": {"name": "bruk-io"},
+      "author": {
+        "name": "bruk-io"
+      },
       "category": "development",
       "source": "./plugins/knowhere-publisher"
     }

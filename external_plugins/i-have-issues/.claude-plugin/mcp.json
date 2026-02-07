@@ -1,0 +1,1 @@
+{"mcpServers":{"i-have-issues":{"command":"uvx","args":["--from","i-have-issues","python","-m","i_have_issues.presentation.mcp.server"],"type":"stdio"}}}
