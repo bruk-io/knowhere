@@ -1,0 +1,59 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.14"
+# dependencies = [
+#   "textual",
+# ]
+# ///
+
+"""{{ app_title }} — a Textual terminal application."""
+
+from textual.app import App, ComposeResult
+{% if include_header %}
+from textual.widgets import Header
+{% endif %}
+{% if include_footer %}
+from textual.widgets import Footer
+{% endif %}
+{% if include_example_screen %}
+from screens import ExampleScreen
+{% endif %}
+
+
+class {{ app_class }}(App):
+    """A Textual app."""
+
+    CSS_PATH = "{{ app_name }}.tcss"
+    TITLE = "{{ app_title }}"
+
+    BINDINGS = [
+        ("d", "toggle_dark", "Toggle dark mode"),
+{% if include_example_screen %}
+        ("e", "push_screen('example')", "Example screen"),
+{% endif %}
+        ("q", "quit", "Quit"),
+    ]
+
+{% if include_example_screen %}
+    SCREENS = {"example": ExampleScreen}
+
+{% endif %}
+    def compose(self) -> ComposeResult:
+{% if include_header %}
+        yield Header()
+{% endif %}
+{% if include_footer %}
+        yield Footer()
+{% endif %}
+{% if not include_header and not include_footer %}
+        pass
+{% endif %}
+
+    def action_toggle_dark(self) -> None:
+        self.theme = (
+            "textual-dark" if self.theme == "textual-light" else "textual-light"
+        )
+
+
+if __name__ == "__main__":
+    {{ app_class }}().run()

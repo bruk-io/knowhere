@@ -1,0 +1,8 @@
+{
+  "name": "textual",
+  "version": "0.1.0",
+  "description": "Textual TUI framework scaffolding and development reference",
+  "author": {
+    "name": "bruk-io"
+  }
+}
