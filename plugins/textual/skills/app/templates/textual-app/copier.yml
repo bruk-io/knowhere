@@ -1,0 +1,36 @@
+_min_copier_version: "9.0.0"
+_answers_file: .copier-answers.yml
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+_templates_suffix: .jinja
+
+app_name:
+  type: str
+  help: Name for the app file (without .py extension)
+  default: "app"
+
+app_class:
+  type: str
+  help: App subclass name
+  default: "MyApp"
+
+app_title:
+  type: str
+  help: Display title shown in the header
+  default: "My Textual App"
+
+include_header:
+  type: bool
+  help: Include Header widget
+  default: true
+
+include_footer:
+  type: bool
+  help: Include Footer widget
+  default: true
+
+include_example_screen:
+  type: bool
+  help: Include an example Screen subclass
+  default: false

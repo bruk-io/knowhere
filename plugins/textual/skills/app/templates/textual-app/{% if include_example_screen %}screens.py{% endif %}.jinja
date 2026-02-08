@@ -1,0 +1,17 @@
+"""Example screen for {{ app_title }}."""
+
+from textual.app import ComposeResult
+from textual.screen import Screen
+from textual.widgets import Static, Button
+
+
+class ExampleScreen(Screen):
+    """An example screen."""
+
+    def compose(self) -> ComposeResult:
+        yield Static("This is an example screen. Press 'Back' to return.")
+        yield Button("Back", id="back")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.dismiss()

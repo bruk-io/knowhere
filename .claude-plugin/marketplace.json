@@ -82,6 +82,15 @@
       },
       "category": "development",
       "source": "./plugins/rust"
+    },
+    {
+      "name": "textual",
+      "description": "Textual TUI framework scaffolding and development reference for building terminal user interfaces",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "development",
+      "source": "./plugins/textual"
     }
   ]
 }
