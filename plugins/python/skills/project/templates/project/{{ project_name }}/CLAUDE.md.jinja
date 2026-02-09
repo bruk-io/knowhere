@@ -1,0 +1,138 @@
+# {{ project_name }} Development Guide
+
+## Architecture
+
+Three-layer clean architecture: `presentation -> domain <- infrastructure`
+
+- **`{{ package_name }}/domain/`** — Pure business logic. Types (TypedDict), operations (pure functions).
+- **`{{ package_name }}/infrastructure/`** — External system wrappers. Returns data to domain layer.
+- **`{{ package_name }}/presentation/`** — User interfaces.
+  - `cli/` — Click CLI commands.
+{% if mcp_enabled %}
+  - `mcp/` — FastMCP server and tools.
+{% endif %}
+{% if has_tui %}
+  - `tui/` — Textual TUI application.
+{% endif %}
+
+### Layer Rules
+
+- Domain never imports presentation
+- Presentation calls domain, never infrastructure directly
+- Infrastructure wraps external systems with consistent interfaces
+- Prefer pure functions over classes in domain layer
+- Use TypedDict for type-safe dicts (type checking at dev time, dicts at runtime)
+
+### Adding New Operations
+
+1. **Domain types** (`domain/types.py`): Add TypedDict if new data shape needed
+2. **Domain operations** (`domain/operations.py`): Add pure function with business logic
+3. **Infrastructure** (`infrastructure/client.py`): Add external system call if needed
+4. **CLI** (`presentation/cli/commands.py`): Add Click command
+{% if mcp_enabled %}
+5. **MCP tool** (`presentation/mcp/tools.py`): Add async tool with `Annotated` params
+6. **Register** (`presentation/mcp/server.py`): `mcp.tool()(new_tool)`
+{% endif %}
+{{ "7" if mcp_enabled else "5" }}. **Tests** (`tests/`): Add unit tests for domain operations
+
+## Standard Project Interface
+
+This project implements the **standard entrypoint interface** — a set of conventional commands that work the same locally and in Docker containers (via the containers plugin).
+
+| Command | Local | Docker |
+|---------|-------|--------|
+| **test** | `uv run pytest` | `docker run <img>:ci test` |
+| **lint** | `uv run ruff check .` | `docker run <img>:ci lint` |
+| **check** | lint + test | `docker run <img>:ci check` |
+{% if mcp_enabled %}
+| **serve** | `uv run python -m {{ package_name }}.presentation.mcp` | `docker run <img>:prod serve` |
+| **dev** | `uv run python -m {{ package_name }}.presentation.mcp` | `docker run <img>:dev dev` |
+{% elif project_type == 'library' %}
+| **build** | `uv build` | `docker run <img>:ci build` |
+{% endif %}
+
+## Commands
+
+```bash
+# Install dependencies
+uv sync
+
+{% if project_type != 'library' %}
+# Run CLI
+uv run {{ cli_command_name }} --help
+{% endif %}
+{% if mcp_enabled %}
+# Run MCP server
+uv run python -m {{ package_name }}.presentation.mcp
+{% endif %}
+
+# Run tests
+uv run pytest
+
+# Lint
+uv run ruff check .
+
+# Format
+uv run ruff format .
+
+# Type check
+uv run mypy {{ package_name }}/
+```
+
+### Pre-Commit Validation
+
+**MUST verify all pass before committing:**
+```bash
+uv run pytest tests/ -v
+uv run mypy {{ package_name }}/
+uv run ruff check .
+uv run ruff format --check .
+```
+
+## Testing Strategy
+
+Three test types with clear boundaries mapped to the architecture layers:
+
+### Unit Tests
+- **Scope:** Single function in `domain/operations.py` or `domain/types.py`
+- **Dependencies:** ALL mocked/stubbed — no I/O, no network, no filesystem
+- **Speed:** Milliseconds per test
+- **Pattern:** Test pure functions with edge cases (empty inputs, None, boundary values)
+- **Location:** `tests/test_operations.py`, `tests/test_<module>.py`
+
+### Integration Tests
+- **Scope:** Multiple components interacting (e.g., CLI handler → domain → mocked infrastructure)
+- **Dependencies:** External systems (APIs, DB, filesystem) are MOCKED
+- **Speed:** Seconds per test
+- **Pattern:** Test workflows across layer boundaries with test doubles
+- **Location:** `tests/test_integration_<feature>.py`
+
+### E2E Tests
+- **Scope:** Full system through public interface (CLI commands{% if mcp_enabled %}, MCP tools{% endif %})
+- **Dependencies:** Real external systems (requires setup)
+- **Speed:** Seconds to minutes
+- **Pattern:** Test critical user journeys, use unique test data, clean up after
+- **Location:** `tests/test_e2e_<feature>.py`
+
+### Test Rules
+- **NEVER cheat:** Don't comment out failing tests, don't mock away the functionality being tested
+- Test behavior, not implementation details
+- Use dependency injection for testability
+- Prefer pure functions (inherently testable)
+- Domain layer tests should never need I/O mocks
+
+## Code Standards
+
+- **Python {{ python_version }}+** required
+- **uv** for package management
+- **Type hints mandatory** on all functions
+- **Functional over OOP** — prefer pure functions in domain layer
+- **Docstrings in imperative mode**: "Create an item" not "Creates an item"
+- **ruff** for linting and formatting (line length: {{ line_length }})
+- **mypy** in strict mode
+- **pytest** for testing
+
+## Git Workflow
+
+- Use conventional commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
+- Co-author with Claude: `Co-Authored-By: Claude <model> <noreply@anthropic.com>`

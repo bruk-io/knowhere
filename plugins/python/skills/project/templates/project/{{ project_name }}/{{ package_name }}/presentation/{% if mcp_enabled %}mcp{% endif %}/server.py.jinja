@@ -1,0 +1,50 @@
+{% if is_async %}
+"""FastMCP server with async lifespan."""
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Any
+
+from fastmcp import FastMCP
+
+from {{ package_name }}.infrastructure.client import Client
+from {{ package_name }}.presentation.mcp.tools import get_status, greet
+
+
+@asynccontextmanager
+async def lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
+    """Manage client lifecycle."""
+    client = Client()
+    await client.connect()
+    try:
+        yield {"client": client}
+    finally:
+        await client.close()
+
+
+mcp = FastMCP("{{ project_name }}", lifespan=lifespan)
+
+# Register tools
+mcp.tool()(greet)
+mcp.tool()(get_status)
+
+
+if __name__ == "__main__":
+    mcp.run()
+{% else %}
+"""FastMCP server setup and tool registration."""
+
+from fastmcp import FastMCP
+
+from {{ package_name }}.presentation.mcp.tools import get_status, greet
+
+mcp = FastMCP("{{ project_name }}")
+
+# Register tools
+mcp.tool()(greet)
+mcp.tool()(get_status)
+
+
+if __name__ == "__main__":
+    mcp.run()
+{% endif %}

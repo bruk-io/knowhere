@@ -1,0 +1,64 @@
+_min_copier_version: "9.0.0"
+_answers_file: .copier-ci-answers.yml
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+_templates_suffix: .jinja
+_exclude:
+  - "_macros"
+  - "copier.yml"
+
+language:
+  type: str
+  help: Programming language for CI workflow
+  choices:
+    "Python": python
+    "Node.js": node
+    "Go": go
+    "Rust": rust
+
+project_type:
+  type: str
+  default: cli
+  help: Project type
+  choices:
+    "CLI tool": cli
+    "Service": service
+    "Library": library
+
+# Python-specific
+package_name:
+  type: str
+  help: Python package name (snake_case, for mypy target)
+  when: "{{ language == 'python' }}"
+  validator: "{% if language == 'python' and not package_name %}Required for Python projects{% endif %}"
+
+python_version:
+  type: str
+  help: Python version
+  default: "3.14"
+  when: "{{ language == 'python' }}"
+
+# Node-specific
+node_version:
+  type: str
+  help: Node.js major version
+  default: "22"
+  when: "{{ language == 'node' }}"
+
+package_manager:
+  type: str
+  help: Node.js package manager
+  default: npm
+  choices:
+    "npm": npm
+    "pnpm": pnpm
+    "yarn": yarn
+  when: "{{ language == 'node' }}"
+
+# Go-specific
+go_version:
+  type: str
+  help: Go version
+  default: "1.24"
+  when: "{{ language == 'go' }}"

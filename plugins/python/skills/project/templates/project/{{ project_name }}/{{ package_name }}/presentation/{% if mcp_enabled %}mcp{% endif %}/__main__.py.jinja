@@ -1,0 +1,6 @@
+"""MCP server entry point."""
+
+from {{ package_name }}.presentation.mcp.server import mcp
+
+if __name__ == "__main__":
+    mcp.run()

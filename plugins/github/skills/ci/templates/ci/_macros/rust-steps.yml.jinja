@@ -1,0 +1,14 @@
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build
+
+      - name: Lint
+        run: cargo clippy -- -D warnings
+
+      - name: Format check
+        run: cargo fmt --check
+
+      - name: Test
+        run: cargo test

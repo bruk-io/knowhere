@@ -1,0 +1,36 @@
+"""MCP tools — async functions with Annotated parameters."""
+
+from typing import Annotated
+
+from fastmcp import Context
+from fastmcp.exceptions import ToolError
+
+from {{ package_name }}.domain import operations
+from {{ package_name }}.domain.types import Status
+
+
+async def greet(
+    name: Annotated[str, "Name of the person to greet"],
+    ctx: Context | None = None,
+) -> str:
+    """Greet someone by name."""
+    if ctx:
+        await ctx.info(f"Greeting {name}")
+
+    try:
+        return operations.greet(name)
+    except Exception as e:
+        raise ToolError(f"Failed to greet: {e}") from e
+
+
+async def get_status(
+    ctx: Context | None = None,
+) -> Status:
+    """Get current application status."""
+    if ctx:
+        await ctx.info("Fetching status")
+
+    try:
+        return operations.get_status()
+    except Exception as e:
+        raise ToolError(f"Failed to get status: {e}") from e

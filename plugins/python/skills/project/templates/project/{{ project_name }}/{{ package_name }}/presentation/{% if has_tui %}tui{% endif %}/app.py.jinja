@@ -1,0 +1,29 @@
+"""Textual TUI application."""
+
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.widgets import Footer, Header, Static
+
+from {{ package_name }}.domain import operations
+
+
+class {{ package_name | replace('_', ' ') | title | replace(' ', '') }}App(App):
+    """{{ description }}"""
+
+    TITLE = "{{ project_name }}"
+    BINDINGS = [
+        Binding("q", "quit", "Quit"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        """Create child widgets."""
+        yield Header()
+        status = operations.get_status()
+        yield Static(f"{status['name']} v{status['version']} — {status['status']}")
+        yield Footer()
+
+
+def run() -> None:
+    """Run the TUI application."""
+    app = {{ package_name | replace('_', ' ') | title | replace(' ', '') }}App()
+    app.run()

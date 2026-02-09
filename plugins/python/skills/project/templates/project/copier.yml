@@ -1,0 +1,78 @@
+_min_copier_version: "9.0.0"
+_answers_file: .copier-answers.yml
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+_templates_suffix: .jinja
+
+project_name:
+  type: str
+  help: Project name (lowercase, hyphens for spaces)
+  validator: "{% if not project_name %}Required{% endif %}"
+
+description:
+  type: str
+  help: Short project description
+  validator: "{% if not description %}Required{% endif %}"
+
+author_name:
+  type: str
+  help: Your name
+  default: "Bruk Habtu"
+
+python_version:
+  type: str
+  help: Minimum Python version
+  default: "3.14"
+
+project_type:
+  type: str
+  default: cli
+  help: Project type determines structure and dependencies
+  choices:
+    "CLI tool": cli
+    "Service (CLI + MCP server)": service
+    "Library (package, SDK)": library
+
+has_mcp:
+  type: bool
+  help: Add MCP server layer?
+  default: false
+  when: "{{ project_type != 'service' }}"
+
+has_tui:
+  type: bool
+  help: Add Textual TUI?
+  default: false
+
+is_async:
+  type: bool
+  help: Use async infrastructure?
+  default: false
+  when: "{{ mcp_enabled }}"
+
+line_length:
+  type: int
+  help: Ruff/Black line length
+  default: 100
+
+# Computed values (hidden from prompts)
+package_name:
+  type: str
+  default: "{{ project_name | replace('-', '_') }}"
+  when: false
+
+target_version:
+  type: str
+  default: "py{{ python_version | replace('.', '') }}"
+  when: false
+
+mcp_enabled:
+  type: bool
+  default: "{{ has_mcp or project_type == 'service' }}"
+  when: false
+
+cli_command_name:
+  type: str
+  default: "{{ project_name }}"
+  when: false

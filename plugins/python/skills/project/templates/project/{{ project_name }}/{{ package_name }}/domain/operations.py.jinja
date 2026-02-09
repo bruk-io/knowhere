@@ -1,0 +1,17 @@
+"""Domain operations — pure functions, no I/O."""
+
+from {{ package_name }}.domain.types import Status
+
+
+def greet(name: str) -> str:
+    """Return a greeting message."""
+    return f"Hello, {name}!"
+
+
+def get_status() -> Status:
+    """Return current application status."""
+    return Status(
+        name="{{ project_name }}",
+        version="0.1.0",
+        status="running",
+    )

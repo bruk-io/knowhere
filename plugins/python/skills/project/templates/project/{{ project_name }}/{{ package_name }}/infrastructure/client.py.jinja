@@ -1,0 +1,41 @@
+{% if is_async %}
+"""Infrastructure client — async adapter for external systems."""
+
+import httpx
+
+
+class Client:
+    """Async client for external system access."""
+
+    def __init__(self, base_url: str = "") -> None:
+        self._base_url = base_url
+        self._client: httpx.AsyncClient | None = None
+
+    async def connect(self) -> None:
+        """Initialize the HTTP client."""
+        self._client = httpx.AsyncClient(base_url=self._base_url)
+
+    async def close(self) -> None:
+        """Close the HTTP client."""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
+
+    async def get(self, path: str) -> dict:
+        """Make a GET request."""
+        if not self._client:
+            raise RuntimeError("Client not connected. Call connect() first.")
+        response = await self._client.get(path)
+        response.raise_for_status()
+        return dict(response.json())
+{% else %}
+"""Infrastructure client — adapter for external systems."""
+
+
+def get(resource: str) -> dict:
+    """Fetch a resource from the external system.
+
+    Replace this with actual infrastructure calls (HTTP, DB, CLI, etc.).
+    """
+    return {"resource": resource, "data": {}}
+{% endif %}

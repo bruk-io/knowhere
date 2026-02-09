@@ -1,0 +1,8 @@
+{
+  "name": "github",
+  "version": "0.1.0",
+  "description": "GitHub CI workflow generation for Python, Node.js, Go, and Rust",
+  "author": {
+    "name": "bruk-io"
+  }
+}

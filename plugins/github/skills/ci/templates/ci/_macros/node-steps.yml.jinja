@@ -1,0 +1,47 @@
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "{{ node_version }}"
+{% if package_manager == "pnpm" %}
+          cache: pnpm
+{% elif package_manager == "yarn" %}
+          cache: yarn
+{% else %}
+          cache: npm
+{% endif %}
+
+      - name: Install dependencies
+{% if package_manager == "pnpm" %}
+        run: pnpm install --frozen-lockfile
+{% elif package_manager == "yarn" %}
+        run: yarn install --frozen-lockfile
+{% else %}
+        run: npm ci
+{% endif %}
+
+      - name: Lint
+{% if package_manager == "pnpm" %}
+        run: pnpm run lint
+{% elif package_manager == "yarn" %}
+        run: yarn lint
+{% else %}
+        run: npm run lint
+{% endif %}
+
+      - name: Type check
+{% if package_manager == "pnpm" %}
+        run: pnpm run typecheck
+{% elif package_manager == "yarn" %}
+        run: yarn typecheck
+{% else %}
+        run: npm run typecheck
+{% endif %}
+
+      - name: Test
+{% if package_manager == "pnpm" %}
+        run: pnpm run test
+{% elif package_manager == "yarn" %}
+        run: yarn test
+{% else %}
+        run: npm run test
+{% endif %}

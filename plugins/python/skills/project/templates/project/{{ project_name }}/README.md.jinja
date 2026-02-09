@@ -1,0 +1,41 @@
+# {{ project_name }}
+
+{{ description }}
+
+## Setup
+
+```bash
+uv sync
+```
+
+## Usage
+
+{% if project_type != 'library' %}
+```bash
+uv run {{ cli_command_name }} --help
+```
+{% endif %}
+{% if mcp_enabled %}
+
+### MCP Server
+
+```bash
+uv run serve
+```
+{% endif %}
+{% if has_tui %}
+
+### TUI
+
+```bash
+uv run {{ cli_command_name }} tui
+```
+{% endif %}
+
+## Development
+
+```bash
+uv run test    # Run tests
+uv run lint    # Run linter
+uv run check   # Run lint + tests
+```

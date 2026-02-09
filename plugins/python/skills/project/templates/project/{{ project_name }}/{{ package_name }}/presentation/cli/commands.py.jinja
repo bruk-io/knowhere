@@ -1,0 +1,37 @@
+"""Click CLI commands."""
+
+import json
+
+import click
+
+from {{ package_name }}.domain import operations
+
+
+@click.group()
+def cli() -> None:
+    """{{ description }}"""
+    pass
+
+
+@cli.command()
+@click.argument("name", default="world")
+def greet(name: str) -> None:
+    """Greet someone."""
+    click.echo(operations.greet(name))
+
+
+@cli.command()
+def status() -> None:
+    """Show application status."""
+    result = operations.get_status()
+    click.echo(json.dumps(result, indent=2))
+{% if has_tui %}
+
+
+@cli.command()
+def tui() -> None:
+    """Launch the TUI."""
+    from {{ package_name }}.presentation.tui.app import run
+
+    run()
+{% endif %}
