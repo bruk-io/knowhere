@@ -1,0 +1,21 @@
+{
+  "name": "lib-eval",
+  "version": "2.0.0",
+  "description": "Evaluate library health, security, licenses, dependencies, and find alternatives across npm, PyPI, crates.io, Maven, RubyGems, and NuGet",
+  "author": {
+    "name": "bruk-io"
+  },
+  "keywords": [
+    "library",
+    "evaluation",
+    "security",
+    "dependencies",
+    "license",
+    "npm",
+    "pypi",
+    "cargo",
+    "maven",
+    "rubygems",
+    "nuget"
+  ]
+}
