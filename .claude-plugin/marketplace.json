@@ -93,6 +93,19 @@
       "source": "./plugins/obsidian-plugin-dev"
     },
     {
+      "name": "pluto",
+      "description": "Homelab infrastructure management for the pluto k3s cluster. Add services, repos, and manage external access.",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "deployment",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/bruk-io/pluto.git"
+      },
+      "homepage": "https://github.com/bruk-io/pluto"
+    },
+    {
       "name": "python",
       "description": "Python project scaffolding with pyproject.toml generation for UV, Ruff, and Hatchling",
       "author": {
