@@ -1,0 +1,8 @@
+[project]
+name = "knowhere-docs"
+version = "0.0.0"
+description = "Documentation for knowhere"
+requires-python = ">=3.14"
+dependencies = [
+    "mkdocs-material>=9.6",
+]

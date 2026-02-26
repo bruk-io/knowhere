@@ -1,0 +1,14 @@
+[project]
+name = "{{ project_name }}-docs"
+version = "0.0.0"
+description = "Documentation for {{ project_name }}"
+requires-python = ">={{ python_version }}"
+dependencies = [
+    "mkdocs-material>=9.6",
+{% if enable_blog %}
+    "mkdocs-material[imaging]",
+{% endif %}
+{% if enable_api_docs %}
+    "mkdocstrings[python]>=0.29",
+{% endif %}
+]

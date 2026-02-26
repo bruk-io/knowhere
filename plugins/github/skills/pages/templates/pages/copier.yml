@@ -1,0 +1,39 @@
+_min_copier_version: "9.0.0"
+_answers_file: .copier-pages-answers.yml
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+_templates_suffix: .jinja
+_exclude:
+  - "_macros"
+  - "copier.yml"
+
+framework:
+  type: str
+  help: Documentation framework or static site generator
+  choices:
+    "MkDocs (Material)": mkdocs
+    "Static HTML": static
+  default: mkdocs
+
+build_command:
+  type: str
+  help: Command to build the site (output must go to build_output_dir)
+  when: "{{ framework == 'static' }}"
+  default: ""
+
+build_output_dir:
+  type: str
+  help: Directory containing built site files
+  default: "site"
+
+deploy_branch:
+  type: str
+  help: Branch that triggers deployment
+  default: "main"
+
+python_version:
+  type: str
+  help: Python version (for MkDocs builds)
+  default: "3.14"
+  when: "{{ framework == 'mkdocs' }}"

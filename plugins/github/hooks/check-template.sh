@@ -10,3 +10,9 @@ if [[ "$filename" == "ci.yml" || "$filename" == "ci.yaml" ]] && [[ ! -f "$file_p
 {"hookSpecificOutput":{"permissionDecision":"deny"},"systemMessage":"Do not create CI workflow files from scratch. Use the copier template from the github plugin instead. See the ci skill for the full copier command and all available options (language, project_type, package_name, etc)."}
 EOF
 fi
+
+if [[ "$filename" == "pages.yml" || "$filename" == "pages.yaml" ]] && [[ ! -f "$file_path" ]]; then
+  cat <<'EOF'
+{"hookSpecificOutput":{"permissionDecision":"deny"},"systemMessage":"Do not create GitHub Pages workflow files from scratch. Use the copier template from the github plugin instead. See the pages skill for the full copier command and all available options (framework, build_output_dir, deploy_branch, etc)."}
+EOF
+fi

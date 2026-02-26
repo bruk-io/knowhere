@@ -1,0 +1,15 @@
+# Build output
+main.js
+
+# npm
+node_modules
+
+# IDE
+.idea
+.vscode
+
+# Copier
+.copier-answers.yml
+
+# OS
+.DS_Store

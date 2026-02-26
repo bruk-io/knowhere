@@ -1,0 +1,35 @@
+import { Plugin, Notice } from "obsidian";
+
+interface {{ plugin_name | replace(" ", "") }}Settings {
+	mySetting: string;
+}
+
+const DEFAULT_SETTINGS: {{ plugin_name | replace(" ", "") }}Settings = {
+	mySetting: "default",
+};
+
+export default class {{ plugin_name | replace(" ", "") }}Plugin extends Plugin {
+	settings: {{ plugin_name | replace(" ", "") }}Settings;
+
+	async onload() {
+		await this.loadSettings();
+
+		this.addCommand({
+			id: "my-command",
+			name: "My command",
+			callback: () => {
+				new Notice("Hello from {{ plugin_name }}!");
+			},
+		});
+	}
+
+	onunload() {}
+
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
+	}
+}

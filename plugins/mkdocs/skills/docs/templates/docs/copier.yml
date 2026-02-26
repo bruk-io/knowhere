@@ -1,0 +1,54 @@
+_min_copier_version: "9.0.0"
+_answers_file: .copier-docs-answers.yml
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+_templates_suffix: .jinja
+
+project_name:
+  type: str
+  help: Project name (used in site title)
+
+description:
+  type: str
+  help: Short project description (used in site description)
+  default: ""
+
+repo_url:
+  type: str
+  help: GitHub repository URL (for edit links)
+  default: ""
+
+author:
+  type: str
+  help: Author name
+  default: "Bruk Habtu"
+
+nav_style:
+  type: str
+  help: Navigation style
+  choices:
+    "Tabs (top-level sections as tabs)": tabs
+    "Sections (expandable sidebar)": sections
+  default: tabs
+
+python_version:
+  type: str
+  help: Python version for docs dependencies
+  default: "3.14"
+
+enable_blog:
+  type: bool
+  help: Enable blog plugin
+  default: false
+
+enable_api_docs:
+  type: bool
+  help: Enable API reference (mkdocstrings)
+  default: false
+
+package_name:
+  type: str
+  help: Python package name for API docs (snake_case)
+  when: "{{ enable_api_docs }}"
+  default: ""

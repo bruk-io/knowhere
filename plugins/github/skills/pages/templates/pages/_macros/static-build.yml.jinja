@@ -1,0 +1,4 @@
+{% if build_command %}
+      - name: Build site
+        run: {{ build_command }}
+{% endif %}

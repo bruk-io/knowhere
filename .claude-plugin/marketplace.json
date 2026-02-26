@@ -26,6 +26,15 @@
       "source": "./plugins/containers"
     },
     {
+      "name": "github",
+      "description": "GitHub CI and Pages deployment workflow generation for Python, Node.js, Go, and Rust",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "deployment",
+      "source": "./plugins/github"
+    },
+    {
       "name": "go",
       "description": "Go project scaffolding with Makefile generation following the standard project interface",
       "author": {
@@ -57,6 +66,15 @@
       "source": "./plugins/knowhere-publisher"
     },
     {
+      "name": "mkdocs",
+      "description": "MkDocs Material documentation scaffolding with theme configuration, API docs, and blog support for Python projects",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "development",
+      "source": "./plugins/mkdocs"
+    },
+    {
       "name": "node",
       "description": "Node.js/TypeScript project scaffolding with package.json generation following the standard project interface",
       "author": {
@@ -64,6 +82,15 @@
       },
       "category": "development",
       "source": "./plugins/node"
+    },
+    {
+      "name": "obsidian-plugin-dev",
+      "description": "Obsidian plugin development scaffolding, API reference, and publishing guidance with TypeScript and esbuild",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "development",
+      "source": "./plugins/obsidian-plugin-dev"
     },
     {
       "name": "pluto",
