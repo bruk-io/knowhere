@@ -1,0 +1,8 @@
+{
+  "name": "likec4",
+  "version": "0.1.0",
+  "description": "C4 architecture modeling with Simon Brown's methodology and LikeC4 DSL. Includes C4 methodology rules, LikeC4 syntax knowledge, codebase-to-C4 generation, model review, and MCP integration.",
+  "author": {
+    "name": "bruk-io"
+  }
+}

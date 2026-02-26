@@ -1,0 +1,275 @@
+// =============================================================
+// Example: Complete LikeC4 project for an e-commerce platform
+// Shows specification, model, views, deployment, and dynamic views
+// =============================================================
+
+// --- specification.likec4 ---
+
+specification {
+  element actor {
+    style { shape person }
+  }
+  element system
+  element container
+  element component
+  element database {
+    style {
+      shape storage
+      color amber
+    }
+  }
+  element queue {
+    style {
+      shape queue
+      color indigo
+    }
+  }
+
+  relationship async {
+    style { line dashed }
+  }
+  relationship subscribes {
+    style { line dotted }
+  }
+
+  tag deprecated {
+    color gray
+  }
+  tag next {
+    color green
+  }
+}
+
+// --- models/ecommerce/context.likec4 ---
+
+model {
+  actor customer = actor 'Customer' {
+    description 'A person who buys products from the platform'
+  }
+
+  actor admin = actor 'Admin' {
+    description 'Internal staff managing products and orders'
+  }
+
+  system ecommerce = system 'E-Commerce Platform' {
+    description 'Allows customers to browse and purchase products'
+  }
+
+  system paymentGateway = system 'Payment Gateway' {
+    description 'Processes credit card payments'
+    style { color muted }
+  }
+
+  system emailProvider = system 'Email Provider' {
+    description 'Sends transactional emails'
+    style { color muted }
+  }
+
+  customer -> ecommerce 'Browses products and places orders'
+  admin -> ecommerce 'Manages products, views orders'
+  ecommerce -> paymentGateway 'Processes payments through'
+  ecommerce -> emailProvider 'Sends order confirmations via'
+}
+
+// --- models/ecommerce/containers/web-app/container.likec4 ---
+
+model {
+  ecommerce {
+    container webApp = container 'Web Application' {
+      description 'Customer-facing storefront'
+      technology 'React, TypeScript'
+      icon tech:react
+      style { shape browser }
+    }
+
+    container api = container 'API Gateway' {
+      description 'REST API serving the web and mobile clients'
+      technology 'Node.js, Express'
+      icon tech:nodejs
+    }
+
+    container orderService = container 'Order Service' {
+      description 'Handles order lifecycle'
+      technology 'Python, FastAPI'
+      icon tech:python
+    }
+
+    container productDb = database 'Product Database' {
+      technology 'PostgreSQL'
+      icon tech:postgresql
+    }
+
+    container orderDb = database 'Order Database' {
+      technology 'PostgreSQL'
+      icon tech:postgresql
+    }
+
+    container eventBus = queue 'Event Bus' {
+      technology 'Apache Kafka'
+      icon tech:kafka
+    }
+
+    // Container relationships
+    webApp -> api 'Makes API calls using JSON/HTTPS'
+    api -> orderService 'Routes order requests using gRPC'
+    api -> productDb 'Reads product catalog using SQL'
+    orderService -> orderDb 'Reads/writes orders using SQL'
+    orderService -[async]-> eventBus 'Publishes order events to'
+  }
+
+  // Cross-boundary relationships
+  customer -> ecommerce.webApp 'Browses and purchases using HTTPS'
+  admin -> ecommerce.api 'Manages products using REST API'
+  ecommerce.orderService -> paymentGateway 'Charges cards using Payment API'
+  ecommerce.orderService -> emailProvider 'Sends confirmations using SMTP'
+}
+
+// --- models/ecommerce/containers/api/components/auth.likec4 ---
+
+model {
+  ecommerce.api {
+    component authController = component 'Auth Controller' {
+      description 'Handles authentication and authorization'
+      technology 'JWT, OAuth2'
+    }
+    component productController = component 'Product Controller' {
+      description 'Product CRUD operations'
+    }
+    component orderRouter = component 'Order Router' {
+      description 'Routes order requests to Order Service'
+      technology 'gRPC Client'
+    }
+    component middleware = component 'Middleware' {
+      description 'Request validation, rate limiting, logging'
+    }
+
+    middleware -> authController 'Validates tokens with'
+    middleware -> productController 'Routes product requests to'
+    middleware -> orderRouter 'Routes order requests to'
+  }
+
+  ecommerce.webApp -> ecommerce.api.middleware 'Sends requests to'
+  ecommerce.api.productController -> ecommerce.productDb 'Queries using SQL'
+  ecommerce.api.orderRouter -> ecommerce.orderService 'Forwards requests using gRPC'
+}
+
+// --- views/context/ecommerce.likec4 ---
+
+views {
+  view index {
+    title 'E-Commerce Platform - System Context'
+    description 'High-level view of the platform and its environment'
+    include *
+    autoLayout TopBottom
+  }
+}
+
+// --- views/containers/ecommerce.likec4 ---
+
+views {
+  view ecommerceContainers of ecommerce {
+    title 'E-Commerce Platform - Containers'
+    include *
+    include customer, admin
+    include -> ecommerce ->
+
+    style productDb, orderDb { color amber }
+    style eventBus { color indigo }
+
+    autoLayout TopBottom
+  }
+}
+
+// --- views/components/api-components.likec4 ---
+
+views {
+  view apiComponents of ecommerce.api {
+    title 'API Gateway - Components'
+    include *
+    include ecommerce.webApp
+    include ecommerce.productDb
+    include ecommerce.orderService
+
+    autoLayout LeftRight
+  }
+}
+
+// --- views/dynamic/checkout-flow.likec4 ---
+
+views {
+  dynamic view checkoutFlow {
+    title 'Checkout Flow'
+
+    customer -> ecommerce.webApp 'Clicks checkout'
+    ecommerce.webApp -> ecommerce.api 'POST /orders'
+    ecommerce.api -> ecommerce.orderService 'CreateOrder RPC'
+
+    parallel {
+      ecommerce.orderService -> paymentGateway 'Charge card'
+      ecommerce.orderService -> ecommerce.orderDb 'Save order'
+    }
+
+    ecommerce.orderService -> ecommerce.eventBus 'Publish OrderCreated'
+    ecommerce.orderService -> emailProvider 'Send confirmation'
+    ecommerce.api <- ecommerce.orderService 'Return order ID'
+    ecommerce.webApp <- ecommerce.api 'Return confirmation'
+  }
+}
+
+// --- deployment/model.likec4 ---
+
+specification {
+  deploymentNode environment
+  deploymentNode region
+  deploymentNode k8s
+  deploymentNode vm
+}
+
+deployment {
+  environment production {
+    region usEast {
+      k8s cluster {
+        instanceOf ecommerce.webApp {
+          style { multiple true }
+        }
+        instanceOf ecommerce.api {
+          style { multiple true }
+        }
+        instanceOf ecommerce.orderService {
+          style { multiple true }
+        }
+        instanceOf ecommerce.eventBus
+      }
+      vm dbPrimary {
+        instanceOf ecommerce.productDb {
+          title 'Product DB (Primary)'
+        }
+        instanceOf ecommerce.orderDb {
+          title 'Order DB (Primary)'
+        }
+      }
+    }
+    region euWest {
+      vm dbReplica {
+        prodDb = instanceOf ecommerce.productDb {
+          title 'Product DB (Replica)'
+        }
+        orderDb = instanceOf ecommerce.orderDb {
+          title 'Order DB (Replica)'
+        }
+      }
+      euWest.dbReplica.prodDb -> usEast.dbPrimary 'Replicates from'
+      euWest.dbReplica.orderDb -> usEast.dbPrimary 'Replicates from'
+    }
+  }
+}
+
+// --- views/deployment/production.likec4 ---
+
+views {
+  deployment view prodDeployment {
+    title 'Production Deployment'
+    include production.**
+    autoLayout LeftRight
+  }
+}
