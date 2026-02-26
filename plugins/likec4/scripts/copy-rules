@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.13"
+# dependencies = []
+# ///
+
+"""Copy C4 rule files into the current project's .claude/rules/ directory."""
+
+import argparse
+import shutil
+import sys
+from pathlib import Path
+
+
+def copy_rules(source_dir: Path, target_dir: Path, force: bool = False) -> list[str]:
+    """Copy rule .md files from source to target directory.
+
+    Return list of copied file names.
+    """
+    if not source_dir.is_dir():
+        print(f"Error: source directory not found: {source_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    copied: list[str] = []
+    skipped: list[str] = []
+
+    for rule_file in sorted(source_dir.glob("*.md")):
+        target_file = target_dir / rule_file.name
+        if target_file.exists() and not force:
+            skipped.append(rule_file.name)
+            continue
+        shutil.copy2(rule_file, target_file)
+        copied.append(rule_file.name)
+
+    if copied:
+        print(f"Installed {len(copied)} rule(s) to {target_dir}/:")
+        for name in copied:
+            print(f"  + {name}")
+    if skipped:
+        print(f"Skipped {len(skipped)} existing rule(s) (use --force to overwrite):")
+        for name in skipped:
+            print(f"  - {name}")
+    if not copied and not skipped:
+        print("No rule files found in source directory.")
+
+    return copied
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Install C4 methodology rules")
+    parser.add_argument(
+        "source",
+        type=Path,
+        help="Path to the plugin's rules/ directory",
+    )
+    parser.add_argument(
+        "--target",
+        type=Path,
+        default=Path(".claude/rules"),
+        help="Target directory (default: .claude/rules)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing rule files",
+    )
+    args = parser.parse_args()
+    copy_rules(args.source, args.target, args.force)
+
+
+if __name__ == "__main__":
+    main()
