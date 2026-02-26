@@ -1,0 +1,41 @@
+_min_copier_version: "9.0.0"
+_answers_file: .copier-answers.yml
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+_templates_suffix: .jinja
+
+plugin_id:
+  type: str
+  help: Unique kebab-case plugin identifier
+  validator: "{% if not plugin_id %}Required{% endif %}"
+
+plugin_name:
+  type: str
+  help: Display name shown in Obsidian settings
+  validator: "{% if not plugin_name %}Required{% endif %}"
+
+description:
+  type: str
+  help: Short plugin description
+  default: ""
+
+author:
+  type: str
+  help: Author name
+  default: ""
+
+author_url:
+  type: str
+  help: Author URL (e.g. GitHub profile)
+  default: ""
+
+min_app_version:
+  type: str
+  help: Minimum Obsidian version required
+  default: "0.15.0"
+
+is_desktop_only:
+  type: bool
+  help: Restrict to desktop (set true if using Node/Electron APIs)
+  default: false

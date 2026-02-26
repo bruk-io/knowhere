@@ -1,0 +1,17 @@
+# {{ project_name }}
+
+{% if description %}
+{{ description }}
+{% endif %}
+
+## Overview
+
+Welcome to the {{ project_name }} documentation.
+
+## Quick Links
+
+- [Installation](getting-started/installation.md)
+- [Quick Start](getting-started/quickstart.md)
+{% if enable_api_docs %}
+- [API Reference](api/index.md)
+{% endif %}

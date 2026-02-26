@@ -1,0 +1,8 @@
+{
+  "name": "obsidian-plugin-dev",
+  "version": "0.1.0",
+  "description": "Obsidian plugin development scaffolding, API reference, and publishing guidance",
+  "author": {
+    "name": "bruk-io"
+  }
+}

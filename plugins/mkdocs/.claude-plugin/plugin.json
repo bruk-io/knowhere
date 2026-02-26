@@ -1,0 +1,8 @@
+{
+  "name": "mkdocs",
+  "version": "0.1.0",
+  "description": "MkDocs Material documentation scaffolding for Python projects",
+  "author": {
+    "name": "bruk-io"
+  }
+}
