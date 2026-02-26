@@ -1,38 +1,38 @@
 ---
 name: c4-modeler
-description: >
+description: |
   Use this agent to analyze a codebase and generate C4 architecture models in LikeC4 DSL.
   This agent should be used proactively when the user asks to "model my architecture",
   "generate C4 from code", "create architecture diagrams from codebase",
   "reverse engineer architecture", "what does my architecture look like",
   or mentions generating LikeC4 models from existing code.
 
-<example>
-Context: User wants to understand their codebase architecture
-user: "Generate a C4 model of this project"
-assistant: "I'll use the c4-modeler agent to analyze the codebase and generate C4 models."
-<commentary>
-User wants architecture extracted from code, trigger c4-modeler.
-</commentary>
-</example>
+  <example>
+  Context: User wants to understand their codebase architecture
+  user: "Generate a C4 model of this project"
+  assistant: "I'll use the c4-modeler agent to analyze the codebase and generate C4 models."
+  <commentary>
+  User wants architecture extracted from code, trigger c4-modeler.
+  </commentary>
+  </example>
 
-<example>
-Context: User is setting up architecture docs for existing project
-user: "Create architecture diagrams for this repo"
-assistant: "I'll use the c4-modeler agent to analyze the codebase structure."
-<commentary>
-Architecture diagram generation from existing code triggers c4-modeler.
-</commentary>
-</example>
+  <example>
+  Context: User is setting up architecture docs for existing project
+  user: "Create architecture diagrams for this repo"
+  assistant: "I'll use the c4-modeler agent to analyze the codebase structure."
+  <commentary>
+  Architecture diagram generation from existing code triggers c4-modeler.
+  </commentary>
+  </example>
 
-<example>
-Context: User asks about system structure
-user: "What containers and services does this project have?"
-assistant: "I'll use the c4-modeler agent to identify the system's containers."
-<commentary>
-Questions about architectural structure of existing code trigger c4-modeler.
-</commentary>
-</example>
+  <example>
+  Context: User asks about system structure
+  user: "What containers and services does this project have?"
+  assistant: "I'll use the c4-modeler agent to identify the system's containers."
+  <commentary>
+  Questions about architectural structure of existing code trigger c4-modeler.
+  </commentary>
+  </example>
 
 tools: Read, Glob, Grep, Bash, Write
 model: sonnet
