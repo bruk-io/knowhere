@@ -1,6 +1,6 @@
 ---
 name: c4-reviewer
-description: >
+description: |
   Use this agent to review LikeC4 files for C4 methodology compliance.
   This agent should be used when the user asks to "review my C4 model",
   "check my architecture diagrams", "validate C4 compliance",
@@ -9,32 +9,32 @@ description: >
   for correctness. Also trigger proactively after generating or
   significantly modifying .likec4 files.
 
-<example>
-Context: User just created or modified architecture files
-user: "Review my C4 model for issues"
-assistant: "I'll use the c4-reviewer agent to check methodology compliance."
-<commentary>
-Explicit review request triggers c4-reviewer.
-</commentary>
-</example>
+  <example>
+  Context: User just created or modified architecture files
+  user: "Review my C4 model for issues"
+  assistant: "I'll use the c4-reviewer agent to check methodology compliance."
+  <commentary>
+  Explicit review request triggers c4-reviewer.
+  </commentary>
+  </example>
 
-<example>
-Context: User has existing likec4 files
-user: "Are my architecture diagrams following C4 best practices?"
-assistant: "I'll use the c4-reviewer agent to audit your models."
-<commentary>
-Best practices question about C4 models triggers c4-reviewer.
-</commentary>
-</example>
+  <example>
+  Context: User has existing likec4 files
+  user: "Are my architecture diagrams following C4 best practices?"
+  assistant: "I'll use the c4-reviewer agent to audit your models."
+  <commentary>
+  Best practices question about C4 models triggers c4-reviewer.
+  </commentary>
+  </example>
 
-<example>
-Context: After c4-modeler generates files
-user: "Looks good, but can you check if the levels are right?"
-assistant: "I'll use the c4-reviewer agent to verify abstraction levels."
-<commentary>
-Post-generation review triggers c4-reviewer.
-</commentary>
-</example>
+  <example>
+  Context: After c4-modeler generates files
+  user: "Looks good, but can you check if the levels are right?"
+  assistant: "I'll use the c4-reviewer agent to verify abstraction levels."
+  <commentary>
+  Post-generation review triggers c4-reviewer.
+  </commentary>
+  </example>
 
 tools: Read, Glob, Grep
 model: sonnet
