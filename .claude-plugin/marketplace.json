@@ -66,6 +66,15 @@
       "source": "./plugins/knowhere-publisher"
     },
     {
+      "name": "likec4",
+      "description": "C4 architecture modeling with Simon Brown's methodology and LikeC4 DSL, including model generation, review, and MCP integration",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "design",
+      "source": "./plugins/likec4"
+    },
+    {
       "name": "mkdocs",
       "description": "MkDocs Material documentation scaffolding with theme configuration, API docs, and blog support for Python projects",
       "author": {
