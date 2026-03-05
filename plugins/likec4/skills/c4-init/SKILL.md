@@ -33,6 +33,9 @@ Scaffold a new LikeC4 project following the C4 methodology directory structure.
    │   └── <system-name>/
    │       ├── context.likec4
    │       └── containers/
+   │           └── <container-name>/
+   │               ├── container.likec4
+   │               └── components/   # only if container has complex internals
    ├── views/
    │   ├── context/
    │   ├── containers/
@@ -56,7 +59,9 @@ Scaffold a new LikeC4 project following the C4 methodology directory structure.
    - The actors the user described
    - The system itself
    - External systems mentioned
-   - Placeholder relationships between them
+   - Placeholder relationships between them, using verb phrases that describe what happens (e.g., "Views accounts and makes payments") — no technology or protocol at this level
+
+   > **Note:** Container model files (`container.likec4`) must show logical structure only — no deployment topology (no cloud providers, servers, Kubernetes, load balancers, or firewalls). Those belong in `deployment/`.
 
 7. Generate `views/context/<system-name>.likec4` with:
    - An index view showing the system context
@@ -66,3 +71,5 @@ Scaffold a new LikeC4 project following the C4 methodology directory structure.
    - Run `npx likec4 dev` to preview
    - Add containers by creating files in `models/<system-name>/containers/`
    - Install C4 rules with `/c4-install-rules`
+   - **Levels 1 and 2 (System Context and Container) are recommended for all teams.** Create them first.
+   - **Levels 3 and 4 (Component and Code) are optional** — only create them when a container's internals are complex or non-obvious. Component diagrams age rapidly as code changes, so weigh the maintenance cost carefully.

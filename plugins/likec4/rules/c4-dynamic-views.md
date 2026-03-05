@@ -7,9 +7,10 @@ globs: ["**/dynamic/**/*.likec4", "**/dynamic/**/*.c4", "**/views/dynamic/**/*.l
 You are editing a dynamic view file. Dynamic views describe runtime behavior: use cases, workflows, and interaction sequences.
 
 ## Purpose
-- Show how elements interact at runtime for a specific scenario
+- Show how elements in the static model (software systems, containers, components, or code elements) interact at runtime to implement a user story, use case, or feature
 - Tell a story with ordered steps
 - Complement static structural diagrams with behavioral context
+- The most common form of a dynamic diagram is a UML sequence diagram; LikeC4 dynamic views produce an equivalent step-ordered representation
 
 ## Key Rules
 - Each dynamic view should represent ONE scenario or use case
@@ -27,6 +28,10 @@ You are editing a dynamic view file. Dynamic views describe runtime behavior: us
 - Good: "POST /orders with cart items"
 - Bad: "Sends request"
 - Use `<-` for responses: `webApp <- api 'Returns order confirmation'`
+
+## Audience
+
+Same as the abstraction level at which the view is drawn. A dynamic view over containers has the same audience as a container diagram; a dynamic view over components has the same audience as a component diagram.
 
 ## When to Create Dynamic Views
 - Critical user journeys (checkout, registration, authentication)

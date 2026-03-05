@@ -36,31 +36,38 @@ Create Level 3 when:
 - You need to plan a significant refactoring
 
 Skip Level 3 when:
-- The container follows a well-known pattern (standard MVC, simple CRUD API)
+- The container follows a well-known pattern (standard MVC, simple CRUD API) or is trivially simple (e.g., a single-purpose microservice with one or two endpoints)
 - The container is small enough to understand by reading code
-- Only one developer works on it
 - The internal structure changes frequently (the diagram will always be stale)
+- The container is a data store (database, file system, blob store) — use ERDs or schema documentation instead
 
 ## Should I create Code diagrams (Level 4)?
 
-**Almost never manually.**
+**Almost never manually.** IDEs can generate code diagrams on demand — this on-demand availability is the primary reason manually maintained Level 4 diagrams are usually unnecessary.
 
-Create Level 4 only when:
-- Auto-generated from code (IDE tools, reverse engineering)
-- Documenting a complex domain model for onboarding
-- Planning a major rewrite of a critical component
+Prefer: auto-generated diagrams from your IDE (IntelliJ IDEA, Visual Studio, etc.)
+
+If creating manually, only do so when:
+- The component has a large, complex domain model that is difficult to understand from code alone
+- You want to document how a specific design pattern is implemented within a critical component
 
 Never create Level 4 when:
 - You're doing it "for completeness"
-- The code is the best documentation
-- The component follows standard patterns
+- The code itself is the best documentation
+- The component follows a well-understood pattern
 
 ## Multi-System Landscapes
 
 When modeling multiple systems:
-1. Create a **System Landscape** view showing all systems and their relationships
-2. Create individual **System Context** diagrams for each system you own
+1. Create a **System Landscape** view showing all systems and their relationships within the chosen scope (e.g. organisation, group, department, business function)
+2. Create individual **System Context** diagrams for each system you own — landscape and context diagrams serve different purposes and are both needed
 3. Decompose each system independently using the rules above
+
+**System Landscape vs. System Context:**
+- Landscape: broad map of ALL systems in scope — helps people understand the overall ecosystem
+- Context: focused view of ONE system and its immediate neighbours — the entry point for deeper dives
+- Audience for landscape: everyone, including senior stakeholders who want the "full picture"
+- Audience for context: everyone involved with a specific system
 
 ## Signs You've Gone Too Deep
 

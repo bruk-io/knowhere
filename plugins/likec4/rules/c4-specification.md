@@ -6,6 +6,8 @@ globs: ["**/specification.likec4", "**/specification.c4"]
 
 You are editing a specification file. This defines the element kinds, relationship kinds, tags, and colors used across the entire architecture model.
 
+**Important:** The C4 model is notation-independent — it does not prescribe any particular notation. The shapes, colors, and line styles defined here are LikeC4 conventions, not C4 mandates. Any notation is valid provided every diagram that uses it includes a key/legend explaining what the shapes, colors, and line styles mean.
+
 ## Element Kind Guidelines
 - Define element kinds that map to C4 abstractions: actor, system, container, component
 - Add specialized kinds for common patterns: database, queue, mobile, browser

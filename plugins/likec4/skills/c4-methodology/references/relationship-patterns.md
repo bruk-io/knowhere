@@ -4,17 +4,19 @@
 
 Relationships are the connective tissue of C4 diagrams. A good label answers: "What does this connection do and how?"
 
-### Pattern: Verb + Object + Technology
+### Pattern: Verb + Object [+ Technology at Container Level]
 
-| Example | Level |
-|---------|-------|
-| "Sends order events using Kafka" | Container |
-| "Reads/writes customer data using JDBC" | Container |
-| "Makes API calls using JSON/HTTPS" | Container |
-| "Delivers email notifications using SMTP" | Container |
-| "Fetches product catalog" | Component |
-| "Validates authentication tokens" | Component |
-| "Views account balances and makes payments" | Context |
+Technology is **required** at Level 2 (Container), **optional** at Level 3 (Component, since most component-to-component calls are in-process method calls), and **not required** at Level 1 (Context — describe what happens, not how).
+
+| Example | Level | Has Technology? |
+|---------|-------|-----------------|
+| "Sends order events using Kafka" | Container | Yes (required) |
+| "Reads/writes customer data using JDBC" | Container | Yes (required) |
+| "Makes API calls using JSON/HTTPS" | Container | Yes (required) |
+| "Delivers email notifications using SMTP" | Container | Yes (required) |
+| "Fetches product catalog" | Component | No (internal call) |
+| "Validates authentication tokens" | Component | No (internal call) |
+| "Views account balances and makes payments" | Context | No (omit at this level) |
 
 ### Pattern: Action Description (Context Level)
 
@@ -40,12 +42,14 @@ These labels tell you nothing:
 
 ## Relationship Direction
 
-### Rule: Follow the Dependency
+### Convention: Follow the Dependency or Data Flow
 
-The arrow points from the dependent to the dependency:
-- `Web App -> API` (web app depends on API)
-- `API -> Database` (API depends on database)
-- `User -> Web App` (user depends on web app)
+The most common convention is to point the arrow from the dependent to the dependency, following the direction of usage or data flow. The C4 model's own examples follow this pattern:
+- `Web App -> API` (web app calls the API)
+- `API -> Database` (API reads from/writes to the database)
+- `User -> Web App` (user uses the web app)
+
+The book's guidance is to use unidirectional arrows with descriptive labels — the specific direction convention is not mandated, but following the dependency/flow direction is the most widely understood approach.
 
 ### Rule: Separate Read and Write When It Matters
 
@@ -85,9 +89,17 @@ Good:
 - Can omit technology when it's internal method calls
 - Focus on purpose: "validates", "transforms", "routes"
 
+## Synchronous vs. Asynchronous
+
+At the Container and Component levels, you can optionally indicate whether an interaction is synchronous or asynchronous using line styles:
+- **Solid line** = synchronous (caller waits for response)
+- **Dashed line** = asynchronous (fire-and-forget, event-driven, message queue)
+
+This is not required, but adds useful context when a system mixes synchronous and asynchronous communication patterns — particularly at the Container level where async messaging (Kafka, SQS, RabbitMQ) is common alongside synchronous API calls.
+
 ## Common Mistakes
 
 1. **Too many relationships.** If every element connects to every other element, your architecture has coupling problems (or your diagram does).
-2. **Missing relationships.** Orphaned elements with no connections shouldn't be on the diagram.
+2. **Missing relationships.** Elements with no connections may not belong on the diagram — flag them and use judgment: include elements only when they help tell the story to the intended audience.
 3. **Inconsistent granularity.** Don't mix "Makes API calls using JSON/HTTPS" with "Uses" on the same diagram.
 4. **Showing infrastructure relationships.** Load balancers, DNS, and network routing are not C4 relationships. Those belong in deployment diagrams.

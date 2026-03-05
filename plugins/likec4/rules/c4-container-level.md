@@ -4,11 +4,12 @@ globs: ["**/container.likec4", "**/container.c4", "**/containers/**/*.likec4", "
 
 # C4 Level 2: Container Rules
 
-You are editing a Container level file. This level shows the high-level technology decisions and deployment structure within a system.
+You are editing a Container level file. This level shows the high-level technology decisions and how responsibilities are distributed across deployable units within a system.
 
 ## What Is a Container
 - A separately runnable/deployable unit
 - Something that executes code or stores data
+- Containers are isolated from one another — communication between containers crosses a process or network boundary (out-of-process call). This is why container-to-container relationships require technology/protocol labels: there is no shared in-process call.
 - Examples: web app, API server, database, message queue, mobile app, serverless function
 
 ## What Is NOT a Container
@@ -17,24 +18,65 @@ You are editing a Container level file. This level shows the high-level technolo
 - A logical grouping (use views/groups for that)
 
 ## What Belongs Here
-- All containers within the software system boundary
+- A software system boundary box enclosing all containers that belong to the system in scope
+- All containers within that boundary
 - Relationships between containers (with technology details)
-- People and external systems that interact with these containers
+- People and external systems that interact with these containers (shown outside the boundary)
+
+## What Does NOT Belong Here
+- Deployment details: cloud environments, servers, Kubernetes clusters, Docker runtime details, load balancers, firewalls, application gateways, failover topology
+- These vary across deployment environments (dev vs staging vs production) and belong in deployment diagrams
+
+## Containers vs. External Systems
+
+Not every third-party service you interact with needs to be modelled as a container. Use this rule:
+- **Your containers:** Deployable units you build and own — model them as containers inside your system boundary
+- **External systems:** Services you use but don't own (Stripe, SendGrid, Auth0, GitHub) — model them as external software systems outside the boundary
+
+An exception: if you own a managed data store (e.g., a hosted PostgreSQL database, an AWS S3 bucket holding your data) that forms an integral part of your system and you have complete control and responsibility for its contents, model it as a container (storage shape) within your system boundary — you own the data even if you don't own the infrastructure.
+
+Services you merely call but don't own — AWS SES, AWS SQS, Confluent Cloud Kafka — remain external software systems regardless of who hosts them.
 
 ## Relationship Rules at This Level
-- Include the technology/protocol in relationship labels
+
+Container relationships represent inter-process communication — the interaction crosses a process or network boundary. This is why technology labels are required: they capture meaningful architectural decisions that affect deployment, security, and performance.
+
+Container relationship labels have two components (both required):
+- **Description:** what the relationship does — "reads data from", "makes API requests to"
+- **Technology:** the primary protocol — "JSON/HTTPS", "gRPC/TLS", "JDBC", "AMQP"
+
+Combined examples:
 - Good: "Makes API calls using JSON/HTTPS"
 - Good: "Reads from and writes to using JDBC"
 - Good: "Publishes order events using Kafka"
-- Bad: "Uses" (too vague)
-- Bad: "Connects to" (says nothing)
+- Bad: "Uses" (no description, no technology)
+- Bad: "Makes API calls" (missing technology)
+- Bad: "JSON/HTTPS" (missing description)
+
+Optionally indicate interaction style: solid line = synchronous, dashed line = asynchronous.
 
 ## Technology Annotations
 - Every container SHOULD have a `technology` property
 - Use `icon tech:<name>` for visual clarity
 - Use appropriate shapes: `storage` for databases, `queue` for message queues, `browser` for web apps, `mobile` for mobile apps
 
+## Audience
+
+Software architects and engineers building or maintaining the software are the primary audience. Container diagrams are also useful for: operations and support staff who need to understand what they are running; QA engineers performing technical testing; compliance teams and architecture review boards conducting risk reviews or threat modelling; and non-technical product owners verifying which containers are affected by a planned feature.
+
+Multiple versions of a container diagram may be appropriate for different audiences.
+
+## Continuity with Level 1
+
+The people and external systems from the system context diagram must reappear on the container diagram. This is the continuity principle: each level is a more detailed version of the same story. An actor or external system that appears at Level 1 but vanishes at Level 2 breaks the hierarchical reading thread.
+
+Also maintain naming consistency: a system called "Payments Service" at Level 1 must appear with that same name at Level 2. Renaming elements between levels creates ambiguity about whether they represent the same thing.
+
+## Diagram Key
+
+Every container diagram must include a key or legend explaining shapes, colors, and line styles used. Without a key, readers cannot interpret what the visual elements mean, especially in teams where not everyone is familiar with the notation.
+
 ## Decomposition Check
 - If a container has complex internals, create a `components/` subdirectory
 - If a container is simple (e.g., a database), no further decomposition is needed
-- Aim for 5-15 containers per system. More than 15 suggests the system should be split.
+- As a rough heuristic, most systems have fewer than 15 containers. If you have significantly more, consider whether the system should be split — but treat this as a conversation starter, not a hard rule.

@@ -89,7 +89,6 @@ model {
 
   system onlineBanking = system 'Online Banking' {
     description 'Allows customers to view accounts and make payments'
-    technology 'Java, Spring Boot'
     #next
 
     container webApp = container 'Web Application' {
@@ -117,6 +116,7 @@ model {
 
     webApp -> api 'Makes API calls using JSON/HTTPS'
     api -> db 'Reads from and writes to using JDBC'
+    api -> emailSystem 'Sends confirmation emails using SMTP'
   }
 
   system emailSystem = system 'Email System' {
@@ -125,7 +125,7 @@ model {
   }
 
   customer -> onlineBanking 'Views accounts and makes payments'
-  onlineBanking -> emailSystem 'Sends notification emails using SMTP'
+  onlineBanking -> emailSystem 'Sends notification emails to'
 }
 ```
 
@@ -166,6 +166,7 @@ views {
     title 'Online Banking - Containers'
     include *
     include customer
+    include emailSystem
     style db { color amber }
     autoLayout TopBottom
   }
@@ -173,7 +174,8 @@ views {
   view bankingComponents of onlineBanking.webApp {
     title 'Web App Components'
     include *
-    exclude auth
+    include onlineBanking.api
+    autoLayout TopBottom
   }
 }
 ```
@@ -255,19 +257,13 @@ views {
     title 'Checkout Flow'
 
     customer -> webApp 'Initiates checkout'
-    webApp -> api 'Sends order details'
-
-    parallel {
-      api -> paymentService 'Processes payment'
-      api -> inventoryService 'Reserves items'
-    }
-
-    api -> webApp 'Returns confirmation'
+    webApp -> api 'Sends order details using JSON/HTTPS'
+    api -> db 'Stores order data using JDBC'
+    webApp <- api 'Returns order confirmation'
     webApp -> customer 'Displays order summary'
 
-    webApp -> api {
+    api -> emailSystem {
       title 'Sends confirmation email'
-      navigateTo emailFlow
       notes '''
         Triggers async email delivery.
         Customer receives confirmation within 5 minutes.

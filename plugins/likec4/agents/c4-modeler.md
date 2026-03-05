@@ -102,14 +102,33 @@ architecture/
 
 ## Output Quality Rules
 
-- Every relationship MUST have a descriptive label with technology when known
-- Use appropriate shapes: `storage` for databases, `queue` for message queues, `browser` for web apps
+- Every relationship MUST have a descriptive label. Include both description AND technology/protocol at Level 2 (e.g., "Makes API calls using JSON/HTTPS"); omit technology at Level 1 (context) and for internal component-to-component calls at Level 3. If protocol cannot be determined from code at Level 2, tag the relationship `#needs-review` rather than omitting technology silently.
+- Use appropriate shapes: `storage` for databases, `queue` for message queues, `browser` for web apps, `mobile` for mobile apps
 - Include `technology` property on every container
 - Use `icon tech:<name>` where applicable
 - External systems use `style { color muted }`
+- Draw a software system boundary box around all containers belonging to the system in scope
 - Create views for each level generated
 - Generate a System Context view as the `index` view
-- Only create Component diagrams for complex containers
+- Every view MUST include a diagram key or legend explaining shapes, colors, and line styles used
+- Only create Component diagrams for application containers with non-trivial internal structure — never for data store containers (databases, file systems, blob stores); use ERD or schema docs for those
+- Each component diagram is scoped to exactly one container; show the parent container boundary and include sibling/external containers that interact with it
+- In container diagrams, carry forward all people and external systems from the Level 1 context diagram — they must appear on the Level 2 diagram for continuity
+- Use consistent element names across all levels — a system called "Payments Service" at Level 1 must use the same name at Level 2 and Level 3
+- Relationship arrows should be unidirectional, pointing in the direction of dependency or data flow
+
+## Caution: Deployment Details in Container Diagrams
+
+Step 1 scans Docker, Kubernetes, and serverless configs to identify container boundaries. Do NOT import those deployment details into container diagrams. Container diagrams must say nothing about cloud environments, servers, Kubernetes clusters, load balancers, or firewalls — those belong in deployment diagrams only.
+
+## Managed Services vs. Containers
+
+Not every service found in code should be modelled as a container:
+- **Your containers:** Deployable units you build and own
+- **External systems (software systems):** Services you use but don't own — Stripe, SendGrid, Auth0, GitHub, Confluent Cloud Kafka, AWS SES
+- **Exception:** Managed data stores that form an integral part of your system, where you have complete control and responsibility for their contents (AWS S3 bucket holding your data, hosted PostgreSQL), are containers even if hosted elsewhere
+
+Apply this especially to message queues: a self-hosted RabbitMQ is a container; an AWS SQS queue you call is an external system.
 
 ## Important
 
