@@ -27,34 +27,24 @@ If any answer is yes, create a Container diagram.
 
 ## Should I create Component diagrams (Level 3)?
 
-**Only when it adds value.** This is where most people over-diagram.
+**Optional.** The book recommends component diagrams as an optional level of detail to most engineering teams — but not all. Brown says "I wouldn't recommend it to all engineering teams."
 
 Create Level 3 when:
-- The container has complex internal structure that isn't obvious from its name
-- Multiple teams work on the same container
-- The container has been a source of confusion or bugs
-- You need to plan a significant refactoring
+- You are doing up-front design for a small to medium size application and want to sketch initial code structure (for larger applications, up-front component diagrams become tedious and time consuming — the book explicitly warns against this)
+- You need long-lived documentation of a larger application's internal decomposition, and the benefit justifies the ongoing maintenance cost
 
 Skip Level 3 when:
-- The container follows a well-known pattern (standard MVC, simple CRUD API) or is trivially simple (e.g., a single-purpose microservice with one or two endpoints)
-- The container is small enough to understand by reading code
-- The internal structure changes frequently (the diagram will always be stale)
-- The container is a data store (database, file system, blob store) — use ERDs or schema documentation instead
+- The container is a single-purpose application with no non-trivial internal structure (e.g., a single-endpoint microservice)
+- The container is a data store (database, file system, content store) — use entity relationship diagrams instead
+- The internal structure changes frequently — component diagrams age rapidly as code evolves; weigh maintenance cost against benefit
 
 ## Should I create Code diagrams (Level 4)?
 
-**Almost never manually.** IDEs can generate code diagrams on demand — this on-demand availability is the primary reason manually maintained Level 4 diagrams are usually unnecessary.
+**Rarely.** The book is direct: "there are very few reasons to create code-level diagrams, because the questions... can usually be answered by looking at the code." For existing software, code diagrams are available on-demand from IDE tooling — prefer that over maintaining them as documentation artifacts.
 
-Prefer: auto-generated diagrams from your IDE (IntelliJ IDEA, Visual Studio, etc.)
-
-If creating manually, only do so when:
-- The component has a large, complex domain model that is difficult to understand from code alone
-- You want to document how a specific design pattern is implemented within a critical component
-
-Never create Level 4 when:
-- You're doing it "for completeness"
-- The code itself is the best documentation
-- The component follows a well-understood pattern
+Create Level 4 only when:
+- The component is large and complicated enough that a visual summary adds clarity beyond reading the code
+- You want to illustrate how a particular design pattern is implemented within a component
 
 ## Multi-System Landscapes
 
@@ -71,7 +61,7 @@ When modeling multiple systems:
 
 ## Signs You've Gone Too Deep
 
-- Diagram has more than 15-20 elements
+- Diagram has more than a handful of elements and has become cluttered (the book warns diagrams "start to become cluttered very quickly once you have more than a handful of components")
 - You're showing classes or functions
 - The diagram changes every sprint
 - Nobody looks at it

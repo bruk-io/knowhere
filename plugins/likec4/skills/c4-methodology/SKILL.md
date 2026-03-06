@@ -13,9 +13,9 @@ description: >
 
 Apply Simon Brown's C4 model methodology when helping users design, review, or discuss software architecture. The C4 model is a set of hierarchical diagrams for describing the static structure of a software system at various levels of abstraction. It is **not a software design process** — you can use it to describe an existing system or to think through a new one, but it does not prescribe how design decisions are made.
 
-## The Four Core Abstractions
+## Core Abstractions
 
-The C4 model builds on four abstractions. These are the building blocks from which all diagrams are constructed:
+The C4 model is built on a set of hierarchical abstractions that form a shared vocabulary for describing software systems. The "four" in "C4" refers to the four diagram types (System Context, Containers, Components, Code) — not the number of abstractions. There are five:
 
 - **Person** — one of the human users (actors, roles, personas, or named individuals) of your software system
 - **Software System** — the highest level of abstraction; something that delivers value to its users, whether human or not
@@ -23,7 +23,7 @@ The C4 model builds on four abstractions. These are the building blocks from whi
 - **Component** — a grouping of related functionality encapsulated behind a well-defined interface, running inside a container
 - **Code** — the internal building blocks of a component: classes, interfaces, enums, functions, objects (the lowest abstraction level)
 
-"Containers contain components" is a mnemonic that helps explain where the name came from — the name was formally chosen because it doesn't imply anything about the physical nature of how that container is executed or deployed.
+"Containers contain components" is another way to remember this, and helps to explain where the "container" name came from — all components inside a container run in the same process space and communicate via in-process method calls. The name "container" was also chosen because it doesn't imply anything about the physical nature of how that container is executed or deployed.
 
 ## The Four Abstraction Levels
 
@@ -137,7 +137,7 @@ Follow these rules when deciding how deep to decompose:
 2. **Level 2 is recommended for all teams.** Create a Container diagram for every software system — it is the primary way to show how a system has been decomposed into applications and data stores.
 3. **Level 3 is optional.** Brown recommends component diagrams "as an optional level of detail to most engineering teams, both for up-front design exercises and for long-lived documentation" — but would not mandate them for all teams. For up-front design, component diagrams work well for small to medium size applications — for larger applications, they become tedious and time consuming (the book explicitly warns against this). For long-lived documentation of larger applications, create them when the benefit justifies the ongoing maintenance cost. Component diagrams age rapidly as code changes.
 4. **Level 4 is rarely needed.** Prefer auto-generated code diagrams from IDEs. Only create manually for the most important or complicated components — where a visual summary adds clarity beyond reading the code.
-5. **Use only diagram types that add value.** System context and container diagrams are recommended for almost all teams regardless of audience familiarity — they serve as alignment tools, not just communication tools. Weigh the benefit of Levels 3 and 4 against the cost of keeping them accurate over time.
+5. **Use only diagram types that add value.** The system context and container diagrams are sufficient for most software development teams. Weigh the benefit of Levels 3 and 4 against the cost of keeping them accurate over time.
 6. **Continuity between levels.** Each child diagram tells a more detailed version of the same story as its parent. The people and software systems from a context diagram must reappear on the container diagram. The containers surrounding a component diagram must reappear on that diagram. This continuity is what makes the reading order (context → container → component) coherent.
 
 ## Relationship Guidelines
@@ -180,7 +180,7 @@ This is not required but adds useful information when a system mixes synchronous
 6. **Confusing containers with components.** If you can't deploy it independently, it's probably a component, not a container.
 7. **Omitting technology choices.** Technology decisions are architectural decisions — they are expensive to change and must be shown. "We don't want to constrain developers" is not a reason to omit them; include developers in the design process instead.
 8. **Deployment details in container diagrams.** Load balancers, Kubernetes, cloud regions, and firewalls do not belong on container diagrams. They belong in deployment diagrams.
-9. **Component diagrams for data stores.** Don't create component diagrams for databases, file systems, or blob stores. Use entity-relationship diagrams or schema documentation instead.
+9. **Component diagrams for data stores.** Don't create component diagrams for databases, file systems, or content stores — they are better documented using entity relationship diagrams.
 10. **Unexplained acronyms and abbreviations.** "CRM", "SOR", "ERP" mean different things in different organisations. Every acronym must be spelled out in full or explained in the diagram's key/legend. Never assume shared vocabulary.
 11. **Inconsistent naming across levels.** An element called "Core Banking System" at Level 1 must appear with the same name at Level 2 and Level 3. Renaming elements between levels breaks the hierarchical reading thread and creates ambiguity about whether they represent the same thing.
 12. **Diagrams that require explanation.** A diagram that needs a verbal walkthrough to be understood has limited value, especially as long-lived documentation. Any narrative should *complement* the diagram, not *explain* it. Test your diagram: give it to somebody unfamiliar with the system — if they cannot interpret it, it needs better labels, descriptions, or a clearer key.
@@ -193,7 +193,7 @@ The C4 model is notation-independent — it does not prescribe specific shapes, 
 When creating C4 models:
 - **Diagram titles:** Every diagram must have a descriptive title identifying the software system, the diagram type (System Context / Container / Component / Code), and where relevant the element being decomposed (e.g. "Internet Banking System — API Application — Components").
 - **People:** Use the person shape. Name by role, not individual.
-- **Software systems:** Rectangles. Include a brief description of what the system does.
+- **Software systems:** Rectangles with rounded corners (per the book's notation convention). Include a brief description of what the system does.
 - **Containers:** Rectangles within a system boundary. Include technology choice.
 - **Components:** Rectangles within a container boundary. Include technology/pattern.
 - **External systems:** Grey or muted color to distinguish from the system in scope.
@@ -212,7 +212,7 @@ The C4 model works well for custom-built, bespoke software systems using general
 - Heavy platform customisation (e.g., SAP, Salesforce) where you configure rather than build
 - Libraries, frameworks, and SDKs
 
-Even in these cases, system context and container diagrams may still provide value. For these scenarios, UML is often more appropriate.
+Even in these cases, system context and container diagrams may still provide value. All of these may be better described using UML, for example.
 
 ## Complementary Diagram Types
 

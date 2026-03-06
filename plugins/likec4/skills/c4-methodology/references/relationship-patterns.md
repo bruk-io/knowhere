@@ -6,14 +6,14 @@ Relationships are the connective tissue of C4 diagrams. A good label answers: "W
 
 ### Pattern: Verb + Object [+ Technology at Container Level]
 
-Technology is **required** at Level 2 (Container), **optional** at Level 3 (Component, since most component-to-component calls are in-process method calls), and **not required** at Level 1 (Context — describe what happens, not how).
+Technology is **strongly recommended** at Level 2 (Container) — the book says "I recommend adding the technology details (e.g. primary protocol) to the relationship." Technology is **optional** at Level 3 (Component, since most component-to-component calls are in-process method calls), and **not needed** at Level 1 (Context — describe what happens, not how).
 
 | Example | Level | Has Technology? |
 |---------|-------|-----------------|
-| "Sends order events using Kafka" | Container | Yes (required) |
-| "Reads/writes customer data using JDBC" | Container | Yes (required) |
-| "Makes API calls using JSON/HTTPS" | Container | Yes (required) |
-| "Delivers email notifications using SMTP" | Container | Yes (required) |
+| "Sends order events using Kafka" | Container | Yes (recommended) |
+| "Reads/writes customer data using JDBC" | Container | Yes (recommended) |
+| "Makes API calls using JSON/HTTPS" | Container | Yes (recommended) |
+| "Delivers email notifications using SMTP" | Container | Yes (recommended) |
 | "Fetches product catalog" | Component | No (internal call) |
 | "Validates authentication tokens" | Component | No (internal call) |
 | "Views account balances and makes payments" | Context | No (omit at this level) |
@@ -60,15 +60,12 @@ If reads and writes go through different paths or the distinction matters:
 If not, combine:
 - `API -> Database 'Reads from and writes to using SQL'`
 
-### Rule: No Bidirectional Arrows
+### Rule: Prefer Unidirectional Arrows
 
-Never use `<->`. Split into two relationships:
+The book recommends unidirectional arrows at every level. Avoid bidirectional arrows; if two directions serve distinct purposes, use two directed relationships with specific labels:
 
-Bad: `Service A <-> Service B`
-
-Good:
-- `Service A -> Service B 'Sends order confirmations to'`
-- `Service B -> Service A 'Publishes inventory updates to'`
+`Service A -> Service B 'Sends order confirmations to'`
+`Service B -> Service A 'Publishes inventory updates to'`
 
 ## Relationships by Level
 

@@ -62,7 +62,7 @@ For each file, determine which C4 level it represents based on its location and 
 - [ ] All elements have descriptions
 
 **Container level files (Level 2):**
-- [ ] Elements are deployable units (web apps, APIs, databases, queues)
+- [ ] Elements are applications or data stores that need to be running for the system to work — valid types include: server-side web applications, client-side web applications (SPAs), desktop applications, mobile apps, server-side console applications, serverless functions, shell scripts, APIs; and data stores such as databases, blob/content stores, and file systems
 - [ ] No individual classes, modules, or functions
 - [ ] All containers have `technology` property
 - [ ] Appropriate shapes used (storage, queue, browser, mobile)
@@ -71,15 +71,14 @@ For each file, determine which C4 level it represents based on its location and 
 - [ ] External systems shown for context
 - [ ] No deployment details present (cloud environments, servers, Kubernetes, load balancers, firewalls) — these belong in deployment diagrams
 - [ ] All people and software systems from the Level 1 context diagram are present (carry-forward continuity)
-- [ ] Synchronous vs. asynchronous interactions are visually distinguished (solid vs. dashed lines) where the distinction is architecturally significant
+- [ ] (Optional) Synchronous vs. asynchronous interactions are visually distinguished using line styles (solid = synchronous, dashed = asynchronous) — the book says "you could also include" this; it adds useful context when a system mixes both patterns
 
 **Component level files (Level 3):**
 - [ ] Elements are logical groupings with interfaces — not individual classes or functions (too granular)
 - [ ] Elements have a `technology` property (framework, library, or implementation approach — e.g., "Spring MVC", "Express middleware")
 - [ ] Scope is within exactly one container — do not combine internals of multiple containers on one diagram
-- [ ] Justified: container is a larger application with non-trivial internal structure (not a simple single-endpoint microservice, not a data store)
 - [ ] The parent container appears as a boundary; people, software systems, and sibling containers from Level 1/2 appear as external context
-- [ ] Component diagram for a data store is a Violation — use ERDs or schema documentation instead
+- [ ] Component diagram for a data store should be flagged — data stores are better documented with entity relationship diagrams (see Warnings below)
 - [ ] Structure of diagram reflects actual architectural style of the container (layers, hexagonal, ports-and-adapters, etc.)
 
 ### Step 3: Check Relationship Quality
@@ -144,7 +143,6 @@ Issues that break C4 methodology:
 - Missing element descriptions — every element must explain its purpose, not just restate its name
 - Missing technology annotations on containers when documenting an existing system — technology decisions are architectural decisions and must be shown (during up-front design, approximate choices such as "Relational database" or "MySQL or PostgreSQL" are acceptable placeholders)
 - Deployment details in container diagrams (Kubernetes, load balancers, cloud environments)
-- Component diagram created for a data store container (database, file system, blob store) — use ERDs or schema documentation instead
 - Missing diagram key/legend on any view — without a key, C4's notation-independence principle is broken; the diagram is not self-describing
 - Inconsistent element naming across levels (same system renamed between Level 1 and Level 2)
 - Unexplained acronyms or abbreviations
@@ -155,7 +153,8 @@ Issues that reduce diagram quality:
 - Too many elements in a view
 - Inconsistent visual styling for the same element type across diagrams
 - No System Landscape view when multiple systems are in scope
-- Bidirectional relationships — prefer splitting into two directed relationships with specific labels
+- Bidirectional relationships — the book recommends unidirectional arrows at every level; prefer two directed relationships with specific labels
+- Component diagram created for a data store container (database, file system, content store) — the book says these are better documented using entity relationship diagrams
 - Component diagram created for a simple, single-purpose container (e.g., a microservice with one endpoint) — component diagrams are only useful for containers with non-trivial internal structure
 - Deployment details present in container diagrams but no deployment diagram exists — move deployment topology to a deployment diagram (one per unique environment)
 

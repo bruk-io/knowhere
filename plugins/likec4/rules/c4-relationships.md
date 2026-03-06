@@ -21,7 +21,7 @@ These rules apply to relationships at every level of the C4 model.
 - "Reads from and writes to using JDBC"
 - "Publishes order events using Kafka"
 
-Technology is required at this level because container relationships cross process or network boundaries — this inter-process communication is architecturally significant and must be made explicit.
+Technology is strongly recommended at this level because container relationships cross process or network boundaries — this inter-process communication is architecturally significant. The book states: "I recommend adding the technology details (e.g. primary protocol) to the relationship."
 
 **Level 3 (Component):** Focus on purpose. Most component-to-component interactions are in-process method/function calls — these do not need technology labels.
 - "Validates authentication tokens"
@@ -36,13 +36,13 @@ If a component communicates with an external container or system across a proces
 - "Interacts with" - how?
 - "Calls" - calls what?
 - "Data" - what data? which direction?
-- Bidirectional arrows — prefer two directed relationships with specific labels instead
 
 ## Direction
-- Arrow points from dependent to dependency
-- Follow data flow or control flow direction
+- The book consistently recommends unidirectional arrows at every level (Context, Container, Component)
+- Arrow points from dependent to dependency or in the direction of data/control flow
 - When both read and write exist, combine if same path: "Reads from and writes to using SQL"
 - Split into separate relationships if paths differ or distinction matters
+- Prefer unidirectional relationships over bidirectional arrows; if two directions serve distinct purposes, use two directed relationships with specific labels
 
 ## Dynamic View Relationships
 
