@@ -107,14 +107,14 @@ Zoom into a single component. Shows how the component is implemented using the b
 **When to create Level 4 diagrams:**
 - Almost never manually. Prefer auto-generation from code (IDEs can produce these on demand).
 - Only for the most critical or complex components — when the component is large and complicated enough that a visual summary adds clarity beyond reading the code.
-- To illustrate how a particular design pattern works within a critical component.
+- To illustrate how a particular design pattern works within a component.
 
 **When NOT to create Level 4 diagrams:**
 - For simple CRUD components
 - For well-understood patterns (MVC, repository, etc.)
 - When the code is the documentation
 
-**Audience:** Software developers working directly on the component.
+**Audience:** Engineers building or maintaining the software.
 
 ## Supporting Views
 
@@ -135,7 +135,7 @@ Follow these rules when deciding how deep to decompose:
 
 1. **Start at Level 1.** Every architecture should have a System Context diagram.
 2. **Level 2 is recommended for all teams.** Create a Container diagram for every software system — it is the primary way to show how a system has been decomposed into applications and data stores.
-3. **Level 3 is optional.** Brown recommends component diagrams "as an optional level of detail to most engineering teams, both for up-front design exercises and for long-lived documentation" — but would not mandate them for all teams. Create them for larger applications where the benefit justifies the maintenance cost. Component diagrams age rapidly as code changes.
+3. **Level 3 is optional.** Brown recommends component diagrams "as an optional level of detail to most engineering teams, both for up-front design exercises and for long-lived documentation" — but would not mandate them for all teams. For up-front design, component diagrams work well for small to medium size applications — for larger applications, they become tedious and time consuming (the book explicitly warns against this). For long-lived documentation of larger applications, create them when the benefit justifies the ongoing maintenance cost. Component diagrams age rapidly as code changes.
 4. **Level 4 is rarely needed.** Prefer auto-generated code diagrams from IDEs. Only create manually for the most important or complicated components — where a visual summary adds clarity beyond reading the code.
 5. **Use only diagram types that add value.** System context and container diagrams are recommended for almost all teams regardless of audience familiarity — they serve as alignment tools, not just communication tools. Weigh the benefit of Levels 3 and 4 against the cost of keeping them accurate over time.
 6. **Continuity between levels.** Each child diagram tells a more detailed version of the same story as its parent. The people and software systems from a context diagram must reappear on the container diagram. The containers surrounding a component diagram must reappear on that diagram. This continuity is what makes the reading order (context → container → component) coherent.

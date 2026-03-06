@@ -28,7 +28,6 @@ Before creating a code diagram, ask: "Can this question be answered by reading t
 - For simple CRUD components, MVC layers, or well-understood patterns
 - When the code is self-documenting
 - When the component changes frequently (the diagram will be out of date immediately)
-- For data store containers (databases, file systems) — use entity-relationship diagrams or schema documentation instead
 
 ## What Belongs Here
 

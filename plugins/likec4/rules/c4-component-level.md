@@ -33,8 +33,8 @@ A component diagram usually includes six element types (per the book):
 ## When to Create Component Diagrams
 
 Brown recommends component diagrams "as an optional level of detail to most engineering teams, both for up-front design exercises and for long-lived documentation" — but not to all teams. Create one when:
-- You are doing up-front design and want to sketch an initial high-level code structure (applies even for small to medium applications)
-- The container is a larger application and you need long-lived documentation of its internal decomposition
+- You are doing up-front design for a small to medium size application and want to sketch an initial high-level code structure (for larger applications, up-front component diagrams become tedious and time consuming — the book explicitly warns against this)
+- You need long-lived documentation of a larger application's internal decomposition, and the benefit justifies the ongoing maintenance cost
 
 A single-endpoint microservice or data store does not warrant a component diagram regardless of team size.
 
@@ -65,5 +65,5 @@ Maintain naming consistency: a container called "API Gateway" at Level 2 must ap
 Every component diagram must include a key or legend explaining shapes, colors, and line styles used. See the c4-methodology skill for key/legend guidance.
 
 ## Element Count
-- The book notes diagrams become cluttered "once you have more than a handful of components." A handful means roughly 5–7; if you have significantly more than you can read at a glance, the container may need to be split.
+- The book notes diagrams become cluttered "once you have more than a handful of components" — the book gives no numeric definition of "handful." Use it as a prompt to question whether the diagram remains readable, not as a hard limit.
 - Most components should have at least one relationship — flag components with no relationships and consider whether they belong on the diagram

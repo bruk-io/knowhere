@@ -8,9 +8,9 @@ You are editing a System Context level file. This is the highest abstraction lev
 
 ## What Is a Software System
 
-A software system is something that delivers value to its users (whether human or not), typically built and owned by a single software development team that has full responsibility for it — the team can see its internal implementation details. Its code typically lives in a single repository. The boundary of a software system usually corresponds to the boundary of a single team.
+A software system is something that delivers value to its users (whether human or not), typically built and owned by a single software development team that has responsibility for it — the team can see its internal implementation details. Its code typically lives in a single repository. The boundary of a software system usually corresponds to the boundary of a single team. It may also be the case that everything inside the boundary is deployed at the same time.
 
-**Things that are NOT software systems in C4:** product domains, bounded contexts, business capabilities, feature teams, tribes, or squads. If you are trying to model one of these, you are likely at the wrong level of abstraction.
+**Things that are not usually software systems in C4:** product domains, bounded contexts, business capabilities, feature teams, tribes, or squads. If you are trying to model one of these, you are likely at the wrong level of abstraction.
 
 ## What Belongs Here
 - The software system in scope (one primary system)
@@ -31,10 +31,16 @@ A software system is something that delivers value to its users (whether human o
 - Bad: "Makes API calls using JSON/HTTPS" (too technical for Level 1)
 - Most elements should have at least one relationship — flag elements with no relationships and consider whether they belong on the diagram
 
-## Element Naming
+## Element Naming and Descriptions
 - Name actors by role: "Customer", "Admin", "Support Agent"
 - Name systems by purpose: "Online Banking System", "Email Provider"
+- Every element — both people and software systems — should include a short description clarifying their role or purpose. A name alone is insufficient.
 - External systems should use `style { color muted }` to de-emphasize
+
+## Who to Include
+- Include people who use the system from a functional perspective (to achieve a business goal)
+- Include system administrators and operational staff only when the system includes something built specifically for them (e.g., an admin UI)
+- Exclude operational staff whose only interaction is indirect (e.g., monitoring log files)
 
 ## Audience
 
@@ -52,7 +58,11 @@ A system context diagram answers four essential questions:
 - What are those users doing with it?
 - How does it fit into the existing system landscape?
 
-It makes the context and scope of the system explicit, so there are no assumptions. It provides an entry point for new engineers, a shared starting point for technical and non-technical conversations, and a foundation for the more detailed diagrams at Level 2 and beyond.
+It makes the context and scope of the system explicit, so there are no assumptions. It shows what is being added to an existing system landscape. It provides an entry point for new engineers, a shared starting point for technical and non-technical conversations, and a foundation for the more detailed diagrams at Level 2 and beyond. It is also a starting point for identifying who to talk to when understanding inter-system interface dependencies.
+
+System context diagrams are recommended for all engineering teams — they are the required starting point for all C4 architecture documentation.
+
+It is also useful as an analysis tool during requirements gathering: drawing one in a workshop surfaces disagreements about what is inside vs. outside the system boundary.
 
 ## Diagram Key
 

@@ -7,10 +7,10 @@ globs: ["**/container.likec4", "**/container.c4", "**/containers/**/*.likec4", "
 You are editing a Container level file. This level shows the high-level technology decisions and how responsibilities are distributed across deployable units within a system.
 
 ## What Is a Container
-- A separately runnable/deployable unit
-- Something that executes code or stores data
-- Containers are isolated from one another — communication between containers crosses a process or network boundary (out-of-process call). This is why container-to-container relationships require technology/protocol labels: there is no shared in-process call.
-- Examples: web app, API server, database, message queue, mobile app, serverless function
+- An application or a data store — a separately runnable/deployable unit
+- A runtime concept: something that needs to be running for the overall software system to work
+- Containers are isolated from one another — communication between containers usually crosses a process or network boundary (out-of-process call). This is why container-to-container relationships require technology/protocol labels: there is no shared in-process call.
+- Examples: web application, single-page app, API server, database, file system, message queue, serverless function, mobile app, shell script, console application
 
 ## What Is NOT a Container
 - A Docker container (though it may run in one)
@@ -18,10 +18,16 @@ You are editing a Container level file. This level shows the high-level technolo
 - A logical grouping (use views/groups for that)
 
 ## What Belongs Here
-- A software system boundary box enclosing all containers that belong to the system in scope
-- All containers within that boundary
-- Relationships between containers (with technology details)
-- People and external systems that interact with these containers (shown outside the boundary)
+
+A container diagram usually includes four types of elements:
+1. **People** — users, actors, roles who interact with the system (shown outside the boundary)
+2. **Software systems** — external systems the system depends on or that depend on it (shown outside the boundary)
+3. **Containers** — the applications and data stores that make up the software system (shown inside the boundary)
+4. **Software system boundary** — the box enclosing all containers
+
+Relationships between these elements are also shown, labelled with description and technology/protocol (see Relationship Rules below).
+
+A container diagram also answers: *As a software engineer, where do I write code to add a feature?*
 
 ## What Does NOT Belong Here
 - Deployment details: cloud environments, servers, Kubernetes clusters, Docker runtime details, load balancers, firewalls, application gateways, failover topology
@@ -53,16 +59,21 @@ Combined examples:
 - Bad: "Makes API calls" (missing technology)
 - Bad: "JSON/HTTPS" (missing description)
 
-Optionally indicate interaction style: solid line = synchronous, dashed line = asynchronous.
+Optionally indicate interaction style using line styles (solid = synchronous, dashed = asynchronous). Note: Brown's own example diagrams use dashed lines for all container relationships regardless of interaction style — solid/dashed for sync/async is a common LikeC4 convention. Either is valid provided the diagram key explains the notation used.
 
 ## Technology Annotations
-- Every container SHOULD have a `technology` property
+- Every container must have a `technology` property — technology decisions are architectural decisions
+- Every container must include a description summarising its responsibilities (for applications) or what data it stores (for data stores)
 - Use `icon tech:<name>` for visual clarity
-- Use appropriate shapes: `storage` for databases, `queue` for message queues, `browser` for web apps, `mobile` for mobile apps
+- Use appropriate shapes: `storage` for databases and object stores, `queue` for message queues, `browser` for web apps and single-page apps, `mobile` for mobile apps
+
+## Design-Time Use
+
+Container diagrams are also valuable during up-front design. Adding technology choices forces a reality check: a design showing a UI querying a database may seem fine until you annotate "React" and "MySQL" and realise the browser cannot connect directly to the database. Technology annotations are what make this check possible — they are not optional.
 
 ## Audience
 
-Software architects and engineers building or maintaining the software are the primary audience. Container diagrams are also useful for: operations and support staff who need to understand what they are running; QA engineers performing technical testing; compliance teams and architecture review boards conducting risk reviews or threat modelling; and non-technical product owners verifying which containers are affected by a planned feature.
+Container diagrams are reasonably technical. The primary audience is software architects and engineers building or maintaining the software. Container diagrams are also useful for: operations and support staff who need to understand what they are running (the container diagram bridges the Dev/Ops gap — best paired with deployment diagrams); QA engineers performing technical testing; compliance teams and architecture review boards conducting risk reviews or threat modelling; and non-technical product owners verifying which containers are affected by a planned feature.
 
 Multiple versions of a container diagram may be appropriate for different audiences.
 
