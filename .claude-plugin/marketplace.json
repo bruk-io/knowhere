@@ -102,6 +102,19 @@
       "source": "./plugins/obsidian-plugin-dev"
     },
     {
+      "name": "pcbkit",
+      "description": "Design, route, check and order KiCad boards with pcbkit: workflow skills, a guard that keeps edits out of generated files, and helper agents.",
+      "author": {
+        "name": "bruk-io"
+      },
+      "category": "design",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/bruk-io/pcbkit.git"
+      },
+      "homepage": "https://github.com/bruk-io/pcbkit"
+    },
+    {
       "name": "pluto",
       "description": "Homelab infrastructure management for the pluto k3s cluster. Add services, repos, and manage external access.",
       "author": {
