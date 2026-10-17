@@ -1,0 +1,5 @@
+id: http-route__fastapi__py
+valid: ["x = 'str'", "def f(): pass"]
+invalid:
+  - "@app.get('/health')\ndef h(): pass"
+  - "@router.post('/orders')\ndef p(): pass"

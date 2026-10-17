@@ -1,0 +1,124 @@
+// Worked example: Simon Brown's classic "Internet Banking System"
+// (Big Bank plc), expressed in LikeC4 under orthodox C4 rules.
+
+model {
+
+  customer = person 'Personal Banking Customer' {
+    description 'A customer of the bank, with personal bank accounts'
+  }
+
+  internetBanking = softwareSystem 'Internet Banking System' {
+    description 'Allows customers to view information about their bank accounts and make payments'
+
+    webApp = container 'Web Application' {
+      technology 'Java, Spring MVC'
+      description 'Delivers the static content and the single-page application'
+    }
+
+    spa = webapp 'Single-Page Application' {
+      technology 'JavaScript, Angular'
+      description 'Provides all Internet banking functionality to customers via the browser'
+    }
+
+    mobile = mobileApp 'Mobile App' {
+      technology 'Xamarin'
+      description 'Provides a limited subset of Internet banking functionality via mobile device'
+    }
+
+    apiApp = container 'API Application' {
+      technology 'Java, Spring MVC'
+      description 'Provides Internet banking functionality via JSON/HTTPS API'
+
+      signinCtrl = component 'Sign-In Controller' {
+        technology 'Spring MVC REST Controller'
+        description 'Allows users to sign in to Internet banking'
+      }
+      accountsCtrl = component 'Accounts Summary Controller' {
+        technology 'Spring MVC REST Controller'
+        description 'Provides customers with a summary of their accounts'
+      }
+      resetPasswordCtrl = component 'Reset Password Controller' {
+        technology 'Spring MVC REST Controller'
+        description 'Allows users to reset their password'
+      }
+      securityComp = component 'Security Component' {
+        technology 'Spring Bean'
+        description 'Provides functionality related to signing in and changing passwords'
+      }
+      mainframeFacade = component 'Mainframe Banking System Facade' {
+        technology 'Spring Bean'
+        description 'A facade onto the mainframe banking system'
+      }
+      emailComp = component 'E-mail Component' {
+        technology 'Spring Bean'
+        description 'Sends e-mails to customers'
+      }
+    }
+
+    db = database 'Database' {
+      technology 'Oracle Database Schema'
+      description 'Stores user registration information, hashed auth credentials, access logs'
+    }
+  }
+
+  mainframe = externalSystem 'Mainframe Banking System' {
+    #external
+    description 'Stores all of the core banking information about customers, accounts, transactions'
+  }
+
+  email = externalSystem 'E-mail System' {
+    #external
+    description 'The internal Microsoft Exchange e-mail system'
+  }
+
+  // ---- Relationships: unidirectional, intent-labeled, protocol on inter-process lines
+
+  // NOTE: in `a -> b 'x' 'y'` the second string is the DESCRIPTION, not
+  // technology — set protocols via a nested `technology` property.
+
+  customer -> spa 'views account balances and makes payments using'
+  customer -> mobile 'views account balances and makes payments using'
+  customer -> webApp 'visits bigbank.com/ib using' {
+    technology 'HTTPS'
+  }
+
+  extend internetBanking {
+    webApp -> spa "delivers to the customer's web browser" {
+      technology 'HTTPS'
+    }
+    spa -> apiApp 'makes API calls to' {
+      technology 'JSON/HTTPS'
+    }
+    mobile -> apiApp 'makes API calls to' {
+      technology 'JSON/HTTPS'
+    }
+
+    // component-level wiring inside the API Application
+    spa -> apiApp.signinCtrl 'submits credentials to' {
+      technology 'JSON/HTTPS'
+    }
+    spa -> apiApp.accountsCtrl 'requests account summaries from' {
+      technology 'JSON/HTTPS'
+    }
+    spa -> apiApp.resetPasswordCtrl 'requests password resets from' {
+      technology 'JSON/HTTPS'
+    }
+
+    apiApp.signinCtrl -> apiApp.securityComp 'checks credentials using'
+    apiApp.resetPasswordCtrl -> apiApp.securityComp 'resets passwords using'
+    apiApp.resetPasswordCtrl -> apiApp.emailComp 'sends confirmation e-mails using'
+    apiApp.accountsCtrl -> apiApp.mainframeFacade 'reads account data using'
+
+    apiApp.securityComp -> db 'reads from and writes to' {
+      technology 'JDBC'
+    }
+  }
+
+  apiApp.mainframeFacade -> mainframe 'makes API calls to' {
+    technology 'XML/HTTPS'
+  }
+  apiApp.emailComp -> email 'sends e-mail using' {
+    technology 'SMTP'
+  }
+  email -> customer 'sends e-mails to'
+}

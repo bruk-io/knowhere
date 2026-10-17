@@ -1,0 +1,3 @@
+id: controller__vapor__swift
+valid: ["struct Plain {}", "class Model: Codable {}"]
+invalid: ["struct UserController: RouteCollection {}", "final class AuthController: RouteCollection {}"]

@@ -1,0 +1,16 @@
+id: http-route__fastapi__py
+language: python
+severity: hint
+message: FastAPI/Flask route
+rule:
+  kind: string_content
+  all:
+    - inside: { kind: argument_list, stopBy: end }
+    - inside:
+        kind: call
+        stopBy: end
+        has:
+          field: function
+          kind: attribute
+          has: { field: attribute, regex: '^(get|post|put|delete|patch|route)$' }
+    - inside: { kind: decorator, stopBy: end }

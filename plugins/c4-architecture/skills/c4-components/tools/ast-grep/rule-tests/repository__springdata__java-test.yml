@@ -1,0 +1,5 @@
+id: repository__springdata__java
+valid: ["interface Foo {}", "class OwnerRepository {}"]
+invalid:
+  - "interface OwnerRepository extends JpaRepository<Owner, Integer> {}"
+  - "interface VetRepository extends Repository<Vet, Integer> {}"

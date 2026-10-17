@@ -1,0 +1,38 @@
+specification {
+  element boundedContext
+}
+model {
+  ops = person 'Ops Person' { description 'operator' }
+  bc = boundedContext 'Payments Domain' { description 'not a C4 thing' }
+  sysA = softwareSystem 'System A' {
+    description 'a system'
+    web = webapp 'Web' {
+      description 'ui'
+      technology 'React'
+      cmpA = component 'Cmp A' {
+        description 'x'
+        technology 'ts'
+        cmpB = component 'Cmp B' { description 'nested comp'; technology 'ts' }
+      }
+    }
+    db = database 'DB' // no description, no technology
+  }
+  ext = externalSystem 'Ext' {
+    description 'black box?'
+    sneaky = container 'Sneaky' { description 'inside external'; technology 'x' }
+  }
+  orphan = container 'Orphan Container' { description 'top level'; technology 'x' }
+  ops -> sysA.web 'uses'
+  sysA.web -> sysA.db // untitled, no tech
+  sysA.web.cmpA -> ext 'sends stuff to' // inter-process no tech
+}
+views {
+  view all {
+    // no title, mixes levels
+    include sysA, sysA.web, sysA.web.cmpA, ops
+  }
+  view of sysA {
+    title 'Mixed internals'
+    include sysA.*, sysA.web.cmpA
+  }
+}

@@ -1,0 +1,3 @@
+id: service__spring__kotlin
+valid: ["class Plain", "@Deprecated class D"]
+invalid: ["@Service class Svc"]

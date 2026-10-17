@@ -1,0 +1,3 @@
+id: repository__spring__kotlin
+valid: ["class Plain", "@Deprecated class D"]
+invalid: ["@Repository class Svc"]

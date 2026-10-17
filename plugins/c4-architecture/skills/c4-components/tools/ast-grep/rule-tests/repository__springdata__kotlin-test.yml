@@ -1,0 +1,3 @@
+id: repository__springdata__kotlin
+valid: ["class Foo", "interface Bar"]
+invalid: ["interface OwnerRepository : JpaRepository<Owner, Long>", "interface VetRepository : Repository<Vet, Long>"]

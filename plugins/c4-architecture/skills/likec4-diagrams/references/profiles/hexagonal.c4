@@ -1,0 +1,25 @@
+// Pattern profile: HEXAGONAL (ports & adapters) — role tags for components.
+// Add via: scaffold.sh <dir> --profile hexagonal   (or copy this file into the project)
+//
+// Rules of use (annotation, not structure — see c4-components heuristics):
+// - Tags mark a component's ROLE; names stay capability-based
+//   (`#hexagonal-driven-adapter Mainframe Facade`, never `component adapters`).
+// - One pattern profile per container.
+// - Typical mapping: HTTP controllers/consumers -> hexagonal-driving-adapter;
+//   repositories/clients/facades -> hexagonal-driven-adapter; the interfaces
+//   the core exposes/requires -> hexagonal-port; business logic -> hexagonal-core.
+
+specification {
+  tag hexagonal-core {
+    color #F2994A
+  }
+  tag hexagonal-port {
+    color #F2C94C
+  }
+  tag hexagonal-driving-adapter {
+    color #2F80ED
+  }
+  tag hexagonal-driven-adapter {
+    color #9B51E0
+  }
+}

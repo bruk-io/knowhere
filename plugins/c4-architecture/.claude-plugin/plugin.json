@@ -1,0 +1,18 @@
+{
+  "name": "c4-architecture",
+  "version": "0.3.0",
+  "description": "Generate orthodox C4 architecture diagrams as LikeC4, extract C4 components from real codebases, and publish LikeC4 models as interactive Claude artifacts. Enforces Simon Brown's C4 rules that LikeC4 itself leaves unchecked.",
+  "author": {
+    "name": "Bruk Habtu"
+  },
+  "keywords": [
+    "c4",
+    "architecture",
+    "likec4",
+    "diagrams",
+    "software-architecture",
+    "component-extraction",
+    "artifact"
+  ],
+  "license": "MIT"
+}

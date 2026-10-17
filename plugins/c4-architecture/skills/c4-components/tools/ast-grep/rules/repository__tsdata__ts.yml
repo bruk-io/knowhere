@@ -1,0 +1,10 @@
+id: repository__tsdata__ts
+language: typescript
+severity: hint
+message: TS repository by naming convention (*Repository)
+rule:
+  kind: type_identifier
+  regex: 'Repository$'
+  any:
+    - inside: { kind: class_declaration, field: name }
+    - inside: { kind: interface_declaration, field: name }

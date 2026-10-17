@@ -1,0 +1,18 @@
+// Pattern profile: CQRS — role tags for components.
+// Add via: scaffold.sh <dir> --profile cqrs   (or copy this file into the project)
+// Composable with layered/hexagonal ONLY in the sense that cqrs tags mark the
+// read/write axis — still keep one structural pattern per container.
+//
+// Rules of use: tags mark ROLE, names stay capability-based
+// (`#cqrs-query Account History`, never `component queries`).
+// Typical mapping: command handlers / write models -> cqrs-command;
+// query handlers / read models / projections -> cqrs-query.
+
+specification {
+  tag cqrs-command {
+    color #EB5757
+  }
+  tag cqrs-query {
+    color #2F80ED
+  }
+}

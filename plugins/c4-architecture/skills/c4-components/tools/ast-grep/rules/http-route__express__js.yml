@@ -1,0 +1,15 @@
+id: http-route__express__js
+language: javascript
+severity: hint
+message: Express/Fastify/Koa route
+rule:
+  kind: string_fragment
+  inside:
+    kind: arguments
+    inside:
+      kind: call_expression
+      has:
+        field: function
+        kind: member_expression
+        has: { field: property, regex: '^(get|post|put|delete|patch|use|all)$' }
+    stopBy: end

@@ -1,0 +1,7 @@
+id: http-route__vapor__swift
+valid:
+  - "let x = foo.bar(\"y\")"
+  - "app.get { req in \"It works!\" }"
+invalid:
+  - "routes.get(\"users\", use: index)"
+  - "app.post(\"orders\", use: create)"

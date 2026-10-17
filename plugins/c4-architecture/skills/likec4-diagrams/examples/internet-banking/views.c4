@@ -1,0 +1,51 @@
+// Canonical C4 views for the Internet Banking System.
+// One zoom level per view; drill-down happens via clicks (scoped views),
+// never by mixing levels in a single diagram.
+
+views {
+
+  // Level 1 — System Context (doubles as the index/default view;
+  // no System Landscape here because only one system is modeled)
+  view index of internetBanking {
+    title 'System Context — Internet Banking System'
+    description 'The Internet Banking System as a black box, with its users and system dependencies'
+    // Context views list the system and its direct neighbors explicitly —
+    // `include *` + `exclude sys.*` does NOT work (excluding the children
+    // also drops the neighbors that were pulled in via child relationships).
+    include internetBanking, customer, mainframe, email
+    // Multiple child-level relationships merge into one edge labeled '[...]' —
+    // override the merged edge with a single intent-revealing title:
+    include customer -> internetBanking with {
+      title 'views accounts and makes payments using'
+    }
+  }
+
+  // Level 2 — Containers
+  view containers of internetBanking {
+    title 'Containers — Internet Banking System'
+    description 'The applications and data stores inside the Internet Banking System'
+    include *
+    autoLayout TopBottom
+  }
+
+  // Level 3 — Components (only for the container where it adds value)
+  view apiComponents of internetBanking.apiApp {
+    title 'Components — API Application'
+    description 'Components inside the API Application container'
+    include *
+  }
+
+  // Supplementary — Dynamic view of one scenario, kept at container level
+  dynamic view signIn {
+    title 'Dynamic — Customer signs in to Internet banking'
+    description 'Container-level runtime interactions for the sign-in use case'
+
+    // dynamic views are unscoped — use fully qualified names
+    customer -> internetBanking.spa 'enters credentials into'
+    internetBanking.spa -> internetBanking.apiApp 'submits sign-in request over JSON/HTTPS to'
+    internetBanking.apiApp -> internetBanking.db 'validates hashed credentials, over JDBC, against'
+    internetBanking.spa <- internetBanking.apiApp 'returns session token to'
+
+    include internetBanking
+  }
+}

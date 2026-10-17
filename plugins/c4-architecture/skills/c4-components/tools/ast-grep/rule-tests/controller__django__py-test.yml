@@ -1,0 +1,3 @@
+id: controller__django__py
+valid: ["class Foo: pass", "class Bar(object): pass"]
+invalid: ["class PaymentsViewSet(ViewSet): pass", "class HomeView(TemplateView): pass"]

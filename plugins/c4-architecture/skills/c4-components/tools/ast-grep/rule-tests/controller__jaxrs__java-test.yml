@@ -1,0 +1,3 @@
+id: controller__jaxrs__java
+valid: ["class Plain {}", "@Service class S {}"]
+invalid: ["@Path(\"/pets\") class PetResource {}"]

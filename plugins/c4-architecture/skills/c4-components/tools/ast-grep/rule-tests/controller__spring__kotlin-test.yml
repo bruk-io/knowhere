@@ -1,0 +1,3 @@
+id: controller__spring__kotlin
+valid: ["class Plain", "@Deprecated class D"]
+invalid: ["@RestController class Svc"]

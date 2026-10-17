@@ -1,0 +1,13 @@
+id: service__nestjs__ts
+language: typescript
+severity: hint
+message: NestJS @Injectable
+rule:
+  kind: type_identifier
+  all:
+    - inside: { kind: class_declaration, field: name }
+    - inside:
+        stopBy: end
+        has:
+          kind: decorator
+          has: { kind: identifier, stopBy: end, regex: '^Injectable$' }

@@ -1,0 +1,17 @@
+id: http-route__vapor__swift
+language: swift
+severity: hint
+message: Vapor route
+rule:
+  kind: line_str_text
+  all:
+    # the PATH is in the parenthesized args, not the trailing closure body
+    - inside: { kind: value_arguments, stopBy: end }
+    - inside:
+        kind: call_expression
+        stopBy: end
+        has:
+          kind: navigation_expression
+          has:
+            kind: navigation_suffix
+            has: { kind: simple_identifier, regex: '^(get|post|put|delete|patch|on)$' }
