@@ -1,0 +1,20 @@
+{
+  "name": "authoring-kit",
+  "version": "0.7.0",
+  "description": "For authoring Claude Code extensions (CLAUDE.md, rules, skills, subagents, hooks): skills for choosing the extension type and for the judgement in each, a linter that holds the checkable rules and the reference tables, a hook that delivers the matching rule on first touch and lints on write, and an auditor agent.",
+  "author": {
+    "name": "Bruk Habtu"
+  },
+  "keywords": [
+    "claude-code",
+    "authoring",
+    "skills",
+    "subagents",
+    "hooks",
+    "rules",
+    "claude-md",
+    "linting",
+    "meta"
+  ],
+  "license": "MIT"
+}

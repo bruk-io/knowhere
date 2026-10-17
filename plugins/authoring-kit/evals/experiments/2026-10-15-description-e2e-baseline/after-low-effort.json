@@ -1,0 +1,463 @@
+{
+ "run": {
+  "startedAt": "2026-10-15T13-31-56Z",
+  "model": "haiku",
+  "judgeModel": "haiku",
+  "probeEffort": "low",
+  "runsWrite": 2,
+  "runsProbe": 2,
+  "costUsdStage1": 0.14738986999999998
+ },
+ "records": [
+  {
+   "case": "e2e-api-errors",
+   "arm": "with",
+   "run": 1,
+   "skill": "api-errors",
+   "description": "House rules for HTTP API error responses (RFC 9457 problem+json, the errors.acme.dev type registry, 422 validation errors). Load this before writing, reviewing, debugging or advising on any HTTP handler, middleware, or API test that returns an error, even a one-line change. Without it, handlers default to ad-hoc {error: \"...\"} bodies, 400 for validation, and stack traces or SQL in detail.",
+   "files": {
+    "SKILL.md": "---\ndescription: House rules for HTTP API error responses (RFC 9457 problem+json, the errors.acme.dev type registry, 422 validation errors). Load this before writing, reviewing, debugging or advising on any HTTP handler, middleware, or API test that returns an error, even a one-line change. Without it, handlers default to ad-hoc {error: \"...\"} bodies, 400 for validation, and stack traces or SQL in detail.\n---\n\n# API error responses\n\nEvery error response from the HTTP API is an RFC 9457 `application/problem+json` document. Do not return ad-hoc bodies such as `{\"error\": \"...\"}`, and do not reuse an existing error body shape.\n\n## Required members\n\n- `type`: a URL from the registry, `https://errors.acme.dev/<code>`. Use an existing code where one fits.\n- `title`: a short summary that is the same for every occurrence of this type.\n- `status`: the HTTP status code, as a number, matching the response status.\n- `detail`: a human-readable explanation of this occurrence.\n\n## Adding a new error code\n\nEvery new code must be added to `docs/errors.md` in the same change. Do not ship a `type` URL that the registry doc does not describe.\n\n## Validation failures\n\n- Return **422 Unprocessable Content**, never 400, for request validation failures.\n- Include an `errors` array with one `{field, message}` entry per failing field.\n\n```json\n{\n  \"type\": \"https://errors.acme.dev/<code>\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"Request body has 2 invalid fields.\",\n  \"errors\": [\n    {\"field\": \"email\", \"message\": \"must be a valid email address\"},\n    {\"field\": \"age\", \"message\": \"must be at least 18\"}\n  ]\n}\n```\n\n## Content rules\n\n- `detail` never contains a stack trace, SQL, query text, file paths from the server, or internal exception messages. Log those server-side and return a generic `detail`.\n- Do not leak internal identifiers or implementation details in any member.\n\n## Checklist before finishing a handler change\n\n1. The body is problem+json with all four required members.\n2. The `type` is a registry URL, and any new code is documented in `docs/errors.md`.\n3. Validation failures are 422 with an `errors` array.\n4. `detail` contains no stack trace, SQL, or internal exception text.\n"
+   },
+   "writeScore": 1,
+   "probe": {
+    "should_fire": [
+     10,
+     10
+    ],
+    "near_miss": [
+     2,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-api-errors",
+   "arm": "with",
+   "run": 2,
+   "skill": "api-errors",
+   "description": "Error responses for our HTTP API. Load this before writing, reviewing, debugging or advising on any handler that returns an error, validation, or status code, even a small one. Our errors are RFC 9457 problem+json with a registry type URL, validation failures are 422 not 400, and detail never contains stack traces or SQL; without this, handlers keep returning ad-hoc {error: '...'} bodies.",
+   "files": {
+    "SKILL.md": "---\ndescription: Error responses for our HTTP API. Load this before writing, reviewing, debugging or advising on any handler that returns an error, validation, or status code, even a small one. Our errors are RFC 9457 problem+json with a registry type URL, validation failures are 422 not 400, and detail never contains stack traces or SQL; without this, handlers keep returning ad-hoc {error: '...'} bodies.\n---\n\n# API error responses\n\nEvery error response from the HTTP API uses RFC 9457 problem details.\n\n## Body shape\n\nSend `Content-Type: application/problem+json` with these members:\n\n- `type` - a URL in our registry: `https://errors.acme.dev/<code>`\n- `title` - a short, stable summary of the error class\n- `status` - the HTTP status code, repeated in the body\n- `detail` - a human-readable explanation of this occurrence\n\n```json\n{\n  \"type\": \"https://errors.acme.dev/order-not-found\",\n  \"title\": \"Order not found\",\n  \"status\": 404,\n  \"detail\": \"No order exists with id 8841.\"\n}\n```\n\nDo not return `{ \"error\": \"...\" }` or any other ad-hoc shape. If you touch a\nhandler that still does, convert it to problem+json in the same change.\n\n## Validation failures\n\nValidation failures return **422 Unprocessable Content**, never 400. Add an\n`errors` array of `{ \"field\", \"message\" }` objects alongside the four members:\n\n```json\n{\n  \"type\": \"https://errors.acme.dev/validation-failed\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"2 fields are invalid.\",\n  \"errors\": [\n    { \"field\": \"email\", \"message\": \"must be a valid email address\" },\n    { \"field\": \"quantity\", \"message\": \"must be at least 1\" }\n  ]\n}\n```\n\n## Registry codes\n\n- Every new `type` code must be added to `docs/errors.md` in the same change.\n- Reuse an existing code when one fits. Create a new one only when no existing\n  code describes the failure.\n\n## `detail` content\n\n`detail` never contains a stack trace, a SQL statement, a query fragment, a\ntable or column name, or an internal exception message. Describe what the\ncaller did wrong or what they can check, in terms of the API's own resources.\nLog the internal detail server-side instead.\n"
+   },
+   "writeScore": 1,
+   "probe": {
+    "should_fire": [
+     10,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-api-errors",
+   "arm": "without",
+   "run": 1,
+   "skill": "api-errors",
+   "description": "Use when writing or changing HTTP API error responses, returning 4xx/5xx from a handler, adding a new error code, or validating request input. Enforces RFC 9457 problem+json bodies with registry type URLs, 422 for validation failures, and safe `detail` text.",
+   "files": {
+    "SKILL.md": "---\nname: api-errors\ndescription: Use when writing or changing HTTP API error responses, returning 4xx/5xx from a handler, adding a new error code, or validating request input. Enforces RFC 9457 problem+json bodies with registry type URLs, 422 for validation failures, and safe `detail` text.\n---\n\n# API error responses\n\nEvery error response from the HTTP API uses RFC 9457 `application/problem+json`. Do not return ad-hoc bodies such as `{\"error\": \"...\"}`. If you find a handler that does, convert it to this format as part of the change.\n\n## Response shape\n\n```http\nHTTP/1.1 404 Not Found\nContent-Type: application/problem+json\n\n{\n  \"type\": \"https://errors.acme.dev/order-not-found\",\n  \"title\": \"Order not found\",\n  \"status\": 404,\n  \"detail\": \"No order exists with id 8f2c1a.\"\n}\n```\n\nRequired members:\n\n- `type`: a URL in the registry, `https://errors.acme.dev/<code>`. `<code>` is a stable, lowercase, hyphenated identifier.\n- `title`: a short, human-readable summary. It is the same for every occurrence of that code. Do not put request-specific values in it.\n- `status`: the HTTP status code as a number. It must match the response status line.\n- `detail`: a human-readable explanation of this occurrence.\n\nDo not use `about:blank` as `type`. Every error gets a registry code.\n\n## Validation errors (422)\n\nValidation failures return **422 Unprocessable Content**, never 400. Malformed JSON or a non-JSON body is not a validation failure; treat it separately with its own registry code and a 400 status.\n\nAdd an `errors` extension member, an array of `{field, message}` objects, one per failing field:\n\n```json\n{\n  \"type\": \"https://errors.acme.dev/validation-failed\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"2 fields are invalid.\",\n  \"errors\": [\n    { \"field\": \"email\", \"message\": \"must be a valid email address\" },\n    { \"field\": \"quantity\", \"message\": \"must be at least 1\" }\n  ]\n}\n```\n\n- `field` is the name as the client sent it, using dot notation for nested fields (for example `shipping.postal_code`).\n- `message` is a short sentence describing the rule that failed. It must not echo back secrets or internal schema names.\n\n## `detail` rules\n\n`detail` is shown to API consumers, so it must never contain:\n\n- stack traces or exception class names with file paths\n- SQL, query fragments, table or column names, or driver error text\n- internal hostnames, file paths, or secrets\n\nDescribe what went wrong in terms of the request. Log the internal error server-side with the full context, and return only the public summary to the client.\n\n## Adding a new error code\n\n1. Pick a code that describes the problem, not the handler: `order-not-found`, not `get-order-failed`.\n2. Check that the code does not already exist in `docs/errors.md`. Reuse an existing code when it fits.\n3. Add an entry to `docs/errors.md` in the same change. The entry needs the code, the HTTP status, the `title`, when it is returned, and any extension members.\n4. Return the code from the handler with `type` set to `https://errors.acme.dev/<code>`.\n\nDo not ship a code that is missing from `docs/errors.md`.\n\n## Checklist for error-path changes\n\n- [ ] `Content-Type` is `application/problem+json`\n- [ ] `type`, `title`, `status`, and `detail` are all present\n- [ ] `status` matches the HTTP status line\n- [ ] Validation failures use 422 and include `errors` as `{field, message}` objects\n- [ ] `detail` has no stack traces, SQL, or internal details\n- [ ] Any new code has an entry in `docs/errors.md`\n- [ ] No `{\"error\": ...}` bodies remain in the touched handlers\n"
+   },
+   "writeScore": 0.5,
+   "probe": {
+    "should_fire": [
+     8,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-api-errors",
+   "arm": "without",
+   "run": 2,
+   "skill": "api-errors",
+   "description": "Use when writing or changing HTTP API error responses, error handlers, validation failures, or problem+json bodies. Enforces RFC 9457 problem details, the errors.acme.dev type registry, 422 for validation errors, and no stack traces or SQL in responses.",
+   "files": {
+    "SKILL.md": "---\nname: api-errors\ndescription: Use when writing or changing HTTP API error responses, error handlers, validation failures, or problem+json bodies. Enforces RFC 9457 problem details, the errors.acme.dev type registry, 422 for validation errors, and no stack traces or SQL in responses.\n---\n\n# API error responses\n\nEvery error response from our HTTP API uses RFC 9457 `application/problem+json`. Do not return ad-hoc bodies such as `{\"error\": \"...\"}`. If you are touching a handler that still does this, convert it to the format below.\n\n## Response shape\n\nRequired members:\n\n| Member   | Rule |\n|----------|------|\n| `type`   | URL in the form `https://errors.acme.dev/<code>`. `<code>` must be registered in `docs/errors.md`. |\n| `title`  | Short, human-readable summary of the problem type. Stable for a given `type`; do not put request-specific values here. |\n| `status` | The HTTP status code, as a number, matching the response status line. |\n| `detail` | Human-readable explanation of this occurrence. Must not contain stack traces, SQL, file paths, or internal hostnames. |\n\nContent type: `Content-Type: application/problem+json`.\n\nValidation failures add an `errors` array. Each entry is `{field, message}`:\n\n```json\n{\n  \"type\": \"https://errors.acme.dev/<code>\",\n  \"title\": \"Validation failed\",\n  \"status\": 422,\n  \"detail\": \"The request body has 2 invalid fields.\",\n  \"errors\": [\n    {\"field\": \"email\", \"message\": \"must be a valid email address\"},\n    {\"field\": \"age\", \"message\": \"must be greater than or equal to 0\"}\n  ]\n}\n```\n\nUse the `<code>` registered for validation failures in `docs/errors.md`. Do not invent one.\n\n## Status codes\n\n- **Validation failures return `422 Unprocessable Content`, never `400`.** This includes malformed or out-of-range field values that fail schema or business-rule validation. Use `400` only where the request is not parseable at all (for example, invalid JSON). Check with the team if you are unsure which case applies.\n- Other statuses: use the standard meaning (`401`, `403`, `404`, `409`, `429`, `500`, and so on). Set `status` in the body to match.\n\n## Registering a new error code\n\nEvery new `type` must be added to `docs/errors.md` in the same change as the handler that returns it. Each entry needs the code, its `title`, its HTTP status, and when it is returned. Do not ship a `type` URL that is not in the registry.\n\n## Never leak internals\n\n`detail` (and `title`, `errors[].message`) must not contain:\n\n- stack traces or exception class names\n- SQL statements, table or column names, or driver error text\n- file system paths, hostnames, or internal service names\n\nLog the full exception server-side. Return only a safe, user-facing `detail`. For unexpected failures, use a generic `detail` such as \"An unexpected error occurred.\" and a `500` status, plus a registered code.\n\n## Checklist for any error-path change\n\n1. Body is `application/problem+json` with `type`, `title`, `status`, and `detail`.\n2. `type` is `https://errors.acme.dev/<code>` and `<code>` is in `docs/errors.md`.\n3. Validation failures are `422` and include `errors: [{field, message}]`.\n4. `status` in the body equals the HTTP status.\n5. No stack trace, SQL, or internal detail in any member.\n6. No remaining `{\"error\": ...}` shapes in the handler.\n"
+   },
+   "writeScore": 0.5,
+   "probe": {
+    "should_fire": [
+     6,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-migration-safety",
+   "arm": "with",
+   "run": 1,
+   "skill": "migration-safety",
+   "description": "Use before writing, reviewing or planning a Postgres schema migration, even a small one, to apply the team's migration rules: lock_timeout = '5s' at the top of every migration; never add a column with a default and NOT NULL in one statement on a large table; CREATE INDEX CONCURRENTLY outside a transaction; backfills in 10k-row batches in a separate migration; every migration has a working down step. Claude has broken each of these before, so do not rely on memory.",
+   "files": {
+    "SKILL.md": "---\ndescription: \"Use before writing, reviewing or planning a Postgres schema migration, even a small one, to apply the team's migration rules: lock_timeout = '5s' at the top of every migration; never add a column with a default and NOT NULL in one statement on a large table; CREATE INDEX CONCURRENTLY outside a transaction; backfills in 10k-row batches in a separate migration; every migration has a working down step. Claude has broken each of these before, so do not rely on memory.\"\n---\n\n# Postgres migration safety\n\nApply every rule below to each migration you write or review. Each one exists\nbecause a migration broke it in production.\n\n## Rules\n\n1. **`SET lock_timeout = '5s';` at the top of every migration**, before any\n   DDL. Without it, a DDL statement waiting on a lock queues behind open\n   transactions, and every later query on that table queues behind it.\n\n2. **Never add a column with a default and NOT NULL in one statement on a\n   large table.** Use three steps, each in its own migration or at least its\n   own statement:\n   ```sql\n   ALTER TABLE orders ADD COLUMN region text;              -- nullable, no default\n   -- backfill in a separate migration (rule 4)\n   ALTER TABLE orders ADD CONSTRAINT orders_region_not_null\n     CHECK (region IS NOT NULL) NOT VALID;                 -- cheap, no table scan\n   ALTER TABLE orders VALIDATE CONSTRAINT orders_region_not_null;  -- scans, but no ACCESS EXCLUSIVE lock\n   ALTER TABLE orders ALTER COLUMN region SET NOT NULL;    -- fast once a validated CHECK exists\n   ALTER TABLE orders DROP CONSTRAINT orders_region_not_null;\n   ```\n   Set the default afterwards, if needed, with `ALTER COLUMN ... SET DEFAULT`.\n\n3. **Create indexes with `CREATE INDEX CONCURRENTLY`, outside a transaction.**\n   Postgres refuses CONCURRENTLY inside a transaction block. Mark the\n   migration non-transactional using the migration tool's own flag; do not\n   wrap it in `BEGIN`/`COMMIT` by hand. A failed concurrent build leaves an\n   `INVALID` index: check `pg_index.indisvalid` and drop it before retrying.\n   The same applies to `DROP INDEX CONCURRENTLY`.\n\n4. **Backfill in batches of 10,000 rows, in a separate migration** from the\n   schema change. Each batch is its own committed statement, repeated until it\n   updates zero rows:\n   ```sql\n   UPDATE orders SET region = 'unknown'\n   WHERE id IN (\n     SELECT id FROM orders WHERE region IS NULL ORDER BY id LIMIT 10000\n   );\n   ```\n   Do not run an unbounded `UPDATE` over a large table.\n\n5. **Every migration has a working down step.** Write it, then check it: apply\n   up, apply down, apply up again on a scratch database. If a down step truly\n   cannot restore the data (for example, a dropped column), say so in the\n   migration and in your reply, and ask the user to confirm before shipping.\n   Do not write a down step that silently does nothing.\n\n## Writing\n\n- Name and place the file using the project's existing migration tool and\n  naming convention. Look at neighbouring migrations first.\n- One concern per migration: schema change, index, and backfill are separate\n  files.\n\n## Reviewing\n\nGo through the five rules in order. For each violation, cite the file and line,\nname the rule, and give the fix. Say explicitly when a rule is satisfied, and\nsay when you could not check it (for example, the table size is unknown, so\nrule 2 cannot be judged from the file alone).\n"
+   },
+   "writeScore": 1,
+   "probe": {
+    "should_fire": [
+     10,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-migration-safety",
+   "arm": "with",
+   "run": 2,
+   "skill": "migration-safety",
+   "description": "Write and review Postgres schema migrations safely. Load this before writing, reviewing, or advising on any migration or schema change, even a small one. Our rules, which Claude otherwise breaks: SET lock_timeout = '5s' at the top of every migration; never add a column with a DEFAULT and NOT NULL in one statement on a large table; create indexes with CREATE INDEX CONCURRENTLY outside a transaction; backfill in batches of 10k rows in a separate migration; every migration has a working down step.",
+   "files": {
+    "SKILL.md": "---\ndescription: Write and review Postgres schema migrations safely. Load this before writing, reviewing, or advising on any migration or schema change, even a small one. Our rules, which Claude otherwise breaks: SET lock_timeout = '5s' at the top of every migration; never add a column with a DEFAULT and NOT NULL in one statement on a large table; create indexes with CREATE INDEX CONCURRENTLY outside a transaction; backfill in batches of 10k rows in a separate migration; every migration has a working down step.\n---\n\n# Postgres migration safety\n\nEvery migration you write or review must satisfy all five rules. If a requested\nchange cannot meet a rule, stop and say so instead of breaking the rule.\n\n## Rules\n\n### 1. Lock timeout first\n\nThe first statement of every migration file:\n\n```sql\nSET lock_timeout = '5s';\n```\n\nWithout it, a DDL statement queues behind a long-running transaction, and every\nlater query on that table queues behind the DDL. The timeout makes the\nmigration fail fast instead of causing an outage.\n\n### 2. New NOT NULL columns: never one statement with a default\n\nOn a large table, do not write `ALTER TABLE t ADD COLUMN c type NOT NULL DEFAULT ...`.\nSplit it across migrations:\n\n1. **Add the column nullable, no default:**\n   `ALTER TABLE t ADD COLUMN c type;`\n2. **Backfill** in a separate migration (rule 4).\n3. **Enforce NOT NULL without a long lock** (PostgreSQL 12+):\n   ```sql\n   ALTER TABLE t ADD CONSTRAINT t_c_not_null CHECK (c IS NOT NULL) NOT VALID;\n   ALTER TABLE t VALIDATE CONSTRAINT t_c_not_null;\n   ALTER TABLE t ALTER COLUMN c SET NOT NULL;\n   ALTER TABLE t DROP CONSTRAINT t_c_not_null;\n   ```\n   `VALIDATE` scans without blocking writes. With a validated check constraint in\n   place, `SET NOT NULL` skips its own full scan.\n\nIf the application needs a column default, add it with\n`ALTER TABLE t ALTER COLUMN c SET DEFAULT ...` after the backfill, as its own\nstatement. Treat any table of production size as large. If you are unsure, it\nis large.\n\n### 3. Indexes: CONCURRENTLY, outside a transaction\n\n```sql\nCREATE INDEX CONCURRENTLY idx_t_c ON t (c);\n```\n\n- `CONCURRENTLY` cannot run inside a transaction block. The migration must opt\n  out of the migration tool's transaction wrapper. Check how this repo's tool\n  does it (existing migrations, or the tool's docs). Examples: Rails\n  `disable_ddl_transaction!`, Django `atomic = False`, Flyway\n  `executeInTransaction` set to false, Alembic `autocommit_block()`.\n- Put the concurrent index in its own migration file, so the opt-out does not\n  apply to other statements.\n- A failed concurrent build leaves an `INVALID` index. Check\n  `pg_index.indisvalid` for it, then `DROP INDEX CONCURRENTLY` and retry.\n- The same applies to `CREATE UNIQUE INDEX CONCURRENTLY` and to the down step:\n  `DROP INDEX CONCURRENTLY IF EXISTS idx_t_c;`, outside a transaction.\n\n### 4. Backfills: 10,000-row batches, in a separate migration\n\n- Never backfill in the same migration as the schema change.\n- Never run one unbounded `UPDATE` over the table. It holds row locks for the\n  whole run and bloats the table. Each batch commits on its own:\n  ```sql\n  UPDATE t SET c = <expr>\n  WHERE id IN (SELECT id FROM t WHERE c IS NULL ORDER BY id LIMIT 10000);\n  ```\n- A migration file runs once, so the loop belongs in a procedure, called with\n  `CALL` so it can `COMMIT` between batches (PostgreSQL 11+). The migration\n  needs the same transaction opt-out as rule 3, because `COMMIT` fails inside a\n  wrapping transaction:\n  ```sql\n  CREATE OR REPLACE PROCEDURE backfill_t_c() LANGUAGE plpgsql AS $$\n  DECLARE n int;\n  BEGIN\n    LOOP\n      UPDATE t SET c = <expr>\n      WHERE id IN (SELECT id FROM t WHERE c IS NULL ORDER BY id LIMIT 10000);\n      GET DIAGNOSTICS n = ROW_COUNT;\n      EXIT WHEN n = 0;\n      COMMIT;\n    END LOOP;\n  END $$;\n  CALL backfill_t_c();\n  DROP PROCEDURE backfill_t_c();\n  ```\n\n### 5. Every migration has a working down step\n\n- The down step reverses the up step and must run. Verify with up, down, up on\n  a development database.\n- Down for `ADD COLUMN` is `DROP COLUMN`. Down for a concurrent index is\n  `DROP INDEX CONCURRENTLY` (rule 3). Down for a `NOT VALID` constraint is\n  `DROP CONSTRAINT`. Down for a backfill is resetting the column to its\n  previous state, usually `NULL`.\n- A down step cannot restore dropped data. Do not drop a column or table in the\n  same release that stops using it. Drop it in a later migration, so the down\n  step stays possible until then. Say in the file comment when a down is lossy.\n\n## Writing a migration\n\n1. Decide whether each table is large (rule 2). If unsure, treat it as large.\n2. Split the change into one concern per file, following rules 2 to 4.\n3. Start every file with the rule 1 lock timeout. Opt out of the transaction\n   wrapper only in files that need it (rules 3 and 4).\n4. Write the down step (rule 5).\n5. Test up, down, up on a development database with realistic data volume if\n   you can.\n\n## Reviewing a migration\n\nGo through each file and report every violation as: file, line, rule number,\nwhat breaks (lock, outage, data loss, or a failed rollback), and the fix. Check:\n\n- [ ] Rule 1: `SET lock_timeout = '5s';` is the first statement.\n- [ ] Rule 2: no `ADD COLUMN` combining `DEFAULT` and `NOT NULL` on a large table.\n- [ ] Rule 3: `CREATE INDEX` on an existing table uses `CONCURRENTLY`, and the\n      file opts out of the transaction wrapper. `CONCURRENTLY` never runs in a\n      transaction.\n- [ ] Rule 4: no unbounded `UPDATE` over a large table; backfill is in its own\n      migration and runs in batches of 10,000.\n- [ ] Rule 5: a down step exists, reverses the up step, and is not lossy\n      without a comment saying so.\n\nAlso flag, even though they are outside the five rules: `ALTER COLUMN ... TYPE`\n(rewrites the table), and `DROP COLUMN` still read by deployed code.\n"
+   },
+   "writeScore": 1,
+   "probe": {
+    "should_fire": [
+     10,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-migration-safety",
+   "arm": "without",
+   "run": 1,
+   "skill": "migration-safety",
+   "description": "Write and review Postgres schema migrations safely. Use when creating, editing, or reviewing a migration file, adding or changing columns, constraints, or indexes, backfilling data, or when the user asks to check a migration. Enforces lock_timeout, no add-column-with-default-and-NOT-NULL on large tables, CREATE INDEX CONCURRENTLY outside transactions, batched backfills in their own migration, and a working down step.",
+   "files": {
+    "SKILL.md": "---\nname: migration-safety\ndescription: Write and review Postgres schema migrations safely. Use when creating, editing, or reviewing a migration file, adding or changing columns, constraints, or indexes, backfilling data, or when the user asks to check a migration. Enforces lock_timeout, no add-column-with-default-and-NOT-NULL on large tables, CREATE INDEX CONCURRENTLY outside transactions, batched backfills in their own migration, and a working down step.\n---\n\n# Migration safety\n\nThese are the team's rules for Postgres migrations. Apply them when writing a migration, and check every one of them again when reviewing a migration, including ones Claude wrote earlier. Past migrations have broken these rules, so do not assume a file is correct because it looks routine.\n\n## The rules\n\n### 1. Set `lock_timeout` at the top of every migration\n\nEvery migration starts with:\n\n```sql\nSET lock_timeout = '5s';\n```\n\nWithout it, a migration waits indefinitely for an `ACCESS EXCLUSIVE` lock. Every query queued behind that waiting migration then stalls too. With the timeout, the migration fails fast and can be retried. Put the statement before any DDL, in every migration, including data-only and index-only migrations.\n\n### 2. Never add a column with a default and NOT NULL in one statement on a large table\n\nDo not write this on a large table:\n\n```sql\nALTER TABLE orders ADD COLUMN status text NOT NULL DEFAULT 'pending';  -- don't\n```\n\nUse the staged approach instead:\n\n1. Migration A (schema): `ALTER TABLE orders ADD COLUMN status text;` (nullable, no default).\n2. Migration B (backfill, see rule 4): fill existing rows in batches.\n3. Migration C (constraint): add the constraint without a full-table scan, then validate it separately:\n   ```sql\n   ALTER TABLE orders ADD CONSTRAINT orders_status_not_null CHECK (status IS NOT NULL) NOT VALID;\n   ALTER TABLE orders VALIDATE CONSTRAINT orders_status_not_null;\n   ```\n4. Set the column to NOT NULL. On Postgres 12+, a validated CHECK constraint lets `SET NOT NULL` skip the full-table scan. Then drop the redundant check:\n   ```sql\n   ALTER TABLE orders ALTER COLUMN status SET NOT NULL;\n   ALTER TABLE orders DROP CONSTRAINT orders_status_not_null;\n   ```\n5. Set the column default for new rows only if it is still needed. A new default applies to future inserts and does not touch existing rows.\n\nNote on the reason: since Postgres 11, a constant default does not rewrite the table. A volatile default such as `random()` or `clock_timestamp()` still does, and the `NOT NULL` check plus the `ACCESS EXCLUSIVE` lock still hit a large table. The rule is about that lock and that scan, so follow the staged approach even when the default looks harmless.\n\n### 3. Create indexes with `CREATE INDEX CONCURRENTLY`, outside a transaction\n\n```sql\nCREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_customer_id ON orders (customer_id);\n```\n\n- `CONCURRENTLY` cannot run inside a transaction block. Check how this project's migration tool opts a file out of its transaction wrapper, and use that mechanism on any migration containing `CONCURRENTLY`. Examples: Rails `disable_ddl_transaction!`, Flyway `executeInTransaction=false`, Alembic `autocommit_block()` or `transaction_per_migration`. If you cannot find the project's mechanism, stop and ask instead of guessing.\n- Keep an index migration to index statements. Do not mix in other DDL or data changes.\n- A failed concurrent build leaves an `INVALID` index behind. Before retrying, check `pg_index.indisvalid` and run `DROP INDEX CONCURRENTLY IF EXISTS <name>`. `IF NOT EXISTS` alone will skip the broken index and leave it in place.\n- Drop indexes with `DROP INDEX CONCURRENTLY IF EXISTS` as well, and use the same non-transactional setting.\n\n### 4. Backfill in batches of 10k rows, in a separate migration\n\n- The backfill goes in its own migration, separate from the schema change that adds the column and separate from the constraint migration.\n- Process rows in batches of 10,000. Each batch must commit before the next one starts, so locks are released and replication can keep up. A single `UPDATE` over the whole table, or one `DO` block looping inside one transaction, does not meet this rule.\n- Each batch should select only rows that still need work, so the loop is restartable:\n  ```sql\n  UPDATE orders SET status = 'pending'\n  WHERE id IN (\n    SELECT id FROM orders WHERE status IS NULL ORDER BY id LIMIT 10000\n  );\n  ```\n  Repeat until zero rows are affected. The loop has to run outside a single transaction, which means the backfill migration is non-transactional (see rule 3) or is driven by a script that commits between batches. Say which approach you chose.\n- Do not hold a long lock on the table during the backfill. Do not use a one-off script that is not recorded as a migration.\n\n### 5. Every migration has a working down step\n\n- Every migration must include a down step that reverses it, and that down step must be tested. \"It's irreversible\" is not an accepted answer.\n- Schema down steps: drop what was added, in reverse order. For indexes, use `DROP INDEX CONCURRENTLY IF EXISTS`, following rule 3.\n- Backfill down steps: reset the backfilled values to their prior state (for example, `UPDATE orders SET status = NULL`), batched the same way as the up step. If the prior values cannot be recovered, say so explicitly in the migration comment and explain what the down step does instead of pretending it restores the data.\n- Verify the down step: run up, then down, then up against a copy of the schema and confirm the end state matches. Do this before calling a migration done.\n\n## Writing a migration\n\n1. Decide whether the change is schema, index, backfill, or constraint. If it is more than one, split it into separate migrations.\n2. Start with `SET lock_timeout = '5s';`.\n3. Apply the rule for that change type from above.\n4. Add the down step and confirm it is correct.\n5. Confirm the transaction setting: non-transactional only when required (index and backfill migrations).\n6. Run the checklist below before finishing.\n\n## Reviewing a migration\n\nGo through this checklist for every migration in the change set and report each failure with the file and line.\n\n- [ ] `SET lock_timeout = '5s';` appears before the first DDL statement.\n- [ ] No `ADD COLUMN ... NOT NULL ... DEFAULT ...` in one statement on a large table. Also flag `ALTER COLUMN ... SET NOT NULL` without a prior validated check constraint, and volatile defaults.\n- [ ] Every `CREATE INDEX` / `DROP INDEX` is `CONCURRENTLY`, and the migration is marked non-transactional.\n- [ ] No `CONCURRENTLY` statement in a transactional migration, and no non-transactional migration with unrelated DDL.\n- [ ] `CREATE INDEX CONCURRENTLY` uses `IF NOT EXISTS`, and the migration handles an existing `INVALID` index.\n- [ ] Backfills are in their own migration, batched at 10,000 rows, committed per batch, and restartable.\n- [ ] A down step exists, is not empty or a bare `-- TODO`, and reverses the up step.\n- [ ] The migration does not mix schema changes with data changes.\n\nUseful searches when reviewing a change set:\n\n```\ngrep -rniE \"add column.*not null|set not null\" migrations/\ngrep -rniE \"create index|drop index\" migrations/ | grep -vi concurrently\ngrep -rLi \"lock_timeout\" migrations/\n```\n\nAdjust the directory to this project's migrations path. If a check cannot be verified from the file alone (for example, the table's size or whether the tool wraps migrations in a transaction), say so in the review instead of assuming it passes.\n\n## Reporting\n\nWhen you finish a review, list the violations first, ordered by risk: lock-related issues before style issues. If there are none, say which rules you checked and what you could not verify.\n"
+   },
+   "writeScore": 0.5,
+   "probe": {
+    "should_fire": [
+     8,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-migration-safety",
+   "arm": "without",
+   "run": 2,
+   "skill": "migration-safety",
+   "description": "Write and review Postgres schema migrations safely. Use when creating or reviewing a migration file, adding or altering columns, creating indexes, backfilling data, or when the user asks to check a migration for lock or deploy risk.",
+   "files": {
+    "SKILL.md": "---\nname: migration-safety\ndescription: Write and review Postgres schema migrations safely. Use when creating or reviewing a migration file, adding or altering columns, creating indexes, backfilling data, or when the user asks to check a migration for lock or deploy risk.\n---\n\n# Migration Safety (Postgres)\n\nUse these rules when writing a new migration or reviewing one. They exist because migrations written earlier have broken them. Treat every rule as mandatory. If a migration cannot follow a rule, split it or change the approach. Do not drop the rule.\n\n## The rules\n\n1. **Set `lock_timeout` first.** Every migration starts with:\n\n   ```sql\n   SET lock_timeout = '5s';\n   ```\n\n   Without it, a migration can queue behind a long-running transaction and block all reads and writes on the table while it waits. With it, the migration fails fast and can be retried. Do not raise the timeout to make a migration pass. Retry it instead.\n\n2. **Never add a NOT NULL column with a default in one statement on a large table.** Do not write:\n\n   ```sql\n   -- Don't: rewrites or locks a large table in one step\n   ALTER TABLE orders ADD COLUMN status text NOT NULL DEFAULT 'pending';\n   ```\n\n   Use this sequence, with each step in its own migration or at least its own statement:\n\n   ```sql\n   -- Migration 1: schema only, nullable, no default\n   SET lock_timeout = '5s';\n   ALTER TABLE orders ADD COLUMN status text;\n\n   -- Migration 2: backfill (see rule 4)\n\n   -- Migration 3: enforce NOT NULL without a full scan under lock\n   SET lock_timeout = '5s';\n   ALTER TABLE orders ADD CONSTRAINT orders_status_not_null\n     CHECK (status IS NOT NULL) NOT VALID;\n   ALTER TABLE orders VALIDATE CONSTRAINT orders_status_not_null;\n   ALTER TABLE orders ALTER COLUMN status SET NOT NULL;\n   ALTER TABLE orders DROP CONSTRAINT orders_status_not_null;\n   ```\n\n   If the default is still needed for new rows, add it as a separate `ALTER ... SET DEFAULT` after the backfill. Do not combine it with NOT NULL in the same statement.\n\n3. **Create indexes with `CREATE INDEX CONCURRENTLY`, outside a transaction.**\n\n   ```sql\n   -- Migration file must not run inside a transaction\n   SET lock_timeout = '5s';\n   CREATE INDEX CONCURRENTLY idx_orders_customer_id ON orders (customer_id);\n   ```\n\n   - `CONCURRENTLY` cannot run inside a transaction block. Check how the migration tool wraps migrations. For example, Rails needs `disable_ddl_transaction!`, Django needs `atomic = False`, Alembic needs `autocommit_block()`, and Flyway needs `executeInTransaction` set to false. Set the tool's equivalent for this file only.\n   - A failed `CONCURRENTLY` build leaves an `INVALID` index behind. Do not rely on `IF NOT EXISTS` alone. `IF NOT EXISTS` skips an invalid index from a previous failed run. Check first:\n\n     ```sql\n     SELECT indexrelid::regclass, indisvalid\n     FROM pg_index WHERE indexrelid = 'idx_orders_customer_id'::regclass;\n     ```\n\n     If it is invalid, `DROP INDEX CONCURRENTLY` it and rebuild.\n   - The down step is `DROP INDEX CONCURRENTLY IF EXISTS idx_orders_customer_id;`, also outside a transaction.\n\n4. **Backfill in batches of 10k rows, in a separate migration.** Do not put a backfill in the same file as the schema change that needs it. Do not use one unbounded `UPDATE`.\n\n   Each batch should touch at most 10,000 rows and commit before the next one starts. Batch by primary key so each pass is an index range scan:\n\n   ```sql\n   -- Migration: backfill only, no schema change in this file\n   SET lock_timeout = '5s';\n   CREATE PROCEDURE backfill_orders_status() LANGUAGE plpgsql AS $$\n   DECLARE\n     affected int;\n   BEGIN\n     LOOP\n       UPDATE orders SET status = 'pending'\n       WHERE id IN (\n         SELECT id FROM orders\n         WHERE status IS NULL\n         ORDER BY id\n         LIMIT 10000\n       );\n       GET DIAGNOSTICS affected = ROW_COUNT;\n       EXIT WHEN affected = 0;\n       COMMIT;\n     END LOOP;\n   END $$;\n   CALL backfill_orders_status();\n   DROP PROCEDURE backfill_orders_status();\n   ```\n\n   A single `DO` block runs as one transaction, so it cannot batch. The `COMMIT` inside the loop only works when `CALL` runs outside a transaction block. A runner that sends the whole file as one multi-statement implicit transaction will fail on it. Check that the runner executes each statement on its own before relying on this form.\n\n   If the runner cannot do that, move the batching into a script or job that runs outside the migration runner. In either case, the schema change stays in a separate migration.\n\n5. **Every migration has a working down step.** Each `up` needs a matching `down` that you have actually checked against a database. Watch for these cases:\n\n   - Dropping a column or table in `up` needs a `down` that re-creates it with its original type, nullability, and default. The data cannot come back, so note that in the file.\n   - A backfill's `down` should reverse what the backfill wrote. For example, set the values back to NULL, but only for the rows it changed. A no-op down is not acceptable.\n   - Each `down` must also respect rules 1 and 3. A `down` that creates or drops an index must set `lock_timeout` and run outside a transaction.\n\n   Do not mark a migration as having no down step. If a change truly cannot be reversed, say so explicitly to the user and get a decision before writing it.\n\n## Writing a migration\n\n1. Decide the smallest change that does the job. Prefer several small migrations over one large one.\n2. Start the file with `SET lock_timeout = '5s';`.\n3. Apply rules 2 to 4 based on the change type. Put schema changes and backfills in separate files.\n4. Mark any file that must run outside a transaction, using the tool's convention.\n5. Write the `down` step. Check it against the rules, not just that it looks plausible.\n6. Note in the file's comments anything that is not reversible or that needs a manual step after deploy.\n\n## Reviewing a migration\n\nGo through this list. Report each failure with the line that breaks the rule.\n\n- [ ] First statement is `SET lock_timeout = '5s';`\n- [ ] No single statement adds a column that is both `NOT NULL` and has a `DEFAULT` on a large table\n- [ ] Every `CREATE INDEX` is `CONCURRENTLY`, and the file runs outside a transaction\n- [ ] No `DROP INDEX` without `CONCURRENTLY` on a large table (the down step too)\n- [ ] No `UPDATE` over a large table without a 10k-row batch limit\n- [ ] Backfills are in their own migration and do not change the schema in the same file\n- [ ] A `down` step exists and reverses the `up` step, including its lock and transaction rules\n- [ ] Any irreversible step is called out in a comment\n\nWhen you find a violation, quote the offending statement, name the rule number, and show the corrected SQL. Do not just say the migration is unsafe.\n\n## Notes\n\n- \"Large table\" is not defined here. If you are unsure whether a table is large, treat it as large.\n- These rules describe the approach, not any specific migration tool. Adapt the transaction setting to the tool this project uses, and check it before relying on it.\n"
+   },
+   "writeScore": 0.5,
+   "probe": {
+    "should_fire": [
+     5,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-python-packaging",
+   "arm": "with",
+   "run": 1,
+   "skill": "python-packaging",
+   "description": "How Python is run, installed and packaged in our repos, with uv as the only tool. Use when the task is to add or remove a Python dependency, run Python code, tests or a script, set up a Python environment, or make a single-file Python script, and before suggesting pip, pip install, poetry, pip-tools, venv or requirements.txt for Python work.",
+   "files": {
+    "SKILL.md": "---\nname: python-packaging\ndescription: How Python is run, installed and packaged in our repos, with uv as the only tool. Use when the task is to add or remove a Python dependency, run Python code, tests or a script, set up a Python environment, or make a single-file Python script, and before suggesting pip, pip install, poetry, pip-tools, venv or requirements.txt for Python work.\n---\n\n# Python packaging\n\nuv is the only tool for Python in these repos. It manages the interpreter, the virtualenv, dependencies and the lockfile. Do not reach for anything else.\n\n## Rules\n\n- Add dependencies with `uv add <pkg>`, dev-only ones with `uv add --dev <pkg>`. Never edit dependency lists in `pyproject.toml` by hand to add or pin a package.\n- Run anything Python-related with `uv run`, e.g. `uv run pytest`, `uv run python -m mymodule`, `uv run ruff check .`.\n- Install the project environment with `uv sync`. Use `uv sync --locked` in CI so a stale lockfile fails the build.\n- `uv.lock` is committed. Change it only through `uv add`, `uv remove`, `uv lock` or `uv sync`. Never delete it to \"fix\" resolution problems.\n- Single-file scripts declare their dependencies inline (PEP 723) and run with `uv run script.py`. They have no `pyproject.toml`, lockfile or venv of their own.\n- Do not use `pip`, `pip install`, `pip-tools`, `pip-compile`, `poetry`, `python -m venv`, `virtualenv`, or hand-activated `.venv`. Do not use `uv pip` for project dependencies either; use `uv add`.\n- Do not create `requirements.txt`, `requirements-dev.txt` or `constraints.txt`. If one already exists and the user wants it gone, migrate it with `uv add -r requirements.txt`, then delete it after `uv.lock` is updated and the user has confirmed.\n\n## Project repos\n\nSetup and everyday use:\n\n```bash\nuv sync                 # create/refresh .venv from uv.lock\nuv add httpx            # runtime dependency\nuv add --dev pytest     # dev dependency\nuv remove httpx         # drop a dependency\nuv run pytest           # run tools inside the environment\n```\n\n- Pin the Python version with `uv python pin 3.12` (writes `.python-version`). Do not hard-code interpreter paths.\n- `uv run` creates and syncs `.venv` on demand, so you rarely need to call `uv sync` before it.\n- To build distributables use `uv build`. To publish use `uv publish`.\n- If `uv.lock` and `pyproject.toml` disagree, run `uv lock` and commit the result rather than installing around it.\n\n## Single-file scripts (PEP 723)\n\nDeclare dependencies in a comment block at the top of the file:\n\n```python\n# /// script\n# requires-python = \">=3.12\"\n# dependencies = [\n#   \"httpx>=0.27\",\n#   \"rich\",\n# ]\n# ///\n\nimport httpx\nfrom rich import print\n\nprint(httpx.get(\"https://example.com\").status_code)\n```\n\nRun it with `uv run script.py`. To add a dependency to a script, use `uv add --script script.py httpx` rather than editing the block by hand. Do not create a `pyproject.toml` or `uv.lock` just because a script has imports. If a script grows into a multi-file tool, move it into a project with `uv init` and `uv add`.\n\n## When suggesting or explaining\n\n- Say \"run `uv add requests`\", not \"pip install requests\" or \"add it to requirements.txt\".\n- If the user asks how to install something, answer with the `uv` command for this situation (project or script).\n- If you see `pip`, `poetry` or `requirements.txt` in a repo file or command you are about to run, stop and use the uv equivalent instead.\n"
+   },
+   "writeScore": 0.5,
+   "probe": {
+    "should_fire": [
+     8,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-python-packaging",
+   "arm": "with",
+   "run": 2,
+   "skill": "python-packaging",
+   "description": "How Python is run, dependencies are managed and projects are packaged in this team's repos - uv is the only tool. Load this before adding, removing or upgrading a dependency, running a Python script, test or tool, setting up a Python project's environment, or writing install or setup instructions, even for a one-line change. Claude gets this wrong without it: it suggests pip install, requirements.txt, poetry, pip-tools or a hand-made venv, and none of those are used here.",
+   "files": {
+    "SKILL.md": "---\ndescription: How Python is run, dependencies are managed and projects are packaged in this team's repos - uv is the only tool. Load this before adding, removing or upgrading a dependency, running a Python script, test or tool, setting up a Python project's environment, or writing install or setup instructions, even for a one-line change. Claude gets this wrong without it: it suggests pip install, requirements.txt, poetry, pip-tools or a hand-made venv, and none of those are used here.\n---\n\n# Python in this team's repos\n\n`uv` is the only tool for Python environments, dependencies and running code.\nNever use pip, pip-tools, poetry, pipenv, or a hand-made virtualenv\n(`python -m venv`, `virtualenv`). Do not create or extend a `requirements.txt`.\n\n## Commands\n\n- **Add a dependency**: `uv add <package>`. Dev-only: `uv add --dev <package>`.\n- **Remove**: `uv remove <package>`.\n- **Upgrade**: `uv lock --upgrade-package <package>`, then `uv sync`.\n- **Sync the environment**: `uv sync`, after pulling or whenever `uv.lock` changes.\n  It creates `.venv`; do not create it yourself.\n- **Run anything**: `uv run <command>`, for example `uv run pytest` or\n  `uv run python -m mymodule`. Do not activate `.venv` and call a bare `python`\n  or `pip`.\n- **Install instructions** in docs, READMEs and replies: `uv sync` and `uv run`,\n  never `pip install -r requirements.txt`.\n\n## Dependency edits\n\n- Change dependencies only through `uv add`, `uv remove` or `uv lock`. Do not\n  hand-edit the dependency lists in `pyproject.toml`, and do not edit `uv.lock`.\n- `uv.lock` is committed. Commit it in the same change as the dependency edit.\n- On a `uv.lock` merge conflict, do not pick one side by hand. Resolve the\n  `pyproject.toml` side, then run `uv lock` to regenerate it.\n\n## Single-file scripts (PEP 723)\n\nA standalone script declares its own dependencies in a comment block at the top,\nand runs with `uv run script.py`. It needs no project and no environment setup:\n\n```python\n# /// script\n# requires-python = \">=3.12\"\n# dependencies = [\n#     \"httpx\",\n# ]\n# ///\n```\n\nTo add a dependency to such a script, use `uv add --script script.py httpx`\nrather than editing the block by hand. If a script grows into a project with\nseveral modules, move it into a project with `uv init` and `uv add`.\n\n## Before you finish\n\n- Did you touch a requirements file, poetry config or venv setup? Revert it and\n  use `uv` instead, or ask the user first if the task is a migration.\n- Did a dependency change leave `uv.lock` out of the diff? Run `uv lock` and\n  include it.\n"
+   },
+   "writeScore": 1,
+   "probe": {
+    "should_fire": [
+     10,
+     10
+    ],
+    "near_miss": [
+     2,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-python-packaging",
+   "arm": "without",
+   "run": 1,
+   "skill": "python-packaging",
+   "description": "How Python is run, dependencies are managed, and projects are packaged in our repos. Use whenever the task involves installing or adding a Python dependency, running a Python script or tool, creating or syncing a virtualenv, writing a standalone Python script, or touching pyproject.toml, uv.lock, or requirements files. Triggers on: pip, pip install, requirements.txt, poetry, pip-tools, venv, virtualenv, uv, dependencies, python script, PEP 723.",
+   "files": {
+    "SKILL.md": "---\nname: python-packaging\ndescription: How Python is run, dependencies are managed, and projects are packaged in our repos. Use whenever the task involves installing or adding a Python dependency, running a Python script or tool, creating or syncing a virtualenv, writing a standalone Python script, or touching pyproject.toml, uv.lock, or requirements files. Triggers on: pip, pip install, requirements.txt, poetry, pip-tools, venv, virtualenv, uv, dependencies, python script, PEP 723.\n---\n\n# Python packaging in our repos\n\n`uv` is the only tool for Python environments, dependencies, and running code. Do not reach for anything else.\n\n## Rules\n\n- Use `uv` for everything. Never use `pip`, `pip-tools`, `poetry`, or hand-made virtualenvs (`python -m venv`, `virtualenv`, manually activating `.venv`).\n- Do not create or suggest `requirements.txt`, `requirements-dev.txt`, or `pip freeze` output. `pyproject.toml` plus `uv.lock` is the source of truth.\n- `uv.lock` is committed. Never hand-edit it; let `uv add`, `uv remove`, or `uv lock` regenerate it.\n- Single-file scripts declare their dependencies inline (PEP 723) and run with `uv run script.py`. They do not get a `pyproject.toml`.\n\n## Commands\n\n| Task | Command |\n| --- | --- |\n| Add a runtime dependency | `uv add <package>` |\n| Add a dev-only dependency | `uv add --dev <package>` |\n| Remove a dependency | `uv remove <package>` |\n| Create/update `.venv` to match the lock | `uv sync` |\n| Verify the lock is current (CI) | `uv sync --locked` |\n| Refresh the lock without installing | `uv lock` |\n| Run a command in the project env | `uv run <command>` (e.g. `uv run pytest`, `uv run python -m mypackage`) |\n| Run a single-file script | `uv run script.py` |\n| Add a dependency to a single-file script | `uv add --script script.py <package>` |\n\n`uv run` syncs the environment as needed, so there is no separate activation step.\n\n## Single-file scripts (PEP 723)\n\nDeclare dependencies and the Python version in a comment block at the top of the file:\n\n```python\n# /// script\n# requires-python = \">=3.12\"\n# dependencies = [\n#     \"httpx>=0.27\",\n#     \"rich\",\n# ]\n# ///\n\nimport httpx\nfrom rich import print\n\nprint(httpx.get(\"https://example.com\").status_code)\n```\n\nRun it with `uv run script.py`. Do not tell the user to `pip install` the script's dependencies first, and do not split the script's dependencies into a requirements file.\n\n## When you catch yourself about to write one of these\n\n| Instead of | Do |\n| --- | --- |\n| `pip install requests` | `uv add requests` (or, for a one-off script, add it to the PEP 723 block) |\n| `pip install -r requirements.txt` | `uv sync` |\n| `python -m venv .venv && source .venv/bin/activate` | `uv sync`, then `uv run ...` |\n| `poetry add ...` / `pip-compile` | `uv add ...` / `uv lock` |\n| `python script.py` after installing deps by hand | `uv run script.py` with the deps in the PEP 723 block |\n| Creating `requirements.txt` for CI or Docker | `uv sync --locked` in CI and Docker builds |\n\nIf the user explicitly asks for one of the prohibited tools, point to this rule and ask them to confirm before proceeding, rather than silently complying.\n"
+   },
+   "writeScore": 0.5,
+   "probe": {
+    "should_fire": [
+     8,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-python-packaging",
+   "arm": "without",
+   "run": 2,
+   "skill": "python-packaging",
+   "description": "How Python is run, installed, and packaged in our repos. Use whenever you add or change Python dependencies, create a Python project or script, run Python code or tests, or are about to write pip, requirements.txt, poetry, pip-tools, or a manual venv. uv is the only tool.",
+   "files": {
+    "SKILL.md": "---\nname: python-packaging\ndescription: How Python is run, installed, and packaged in our repos. Use whenever you add or change Python dependencies, create a Python project or script, run Python code or tests, or are about to write pip, requirements.txt, poetry, pip-tools, or a manual venv. uv is the only tool.\n---\n\n# Python packaging and running\n\nuv is the only tool for Python dependencies, environments, and running code in our repos.\n\n## The rules\n\n- Use `uv` for everything: `uv add`, `uv remove`, `uv sync`, `uv run`, `uv lock`.\n- Never use `pip`, `pip install`, `pip-tools`, `poetry`, or `requirements.txt`.\n- Never create or activate a venv by hand (`python -m venv`, `virtualenv`, `source .venv/bin/activate`). `uv` manages `.venv` itself.\n- `uv.lock` is committed. Every dependency change updates it in the same change.\n- Single-file scripts declare their dependencies inline (PEP 723) and run with `uv run script.py`. They do not get a `pyproject.toml`.\n\n## Projects (multi-file, packaged)\n\nDependencies live in `pyproject.toml`; the resolved set lives in `uv.lock`.\n\n| Task | Command |\n| --- | --- |\n| Create a project | `uv init --python 3.12` (writes `pyproject.toml` and `.python-version`) |\n| Add a runtime dependency | `uv add requests` |\n| Add a dev dependency | `uv add --dev pytest` |\n| Add to a named group | `uv add --group lint ruff` |\n| Remove a dependency | `uv remove requests` |\n| Install from the lock | `uv sync` |\n| Run a command in the project env | `uv run pytest`, `uv run python -m mypackage` |\n| Re-resolve the lock | `uv lock` |\n| Build sdist and wheel | `uv build` |\n\nNotes:\n\n- `uv run` syncs the environment from `uv.lock` before running, so you rarely need `uv sync` by hand. Use `uv sync` when setting up a fresh checkout or when you want the env ready without running anything.\n- In CI, use `uv sync --locked` so the job fails if `pyproject.toml` and `uv.lock` disagree, instead of silently re-resolving.\n- Do not edit `uv.lock` by hand. If it is out of date, run `uv lock`.\n- Do not use `uv pip install` in place of `uv add`. It bypasses `pyproject.toml` and the lock, so the dependency is lost on the next `uv sync`.\n- Pin the Python version with `.python-version`. Install a version with `uv python install 3.12` if it is missing.\n\n## Single-file scripts (PEP 723)\n\nFor a script that stands alone, declare its dependencies in a comment block at the top of the file. Do not create a `pyproject.toml` or `uv.lock` for it.\n\n```python\n# /// script\n# requires-python = \">=3.12\"\n# dependencies = [\n#     \"httpx>=0.27\",\n# ]\n# ///\n\nimport httpx\n\nprint(httpx.get(\"https://example.com\").status_code)\n```\n\n- Add a dependency to a script with `uv add --script fetch.py httpx`. This edits the `# /// script` block; do not hand-write a different format.\n- Run it with `uv run fetch.py`. uv builds an isolated environment from the inline block.\n- If a script grows into several files or needs its own tests and lock, promote it to a project with `uv init` and move the dependencies into `pyproject.toml`.\n\n## One-off CLI tools\n\nRun a tool without adding it to the project with `uvx ruff check .` (same as `uv tool run`). Do not add a dev-only CLI to the project unless the repo's tests or CI call it.\n\n## When you are about to suggest pip\n\nIf you are about to write any of these, stop and use the uv form instead:\n\n| Instead of | Use |\n| --- | --- |\n| `pip install X` | `uv add X` (project) or `uv add --script <file> X` (script) |\n| `pip install -r requirements.txt` | `uv sync` |\n| `pip freeze > requirements.txt` | Nothing; `uv.lock` is the lock. Delete any requirements file you find. |\n| `poetry add X` / `poetry install` | `uv add X` / `uv sync` |\n| `python -m venv .venv && pip ...` | `uv sync` (creates `.venv` itself) |\n| `python script.py` with missing imports | `uv run script.py` (after declaring the deps inline) |\n| `pip-compile` / `pip-tools` | `uv lock` |\n\nIf a repo still has a `requirements.txt`, `Pipfile`, or `poetry.lock`, do not extend it. Say so to the user and propose migrating to `pyproject.toml` + `uv.lock` (`uv add` the packages, then delete the old file in the same change).\n"
+   },
+   "writeScore": 1,
+   "probe": {
+    "should_fire": [
+     8,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-release-notes",
+   "arm": "with",
+   "run": 1,
+   "skill": "release-notes",
+   "description": "Draft release notes for this plugin from merged PRs since the last release, grouped Added / Changed / Fixed with a BREAKING section first. Load this before writing, drafting, editing or reviewing any release notes, changelog entry or release announcement, even a one-line one. Without it, release notes get grouped by PR author, include dependency bumps and CI-only PRs, and drop PR links.",
+   "files": {
+    "SKILL.md": "---\ndescription: Draft release notes for this plugin from merged PRs since the last release, grouped Added / Changed / Fixed with a BREAKING section first. Load this before writing, drafting, editing or reviewing any release notes, changelog entry or release announcement, even a one-line one. Without it, release notes get grouped by PR author, include dependency bumps and CI-only PRs, and drop PR links.\n---\n\nDraft the release notes for the next release of this plugin. Output the\ndraft in the conversation; do not publish it, tag, or edit a changelog file\nunless the user asks.\n\n## House rules (apply every time, no exceptions)\n\n1. **Group by change type, never by PR author.** Only three headings, in\n   this order, and omit any that are empty:\n   - `### Added` - new features, commands, skills or options.\n   - `### Changed` - behaviour changes that are not breaking.\n   - `### Fixed` - bug fixes.\n2. **Leave out dependency bumps and CI-only PRs.** A PR is a dependency bump\n   if its title or branch is a version bump (for example `bump`, `Bump`,\n   `chore(deps)`, `dependabot/`, `renovate/`) or its only change is to a\n   lockfile or manifest version. A PR is CI-only if every changed file is\n   under `.github/workflows/` or another CI config. If a PR mixes these with\n   a real change, keep it and describe the real change.\n3. **Every entry links its PR number**, in the form\n   `- Short description ([#123](https://github.com/OWNER/REPO/pull/123))`.\n   An entry without a PR number is not finished; find the PR or ask.\n4. **Breaking changes go first** under a `### BREAKING` heading, before\n   Added / Changed / Fixed. Each breaking entry gets a one-line migration\n   note directly beneath it, starting with `Migration:`, saying what users\n   must change. Breaking entries also keep their PR link.\n\n## Procedure\n\n1. Find the previous release tag and the merged PRs since it. If there is\n   no tag, ask the user for the starting point rather than guessing.\n2. For each PR, read its title, description and changed files. Classify it\n   as breaking, Added, Changed, Fixed, or excluded under rule 2.\n3. Write each entry from the user's point of view: what changed for them,\n   in one line, not the PR title copied verbatim.\n4. Assemble the draft in this order: BREAKING, Added, Changed, Fixed. Check\n   it against the four house rules before showing it: no author names, no\n   bumps or CI-only entries, every entry has a PR link, every breaking entry\n   has a `Migration:` line.\n5. Tell the user which PRs you excluded and why, so they can override a call.\n\n## Example entry shape\n\n```markdown\n## 1.4.0\n\n### BREAKING\n- Renamed the `--out` flag to `--output` ([#212](https://github.com/OWNER/REPO/pull/212))\n  Migration: replace `--out` with `--output` in scripts.\n\n### Added\n- New `release-notes` skill for drafting release notes ([#218](https://github.com/OWNER/REPO/pull/218))\n\n### Fixed\n- Skills with a `paths` filter no longer load in unrelated sessions ([#225](https://github.com/OWNER/REPO/pull/225))\n```\n"
+   },
+   "writeScore": 1,
+   "probe": {
+    "should_fire": [
+     10,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-release-notes",
+   "arm": "with",
+   "run": 2,
+   "skill": "release-notes",
+   "description": "Drafts this plugin's release notes from merged PRs since the last release. Load this before drafting, editing, reviewing or advising on release notes or a changelog entry, even a one-line one. Claude gets these house rules wrong without it: entries grouped under Added / Changed / Fixed, never by PR author; dependency bumps and CI-only PRs left out; every entry links its PR number; breaking changes first under a BREAKING heading with a one-line migration note.",
+   "files": {
+    "SKILL.md": "---\ndescription: Drafts this plugin's release notes from merged PRs since the last release. Load this before drafting, editing, reviewing or advising on release notes or a changelog entry, even a one-line one. Claude gets these house rules wrong without it: entries grouped under Added / Changed / Fixed, never by PR author; dependency bumps and CI-only PRs left out; every entry links its PR number; breaking changes first under a BREAKING heading with a one-line migration note.\nallowed-tools: Bash(git tag:*), Bash(git log:*), Bash(gh pr list:*), Bash(gh pr view:*)\nargument-hint: [since-tag]\n---\n\n# Release notes\n\nDraft the release notes for the next release of this plugin. Output the\ndraft in chat; do not write a file unless the user asks.\n\n## Gather the PRs\n\n1. Find the baseline: the `since-tag` argument if given, otherwise the\n   most recent tag from `git tag --sort=-creatordate | head -1`.\n2. List the PRs merged since that tag, with title, labels, author and\n   number (`gh pr list --state merged --search \"merged:>=<tag date>\"`, or\n   `git log <tag>..HEAD --merges --oneline` if `gh` cannot reach the repo).\n   Open each PR's body with `gh pr view <n>` when its title is not enough to\n   classify it.\n\n## Filter out\n\n- **Dependency bumps**: Dependabot or Renovate PRs, and PRs whose only\n  change is a version bump in a manifest or lockfile. Leave them out.\n- **CI-only PRs**: changes confined to CI workflows, pipeline config or\n  test-infrastructure plumbing with no user-visible effect. Leave them out.\n\nIf a PR mixes a dependency bump with a real user-facing change, keep the\nchange and drop only the bump.\n\n## Classify\n\n- **BREAKING**: any change that requires users to alter their setup,\n  config, commands or code. Each breaking entry gets a one-line migration\n  note saying what to do instead. Breaking entries go first, under a\n  `### BREAKING` heading, above the other sections.\n- **Added**: new capabilities, commands, skills or options.\n- **Changed**: behaviour changes that are not breaking, deprecations and\n  removals that users can absorb.\n- **Fixed**: bug fixes.\n\nGroup by what changed for the user. Never group or label entries by PR\nauthor, team or contributor.\n\n## Format\n\n```markdown\n### BREAKING\n- Short description of the change. ([#123](https://github.com/OWNER/REPO/pull/123))\n  Migration: one line on what to do instead.\n\n### Added\n- Entry. ([#124](https://github.com/OWNER/REPO/pull/124))\n\n### Changed\n- Entry. ([#125](https://github.com/OWNER/REPO/pull/125))\n\n### Fixed\n- Entry. ([#126](https://github.com/OWNER/REPO/pull/126))\n```\n\n- Every entry links its PR number, in the form `([#N](url))`. No entry\n  goes without one; if a change has no PR, flag it to the user rather than\n  inventing a number.\n- Omit a section that has no entries. Do not print empty headings.\n- One line per entry, written from the user's point of view, in the\n  imperative or past tense used by the existing notes.\n\n## Before you finish\n\nCheck the draft against this list and fix anything that fails:\n\n- [ ] Sections are only Added / Changed / Fixed, plus BREAKING first when present.\n- [ ] No entry names or groups by a PR author.\n- [ ] No dependency bump or CI-only PR appears.\n- [ ] Every entry has a PR link; every BREAKING entry has a Migration line.\n\nIf a PR is ambiguous (breaking or not, user-facing or not), say so in a\nshort note after the draft rather than deciding silently.\n"
+   },
+   "writeScore": 1,
+   "probe": {
+    "should_fire": [
+     10,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-release-notes",
+   "arm": "without",
+   "run": 1,
+   "skill": "release-notes",
+   "description": "Draft release notes for the next release from merged PRs since the last tag. Groups entries under BREAKING, Added, Changed, and Fixed (never by PR author), drops dependency bumps and CI-only PRs, and links every entry's PR number. Use when the user asks for release notes, a changelog entry, or a release summary.",
+   "files": {
+    "SKILL.md": "---\nname: release-notes\ndescription: Draft release notes for the next release from merged PRs since the last tag. Groups entries under BREAKING, Added, Changed, and Fixed (never by PR author), drops dependency bumps and CI-only PRs, and links every entry's PR number. Use when the user asks for release notes, a changelog entry, or a release summary.\n---\n\n# Release notes\n\nDraft release notes from the PRs merged since the previous release. Follow the house rules below exactly. They are not optional, even if earlier releases did not follow them.\n\n## House rules\n\n1. **Group by change type, never by PR author.** Only these headings are allowed, in this order: `BREAKING`, `Added`, `Changed`, `Fixed`. Omit a heading that has no entries. Do not add headings such as \"Misc\", \"Other\", or \"Internal\".\n2. **Leave out dependency bumps and CI-only PRs.**\n   - Dependency bumps: PRs whose title or branch is a version bump (for example \"Bump x from 1.2 to 1.3\", \"chore(deps): ...\", \"Update dependency ...\"), or that come from dependency bots such as Dependabot or Renovate, or that only change lockfiles or manifest version pins.\n   - CI-only PRs: PRs that only touch CI configuration (for example `.github/workflows/**`, CI scripts, or `ci:` titles).\n   - If a PR mixes a dependency or CI change with a user-facing change, keep it and write the entry about the user-facing change.\n3. **Every entry links its PR number**, in the form `([#123](https://github.com/OWNER/REPO/pull/123))`. Get the owner and repo from the git remote. Never write an entry without a link.\n4. **Breaking changes go first** under a `BREAKING` heading. Each breaking entry is followed by a one-line migration note that says what users must change. Keep breaking entries out of the Added/Changed/Fixed sections so they are not listed twice.\n\n## Procedure\n\n1. **Find the range.** Use the most recent release tag as the start, for example with `git describe --tags --abbrev=0`. If the user names a version or range, use that instead. If there are no tags, ask the user which commit to start from.\n2. **List merged PRs in the range.** Use `gh pr list --state merged --search \"merged:>=<tag date>\"`, or read the merge commits from `git log <tag>..HEAD --merges` and `git log <tag>..HEAD`. For each PR, record the number, title, author, labels, and the files it changed (`gh pr view <n> --json title,labels,files,body`).\n3. **Filter.** Remove dependency bumps and CI-only PRs using rule 2.\n4. **Classify each remaining PR** by reading its title, body, and diff, not only its title:\n   - `BREAKING`: removes or renames a public API, command, option, or config key, changes a default in an incompatible way, or changes an output format that users rely on. If it is breaking but the body does not say how to migrate, write the migration note from the diff, and flag it for the user to check.\n   - `Added`: new features, commands, options, or documented capabilities.\n   - `Changed`: behaviour changes that are not breaking, performance work, and refactors that users can notice.\n   - `Fixed`: bug fixes.\n5. **Write each entry** as one short sentence in the user's point of view (what users can now do, or what no longer goes wrong). Do not copy the PR title verbatim if it is written for developers. Do not name the PR author.\n6. **Order entries** within each heading by impact, most important first. Do not order by author or by PR number.\n\n## Output format\n\n```markdown\n## <version> - <YYYY-MM-DD>\n\n### BREAKING\n- Removed the `--legacy` flag. ([#412](https://github.com/OWNER/REPO/pull/412))\n  - Migration: use `--format json` instead of `--legacy`.\n\n### Added\n- Add `--dry-run` to `sync` to preview changes without writing. ([#405](https://github.com/OWNER/REPO/pull/405))\n\n### Changed\n- ...\n\n### Fixed\n- Fix crash when the config file is empty. ([#398](https://github.com/OWNER/REPO/pull/398))\n```\n\nThe `Migration:` line must be one line. Use the version number and date the user gives you. If they do not give them, ask for the version. Use today's date only if the user confirms it is the release date.\n\n## Before you return the draft\n\nCheck the draft against every house rule:\n\n- Headings are only `BREAKING`, `Added`, `Changed`, `Fixed`, in that order, and no empty headings remain.\n- No entry names a PR author.\n- No dependency bump or CI-only PR appears.\n- Every entry has a PR link.\n- Every breaking entry has a one-line migration note and appears only under `BREAKING`.\n\nIf a rule cannot be met because of missing information (for example, a PR whose number you cannot find), say so in a short list after the draft. Do not silently drop the entry or invent a number.\n"
+   },
+   "writeScore": 0.5,
+   "probe": {
+    "should_fire": [
+     8,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-release-notes",
+   "arm": "without",
+   "run": 2,
+   "skill": "release-notes",
+   "description": "Draft release notes for this plugin from merged PRs since the last release. Use when preparing a release, writing a changelog, or asked for release notes. Enforces the house rules (Added/Changed/Fixed grouping, BREAKING first with migration notes, PR links, no dependency-bump or CI-only entries).",
+   "files": {
+    "SKILL.md": "---\nname: release-notes\ndescription: Draft release notes for this plugin from merged PRs since the last release. Use when preparing a release, writing a changelog, or asked for release notes. Enforces the house rules (Added/Changed/Fixed grouping, BREAKING first with migration notes, PR links, no dependency-bump or CI-only entries).\n---\n\n# Release notes\n\nDraft release notes for the next release. Target: $ARGUMENTS (a version such as `0.2.0`; if empty, infer the next version from `.claude-plugin/plugin.json` and say which one you assumed).\n\n## House rules\n\nThese are mandatory. Check the draft against each one before showing it.\n\n1. **Grouping is by change type only**: `BREAKING`, `Added`, `Changed`, `Fixed`. Never group, title, or attribute sections by PR author or contributor.\n2. **Order**: `BREAKING` comes first, then `Added`, `Changed`, `Fixed`. Omit any heading that has no entries.\n3. **Breaking changes** go under a `BREAKING` heading at the top. Each one has a one-line migration note saying what users must change. Do not repeat a breaking change under `Changed`.\n4. **Every entry links its PR number**, in the form `([#123](https://github.com/OWNER/REPO/pull/123))`. Take OWNER/REPO from `git remote get-url origin`. No entry without a PR link.\n5. **Leave out dependency bumps.** Exclude PRs whose only change is a dependency version update (Dependabot, Renovate, or titles like \"Bump \u2026\", \"chore(deps): \u2026\", lockfile-only changes).\n6. **Leave out CI-only PRs.** Exclude PRs that change only CI or automation config (`.github/workflows/`, CI scripts, release tooling with no user-visible effect).\n\n## Steps\n\n1. **Find the range.** Use the most recent release tag (`git describe --tags --abbrev=0`, or the previous version in `plugin.json`) through `main`. If no tag exists, say so and ask which starting point to use.\n2. **List merged PRs in the range.** Prefer `gh pr list --state merged --search \"merged:>=<tag-date>\"` for PR numbers, titles, labels, and authors. Fall back to `git log <tag>..main --merges` or squash-commit subjects that end in `(#N)` if `gh` is unavailable.\n3. **Classify each PR** by what a user experiences:\n   - Breaking: removes or renames something, changes a default, or requires action from users. Write the migration note now.\n   - Added: new skill, command, option, or capability.\n   - Changed: behavior change that is not breaking.\n   - Fixed: bug fix.\n   - Excluded: dependency bump or CI-only (rules 5 and 6). Check the changed files, not just the title.\n4. **Write each entry** as one line in plain user terms, not the PR title copied verbatim. End it with the PR link.\n5. **Check the draft against the house rules** (above). Fix any violation before showing it.\n\n## Output format\n\n```markdown\n## <version> \u2014 <YYYY-MM-DD>\n\n### BREAKING\n- <what changed> ([#N](https://github.com/OWNER/REPO/pull/N))\n  - Migration: <one line>\n\n### Added\n- <entry> ([#N](...))\n\n### Changed\n- <entry> ([#N](...))\n\n### Fixed\n- <entry> ([#N](...))\n```\n\nAfter the draft, add a short note listing the PRs you excluded as dependency bumps or CI-only, with their numbers, so a maintainer can check the calls. Keep this note outside the release notes themselves. Also list any PR you were unsure about and how you classified it.\n\nDo not write the release notes to a file or publish them unless asked.\n"
+   },
+   "writeScore": 0.5,
+   "probe": {
+    "should_fire": [
+     8,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-textual-8",
+   "arm": "with",
+   "run": 1,
+   "skill": "textual-8",
+   "description": "Writing, reviewing, debugging or advising on Textual TUI code for Textual 8 - apps, screens, widgets, CSS, workers, messages and tests. Load this before any Textual change, even a small widget. Claude's memory of Textual is mostly pre-1.0 and gets these wrong - Static.content (not renderable), Select.NULL (not BLANK), querying the active screen (App.query searches the default screen), query_one_optional (not catching NoMatches).",
+   "files": {
+    "SKILL.md": "---\ndescription: Writing, reviewing, debugging or advising on Textual TUI code for Textual 8 - apps, screens, widgets, CSS, workers, messages and tests. Load this before any Textual change, even a small widget. Claude's memory of Textual is mostly pre-1.0 and gets these wrong - Static.content (not renderable), Select.NULL (not BLANK), querying the active screen (App.query searches the default screen), query_one_optional (not catching NoMatches).\n---\n\n# Textual 8\n\nTarget is Textual 8. Most remembered Textual code predates 1.0; where it conflicts with this file, this file wins. For any API not listed here, if you are not sure of it, read the installed package source instead of guessing.\n\n## Changed APIs (the common failures)\n\n- `Static.renderable` is gone. Read and set `Static.content`. `Static.update(...)` takes the new content.\n- `Select.BLANK` is gone. Use `Select.NULL` for the no-selection value.\n- `App.query` and `App.query_one` search the default screen, not the active one. Inside a screen, call `self.query(...)` / `self.query_one(...)`. From the app, go through the screen: `self.screen.query_one(...)`.\n- Do not wrap `query_one` in `try/except NoMatches`. Use `query_one_optional(selector, type)`, which returns `None` when nothing matches, and check the result.\n\n## Apps, screens, widgets\n\n- Build a screen's UI in its `compose()`, yielding widgets. Do not construct widgets in `__init__` and mount them by hand unless the structure is truly dynamic.\n- Query widgets from the screen that owns them (see above).\n- Styling: put widget CSS in `DEFAULT_CSS` on the widget class, or in `CSS` / `CSS_PATH` on the app or screen. Target widgets with IDs and classes, not with widget-tree position.\n\n## State, messages, workers\n\n- Use `reactive(...)` for state that should re-render; use `var` for state that should not. A watcher for a reactive named `count` is `watch_count`.\n- Custom messages are `Message` subclasses, usually nested in the widget that posts them. Handle them with `on_<widget>_<message>` methods or the `on` decorator.\n- Never block the event loop in a handler. For slow work, use the `work` decorator or `run_worker`. Use `thread=True` for synchronous functions.\n\n## Bindings and actions\n\n- Declare keys as `BINDINGS = [Binding(\"q\", \"quit\", \"Quit\")]`, importing `Binding` from `textual.binding`. Each action named `x` is implemented as `action_x`.\n\n## Tests\n\n- Use `async with app.run_test() as pilot:`, drive it with `await pilot.press(...)` or `await pilot.click(...)`, then assert on widget state (for example `app.screen.query_one(...)`) rather than on screen text where state is available.\n\n## Before finishing\n\n- Run the app's test suite. For any layout or rendering claim, run the app headless and inspect the result rather than asserting it works.\n"
+   },
+   "writeScore": 1,
+   "probe": {
+    "should_fire": [
+     8,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-textual-8",
+   "arm": "with",
+   "run": 2,
+   "skill": "textual-8",
+   "description": "Textual 8 TUI code for our apps. Load this before writing, reviewing, debugging or advising on any Textual screen, widget, app or TUI test, even a small one. Textual 8 renamed and changed APIs that Claude remembers from before 1.0 (Static.renderable, Select.BLANK, App.query, catching NoMatches), and code written from memory fails on them.",
+   "files": {
+    "SKILL.md": "---\ndescription: Textual 8 TUI code for our apps. Load this before writing, reviewing, debugging or advising on any Textual screen, widget, app or TUI test, even a small one. Textual 8 renamed and changed APIs that Claude remembers from before 1.0 (Static.renderable, Select.BLANK, App.query, catching NoMatches), and code written from memory fails on them.\n---\n\n# Textual 8\n\nWe are on Textual 8. Training data mostly predates 1.0, so check every API\nagainst the installed version before relying on memory:\n\n```\npython -c \"import textual, inspect; print(textual.__version__, textual.__file__)\"\n```\n\nRead the installed source for the class you are using when unsure.\n\n## Renamed or changed - do not write the old form\n\n- `Static.renderable` is now `Static.content`. Set or read `content`, not\n  `renderable`.\n- `Select.BLANK` is now `Select.NULL`. Use `Select.NULL` for the empty value.\n- `App.query` searches the default screen, not the active one. Query from\n  the screen you mean: `self.screen.query(...)` or `screen.query_one(...)`.\n  Inside a screen, `self.query_one(...)` already searches that screen.\n- To find a widget that may be absent, use `query_one_optional` instead of\n  wrapping `query_one` in `try`/`except NoMatches`.\n\n## Conventions\n\n- Look up widgets with `query_one`/`query` and a type or CSS selector\n  rather than storing references in `__init__`, so layout changes do not\n  break them.\n- Put layout and styling in CSS (`CSS` or `CSS_PATH`), not inline\n  `styles.*` assignments, unless a value is truly computed at runtime.\n- Declare widgets in `compose()` and use `yield`. Do not build them in\n  `on_mount` unless they depend on mount-time state.\n- Handle messages with `@on(Widget.Event, \"#selector\")` or an\n  `on_<event>` method, not by subclassing the event bus or polling.\n- Mutate UI only from the event loop. From a worker thread, use\n  `self.call_from_thread(...)`; for async work, use the `@work` decorator\n  (`thread=True` for blocking calls).\n- Keep reactive state in `reactive`/`var` attributes and let watchers\n  update the UI.\n\n## Before you ship a Textual change\n\n- Run the app's test suite with Textual's `App.run_test()` pilot, and\n  assert on widgets via `pilot.app.screen.query_one(...)`, not\n  `pilot.app.query_one(...)`.\n- If you cannot run the app, say so and name the APIs you checked against\n  the installed source.\n"
+   },
+   "writeScore": 1,
+   "probe": {
+    "should_fire": [
+     10,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-textual-8",
+   "arm": "without",
+   "run": 1,
+   "skill": "textual-8",
+   "description": "Write or modify Textual TUI code for Textual 8. Use when creating or editing Textual apps, screens, widgets, CSS (TCSS), or tests that use textual. Covers current APIs and the pre-1.0 names that Claude tends to remember wrongly.",
+   "files": {
+    "SKILL.md": "---\nname: textual-8\ndescription: Write or modify Textual TUI code for Textual 8. Use when creating or editing Textual apps, screens, widgets, CSS (TCSS), or tests that use textual. Covers current APIs and the pre-1.0 names that Claude tends to remember wrongly.\n---\n\n# Textual 8\n\nOur apps target **Textual 8**. Much of what is in training data is from before 1.0 and uses names that no longer exist or behave differently. Do not write Textual code from memory alone. Check the names below first, and check the installed package when in doubt.\n\n## Renamed or changed APIs (pre-1.0 habits to avoid)\n\n| Don't write | Write instead | Notes |\n| --- | --- | --- |\n| `Static.renderable` | `Static.content` | Read or set the renderable content of a `Static`. |\n| `Select.BLANK` | `Select.NULL` | The sentinel for \"no selection\". |\n| `self.app.query(...)` / `app.query_one(...)` expecting the active screen | `self.screen.query(...)` / `self.screen.query_one(...)` | `App.query` searches the default screen, not the active one. Query from the screen that actually shows the widget. |\n| `try: w = query_one(X) except NoMatches:` | `w = query_one_optional(X)` | Returns `None` when nothing matches. Check for `None` instead of catching `NoMatches`. |\n\nIf you are about to write any of these, stop and use the right column.\n\n## Structure\n\n- An app is a `App` subclass. Screens are `Screen` subclasses (or `ModalScreen` for dialogs). Widgets are `Widget` subclasses or built-in widgets.\n- Build the UI in `compose(self) -> ComposeResult` with `yield`. Do not build widgets in `__init__` for the layout.\n- Handle messages with the `@on(Message, selector)` decorator or `on_<widget>_<message>` methods. Message class names are nested under the widget, e.g. `Select.Changed`, `Input.Submitted`, `Button.Pressed`.\n- Use `reactive` attributes for state that should refresh the UI. Set the attribute; don't call a refresh by hand unless the reactive has no effect.\n- Use `self.run_worker(...)` or the `@work` decorator for slow I/O. Do not block the event loop in handlers.\n\n## Querying\n\n```python\n# Inside a Screen or Widget method\nself.screen.query_one(\"#status\", Static)\nmaybe = self.screen.query_one_optional(\"#details\", Static)\nif maybe is not None:\n    maybe.content = \"Loaded\"\n```\n\n- Use `query` / `query_one` on the screen that owns the widget, not on `self.app`.\n- Use `query_one_optional` when absence is a normal case.\n\n## CSS (TCSS)\n\n- Put styles in the `CSS` class variable or in a `.tcss` file referenced by `CSS_PATH`. Prefer `.tcss` files for anything beyond a few rules.\n- Select with type, `#id`, and `.class` selectors. Set layout with `layout`, `dock`, `grid-*`, `width`, `height`, and `*-gutter`-style properties as the widget docs define them.\n- Use `DEFAULT_CSS` on widgets so they are self-styled.\n\n## Testing\n\nUse Textual's `run_test()` with the `Pilot` object, not a real terminal:\n\n```python\nasync def test_save_button() -> None:\n    app = MyApp()\n    async with app.run_test() as pilot:\n        await pilot.click(\"#save\")\n        assert app.screen.query_one(\"#status\", Static).content == \"Saved\"\n```\n\nUse `pilot.press(...)` for keys and `await pilot.pause()` after actions that schedule work.\n\n## Before finishing\n\n- Grep the changed files for `.renderable`, `.BLANK`, `NoMatches`, and `app.query` and fix any hits.\n- Confirm every Textual name you used exists in the installed Textual 8 (`python -c \"import textual.widgets as w; print(dir(w.Select))\"` and similar) when you can run code. If you cannot run code, say which names you could not verify.\n"
+   },
+   "writeScore": 0.5,
+   "probe": {
+    "should_fire": [
+     6,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "case": "e2e-textual-8",
+   "arm": "without",
+   "run": 2,
+   "skill": "textual-8",
+   "description": "Write or modify Textual TUI code for our apps on Textual 8. Use when creating or editing App, Screen, widget, or TCSS code, querying the widget tree, handling Select/Static/Input widgets, or writing Textual tests. Overrides older Textual knowledge (pre-1.0 APIs).",
+   "files": {
+    "SKILL.md": "---\nname: textual-8\ndescription: Write or modify Textual TUI code for our apps on Textual 8. Use when creating or editing App, Screen, widget, or TCSS code, querying the widget tree, handling Select/Static/Input widgets, or writing Textual tests. Overrides older Textual knowledge (pre-1.0 APIs).\n---\n\n# Textual 8\n\nWe are on Textual 8. Much of what is remembered about Textual predates 1.0 and will be wrong here. Before writing Textual code, check the APIs below and do not fall back to older examples.\n\n## Renamed or changed APIs\n\n| Old (do not use) | Textual 8 |\n| --- | --- |\n| `Static.renderable` | `Static.content` |\n| `Select.BLANK` | `Select.NULL` |\n| `app.query(...)` / `self.app.query_one(...)` to find widgets on the active screen | Query from the screen: `self.screen.query(...)` or `self.query_one(...)` inside a screen |\n| `try: self.query_one(X) except NoMatches:` | `self.query_one_optional(X)` (returns `None` when absent) |\n\nKey point on `App.query`: it searches the default screen, not the active one. If a modal or pushed screen is active, `App.query` will not see its widgets. Query from the screen that owns the widgets.\n\n```python\n# Wrong: may miss widgets on a pushed screen\nself.app.query_one(\"#status\", Static)\n\n# Right: query from the screen that owns the widget\nself.screen.query_one(\"#status\", Static)\n\n# Right: optional lookup without try/except\nfooter = self.query_one_optional(\"#footer\", Static)\nif footer is not None:\n    footer.content = \"Saved\"\n```\n\n## Writing style for this codebase\n\n- Put styling in TCSS (`CSS` class variable or `CSS_PATH`), not inline `styles.*` assignments, unless a value is computed at runtime.\n- Use `compose()` to build the widget tree and `on(...)` decorators or `@on` for message handlers.\n- Use `reactive` attributes to drive re-rendering rather than calling `refresh()` by hand.\n- Run slow work with `@work` (workers) or `run_worker`, not blocking calls in event handlers, so the UI stays responsive.\n- Give widgets `id`s when they must be queried later. Prefer `query_one` with a type argument so the result is typed.\n\n## Checklist before finishing\n\n- [ ] No `.renderable` on `Static`; use `.content`.\n- [ ] No `Select.BLANK`; use `Select.NULL`.\n- [ ] Widget lookups go through the owning screen, not `self.app.query*`.\n- [ ] Missing-widget cases use `query_one_optional`, not `NoMatches`.\n- [ ] Any new screen or widget has a test using `App.run_test()` and `Pilot`, where practical.\n\nIf you are unsure whether an API exists or its exact signature in Textual 8, say so and check the installed package or docs rather than guessing.\n"
+   },
+   "writeScore": 0.5,
+   "probe": {
+    "should_fire": [
+     6,
+     10
+    ],
+    "near_miss": [
+     0,
+     8
+    ]
+   }
+  }
+ ],
+ "summary": {
+  "with": {
+   "should_fire": [
+    96,
+    100
+   ],
+   "near_miss": [
+    4,
+    80
+   ],
+   "written": [
+    10,
+    10
+   ]
+  },
+  "without": {
+   "should_fire": [
+    71,
+    100
+   ],
+   "near_miss": [
+    0,
+    80
+   ],
+   "written": [
+    10,
+    10
+   ]
+  }
+ }
+}

@@ -10,6 +10,7 @@ knowhere is a plugin marketplace for [Claude Code](https://claude.com/claude-cod
 
 | Plugin | Category | Description |
 |--------|----------|-------------|
+| **authoring-kit** | development | Authoring Claude Code extensions: choosing the extension type, the judgement for each, a linter, a rule-delivering hook and an auditor agent |
 | **philosophy** | development | How Bruk builds software: standing constraints, code, Python and test rules, the work-loop skills, and the reviewer |
 
 ## Quick Links

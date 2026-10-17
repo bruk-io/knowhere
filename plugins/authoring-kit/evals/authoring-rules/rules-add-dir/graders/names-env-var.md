@@ -1,0 +1,4 @@
+---
+type: regex
+pattern: 'CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD'
+---

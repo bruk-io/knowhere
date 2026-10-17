@@ -1,0 +1,16 @@
+{
+ "skill": "release-notes",
+ "should_fire": [
+  "We're cutting v2.4 today. Draft the release notes from the PRs merged since v2.3: #412 Add CSV export, #415 Bump lodash to 4.17.21, #418 Fix crash when the cart is empty, #420 Rename the `region` query param to `market` (breaking).",
+  "Can you write up the changelog entry for this release? Merged: #88 dark mode toggle, #90 fix login redirect loop, #91 ci: cache node_modules.",
+  "Summarise what changed since the last tag for the announcement post: #301 faster search, #305 remove the deprecated /v1/orders endpoint, #306 fix a typo in the welcome email.",
+  "Prepare the 3.1.0 notes. PRs: #1201 add webhook retries, #1203 bump eslint to 9, #1204 fix the timezone bug in monthly reports.",
+  "Turn these merged PR titles into release notes for our users: 'feat: bulk delete (#77)', 'fix: avatar upload on Safari (#79)', 'chore(deps): update react (#80)'."
+ ],
+ "near_miss": [
+  "Write a commit message for this change: I added a --dry-run flag to the deploy script.",
+  "Explain the difference between a minor and a patch release in semantic versioning.",
+  "Review this PR description for clarity: 'This PR fixes the bug where the cart crashes when empty by adding a guard.'",
+  "Write a short Slack message telling the team the deploy is delayed until 3pm."
+ ]
+}

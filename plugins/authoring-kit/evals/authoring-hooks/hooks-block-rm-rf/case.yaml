@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: hooks-block-rm-rf
+context:
+  scaffold_script: scaffold.sh

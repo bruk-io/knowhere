@@ -1,0 +1,11 @@
+---
+name: pr-summary
+description: Summarise the open pull request for this branch. Use when the user asks what the PR does, for a PR summary, or to explain the pull request before review.
+allowed-tools: Bash(gh pr view *)
+---
+
+# PR summary
+
+PR: !`gh pr view --json title,body,additions,deletions 2>/dev/null || echo "no open PR for this branch"`
+
+Write a short summary for a reviewer: what the change does, why, and what to look at first. If there is no open PR, say so and summarise the branch's commits instead.

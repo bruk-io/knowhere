@@ -1,0 +1,16 @@
+{
+ "skill": "python-packaging",
+ "should_fire": [
+  "Add requests as a dependency to this project and show me how to run the tests.",
+  "Write a small script that downloads a CSV from a URL and prints the row count with pandas. Tell me how to run it.",
+  "Set up a new Python project for a CLI tool called reporter, using click and pytest.",
+  "Our CI job fails with ModuleNotFoundError: No module named 'httpx'. How do I fix our dependency setup?",
+  "How should a new teammate install the dev dependencies for this repo?"
+ ],
+ "near_miss": [
+  "Write a Python function that flattens a nested list.",
+  "Explain the difference between a list and a tuple in Python.",
+  "Write a pytest test for a function add(a, b) that returns their sum.",
+  "Rename the variable `tmp` to `row_count` in this snippet: tmp = len(rows); print(tmp)"
+ ]
+}

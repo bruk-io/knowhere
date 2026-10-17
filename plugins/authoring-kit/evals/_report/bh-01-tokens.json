@@ -1,0 +1,1227 @@
+{
+  "name": "bh-01",
+  "version": 1,
+  "meta": {
+    "source": "github",
+    "repo": "bruk-io/bh-01",
+    "ref": "main@7330496",
+    "package": ".",
+    "paths": {
+      "tokens": [
+        "src/tokens/colors.css",
+        "src/tokens/spacing.css",
+        "src/tokens/typography.css",
+        "src/tokens/radius.css",
+        "src/tokens/borders.css",
+        "src/tokens/shadows.css",
+        "src/tokens/z-index.css",
+        "src/tokens/animation.css",
+        "src/themes/default.css"
+      ],
+      "fonts": [
+        "https://cdn.jsdelivr.net/npm/dseg@0.46.0/fonts/DSEG14-Classic/DSEG14Classic-Regular.woff2 (referenced by src/tokens/typography.css)"
+      ],
+      "assets": [
+        "src/atoms/icon/bh-icon.ts",
+        "src/organisms/data-table/bh-data-table.ts"
+      ],
+      "docs": [
+        "docs/README.md",
+        "docs/components.md",
+        "docs/patterns.md",
+        "docs/tokens.md",
+        "CLAUDE.md",
+        ".claude/skills/*/SKILL.md"
+      ]
+    },
+    "synced": "2026-09-23",
+    "naming": "Token names here are target-neutral. Each target adds its own namespace: web --bh-<name>, Textual $bh-<name>, Click/Python bh.<name>."
+  },
+  "color": {
+    "note": "Two layers. Primitives are named warm pigments (mandarin, sky, amaranth, cod ... parchment) and are never used directly. The semantic layer maps them to roles per theme; implementations only ever read the semantic names.",
+    "themes": [
+      {
+        "id": "light",
+        "name": "Light"
+      },
+      {
+        "id": "dark",
+        "name": "Dark"
+      }
+    ],
+    "tokens": [
+      {
+        "name": "color-black",
+        "value": "#000000",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Maximum-contrast ink (color-text-bright, light)."
+      },
+      {
+        "name": "color-white",
+        "value": "#ffffff",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Overlay surface (light) and text on primary/danger fills (light)."
+      },
+      {
+        "name": "color-mandarin",
+        "value": "#ff6b35",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. The signal orange - brand colour, primary, focus ring, link hover."
+      },
+      {
+        "name": "color-mandarin-light",
+        "value": "#ff8b4d",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Primary hover (dark theme)."
+      },
+      {
+        "name": "color-mandarin-lighter",
+        "value": "#ffaa75",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Primary pressed (dark theme)."
+      },
+      {
+        "name": "color-mandarin-dark",
+        "value": "#e85a28",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Primary hover (light theme)."
+      },
+      {
+        "name": "color-mandarin-darker",
+        "value": "#c4461c",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Primary pressed (light theme)."
+      },
+      {
+        "name": "color-sky",
+        "value": "#5dafd6",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Success only. Kept blue so success never sits on the red-green axis beside danger."
+      },
+      {
+        "name": "color-pine",
+        "value": "#28654d",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Secondary accent and links, light theme (5.4-6.1:1 on the light surfaces)."
+      },
+      {
+        "name": "color-pine-light",
+        "value": "#75bc9d",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Secondary accent and links, dark theme (7.2-8.8:1 on the dark surfaces)."
+      },
+      {
+        "name": "color-pomegranate",
+        "value": "#f83e1f",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Warning."
+      },
+      {
+        "name": "color-amaranth",
+        "value": "#e92c63",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Tertiary accent - danger."
+      },
+      {
+        "name": "color-amaranth-light",
+        "value": "#f04e77",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Danger hover (dark theme)."
+      },
+      {
+        "name": "color-amaranth-lighter",
+        "value": "#f47090",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Danger pressed (dark theme)."
+      },
+      {
+        "name": "color-amaranth-dark",
+        "value": "#d11a50",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Danger hover (light theme)."
+      },
+      {
+        "name": "color-amaranth-darker",
+        "value": "#b8163f",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Danger pressed (light theme)."
+      },
+      {
+        "name": "color-cod",
+        "value": "#0d0c0a",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Deepest warm black - dark-theme page (color-bg), text on fills in dark, tooltip and terminal ground in both themes."
+      },
+      {
+        "name": "color-night",
+        "value": "#111110",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Recessed wells (dark theme)."
+      },
+      {
+        "name": "color-thunder",
+        "value": "#151412",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Dark-theme surface."
+      },
+      {
+        "name": "color-charcoal",
+        "value": "#1a1a1a",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Light-theme body text."
+      },
+      {
+        "name": "color-soot",
+        "value": "#1e1d1b",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Muted borders (dark theme)."
+      },
+      {
+        "name": "color-mine-shaft",
+        "value": "#222120",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Raised and overlay surfaces, secondary fill (dark theme)."
+      },
+      {
+        "name": "color-tundora",
+        "value": "#2a2826",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Default border (dark theme), terminal frame."
+      },
+      {
+        "name": "color-boulder",
+        "value": "#5a5754",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Mid warm grey - muted text in both themes, bright border (dark)."
+      },
+      {
+        "name": "color-bitter",
+        "value": "#777875",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Mid-light neutral; defined but unused by the semantic layer."
+      },
+      {
+        "name": "color-fossil",
+        "value": "#a8a39b",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Emphasised border (light theme)."
+      },
+      {
+        "name": "color-swiss-coffee",
+        "value": "#c8c4bc",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Dark-theme body text; terminal text."
+      },
+      {
+        "name": "color-linen",
+        "value": "#ccc7bd",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Default border and secondary pressed (light theme)."
+      },
+      {
+        "name": "color-bone",
+        "value": "#ddd9d1",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Recessed wells, muted borders, secondary hover (light theme)."
+      },
+      {
+        "name": "color-pearl",
+        "value": "#e8e4dc",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Light-theme surface; secondary fill."
+      },
+      {
+        "name": "color-alabaster",
+        "value": "#f0ece4",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Light-theme page (color-bg)."
+      },
+      {
+        "name": "color-parchment",
+        "value": "#f5f2ec",
+        "usage": "Primitive - feeds the semantic layer only; no component may reference it directly. Raised surface (light theme)."
+      },
+      {
+        "name": "color-bg",
+        "value": {
+          "light": "{color-alabaster}",
+          "dark": "{color-cod}"
+        },
+        "usage": "Page / app ground. Everything sits on it; the shell paints it."
+      },
+      {
+        "name": "color-surface",
+        "value": {
+          "light": "{color-pearl}",
+          "dark": "{color-thunder}"
+        },
+        "usage": "Sections, sidebars, status bar, table header, pixel panel."
+      },
+      {
+        "name": "color-surface-raised",
+        "value": {
+          "light": "{color-parchment}",
+          "dark": "{color-mine-shaft}"
+        },
+        "usage": "Cards, inputs, selects, textareas, table body, popovers - one step up from surface."
+      },
+      {
+        "name": "color-surface-overlay",
+        "value": {
+          "light": "{color-white}",
+          "dark": "{color-mine-shaft}"
+        },
+        "usage": "Modals, command palette, context menu - the topmost plane."
+      },
+      {
+        "name": "color-surface-recessed",
+        "value": {
+          "light": "{color-bone}",
+          "dark": "{color-night}"
+        },
+        "usage": "Wells below the ground: activity bar, terminal bar, off pixels, ghost segments."
+      },
+      {
+        "name": "color-text",
+        "value": {
+          "light": "{color-charcoal}",
+          "dark": "{color-swiss-coffee}"
+        },
+        "usage": "Body copy and control labels on bg, surface, surface-raised and surface-overlay. Passes 4.5:1 on all four in both themes."
+      },
+      {
+        "name": "color-text-muted",
+        "value": {
+          "light": "{color-boulder}",
+          "dark": "{color-boulder}"
+        },
+        "usage": "Secondary text: help text, meta, panel and section labels, status bar. Light: 5.7-6.4:1 on every surface (passes). Dark: 2.2-2.7:1 on every surface - FAILS AA as shipped; use color-text for anything a person must read in dark."
+      },
+      {
+        "name": "color-text-tertiary",
+        "value": {
+          "light": "{color-boulder}",
+          "dark": "{color-boulder}"
+        },
+        "usage": "Placeholders and terminal hint labels. Same value and same dark-theme failure as color-text-muted."
+      },
+      {
+        "name": "color-text-inverse",
+        "value": {
+          "light": "{color-white}",
+          "dark": "{color-cod}"
+        },
+        "usage": "Text on an inverted ground (the opposite theme's surfaces)."
+      },
+      {
+        "name": "color-text-bright",
+        "value": {
+          "light": "{color-black}",
+          "dark": "{color-white}"
+        },
+        "usage": "Maximum-contrast emphasis - terminal {bright} role, headings that must shout."
+      },
+      {
+        "name": "color-primary",
+        "value": {
+          "light": "{color-mandarin}",
+          "dark": "{color-mandarin}"
+        },
+        "usage": "The one signal: primary action fill, active indicators, progress fill, slider thumb, LEDs and segment readouts. As text it passes only in dark (5.7-6.9:1); in light it is 2.2-2.5:1 - a fill and mark colour, never body text."
+      },
+      {
+        "name": "color-primary-hover",
+        "value": {
+          "light": "{color-mandarin-dark}",
+          "dark": "{color-mandarin-light}"
+        },
+        "usage": "Primary fill under the pointer."
+      },
+      {
+        "name": "color-primary-active",
+        "value": {
+          "light": "{color-mandarin-darker}",
+          "dark": "{color-mandarin-lighter}"
+        },
+        "usage": "Primary fill while pressed."
+      },
+      {
+        "name": "color-primary-text",
+        "value": {
+          "light": "{color-white}",
+          "dark": "{color-cod}"
+        },
+        "usage": "Label on a primary fill. Dark: 6.9:1 (passes). Light: white on mandarin is 2.84:1 - FAILS AA as shipped (3.5:1 on the hover fill)."
+      },
+      {
+        "name": "color-primary-glow",
+        "value": {
+          "light": "rgba(255, 107, 53, 0.12)",
+          "dark": "rgba(255, 107, 53, 0.15)"
+        },
+        "usage": "Halo behind lit primary marks: LED glow, segment glow, card corner accents on hover. Never a fill for text."
+      },
+      {
+        "name": "color-secondary",
+        "value": {
+          "light": "{color-pearl}",
+          "dark": "{color-mine-shaft}"
+        },
+        "usage": "Quiet control fill: secondary button, avatar, hover wash for ghost buttons, nav and tree rows, progress track, skeleton."
+      },
+      {
+        "name": "color-secondary-hover",
+        "value": {
+          "light": "{color-bone}",
+          "dark": "{color-tundora}"
+        },
+        "usage": "Secondary fill under the pointer."
+      },
+      {
+        "name": "color-secondary-active",
+        "value": {
+          "light": "{color-linen}",
+          "dark": "{color-boulder}"
+        },
+        "usage": "Secondary fill while pressed."
+      },
+      {
+        "name": "color-secondary-text",
+        "value": {
+          "light": "{color-charcoal}",
+          "dark": "{color-swiss-coffee}"
+        },
+        "usage": "Label on a secondary fill (13.7:1 light, 9.3:1 dark)."
+      },
+      {
+        "name": "color-accent",
+        "value": {
+          "light": "{color-mandarin}",
+          "dark": "{color-mandarin}"
+        },
+        "usage": "The brand orange for decorative accents (same value as color-primary)."
+      },
+      {
+        "name": "color-accent-secondary",
+        "value": {
+          "light": "{color-pine}",
+          "dark": "{color-pine-light}"
+        },
+        "usage": "Secondary accent - pine: deep in light, sage in dark. Links and secondary highlights. Never a status colour; success stays sky."
+      },
+      {
+        "name": "color-accent-tertiary",
+        "value": {
+          "light": "{color-amaranth}",
+          "dark": "{color-amaranth}"
+        },
+        "usage": "Tertiary accent - the pink-red. Same value as danger."
+      },
+      {
+        "name": "color-success",
+        "value": {
+          "light": "{color-sky}",
+          "dark": "{color-sky}"
+        },
+        "usage": "Success / healthy / landed. Blue, not green, so it never relies on a red-green split, and kept apart from the pine accent. As text: dark 8.0:1 (passes); light 2.1:1 (fails) - on light grounds use it for marks (LED, bar, badge fill) and let the label be color-text."
+      },
+      {
+        "name": "color-success-dim",
+        "value": {
+          "light": "rgba(93, 175, 214, 0.15)",
+          "dark": "rgba(93, 175, 214, 0.15)"
+        },
+        "usage": "Tinted wash behind success content; LED glow."
+      },
+      {
+        "name": "color-warning",
+        "value": {
+          "light": "{color-pomegranate}",
+          "dark": "{color-pomegranate}"
+        },
+        "usage": "Warning. As text: dark 5.3:1; light 3.1:1 (large text only). Sits close to danger in lightness (1.14:1) - always pair with a word or glyph."
+      },
+      {
+        "name": "color-warning-dim",
+        "value": {
+          "light": "rgba(248, 62, 31, 0.15)",
+          "dark": "rgba(248, 62, 31, 0.15)"
+        },
+        "usage": "Tinted wash behind warning content."
+      },
+      {
+        "name": "color-danger",
+        "value": {
+          "light": "{color-amaranth}",
+          "dark": "{color-amaranth}"
+        },
+        "usage": "Errors, destructive actions, invalid fields, required asterisk. As text: dark 4.7:1; light 3.6:1 (large text only)."
+      },
+      {
+        "name": "color-danger-hover",
+        "value": {
+          "light": "{color-amaranth-dark}",
+          "dark": "{color-amaranth-light}"
+        },
+        "usage": "Danger fill under the pointer."
+      },
+      {
+        "name": "color-danger-active",
+        "value": {
+          "light": "{color-amaranth-darker}",
+          "dark": "{color-amaranth-lighter}"
+        },
+        "usage": "Danger fill while pressed."
+      },
+      {
+        "name": "color-danger-text",
+        "value": {
+          "light": "{color-white}",
+          "dark": "{color-cod}"
+        },
+        "usage": "Label on a danger fill. Dark 4.7:1 (passes); light 4.2:1 (fails AA for 16px labels by a hair)."
+      },
+      {
+        "name": "color-border",
+        "value": {
+          "light": "{color-linen}",
+          "dark": "{color-tundora}"
+        },
+        "usage": "Default hairline: card outlines, inputs, table rules, panel edges. 1.4:1 light / 1.3:1 dark - decorative strength; an input's edge does not meet the 3:1 non-text floor as shipped."
+      },
+      {
+        "name": "color-border-muted",
+        "value": {
+          "light": "{color-bone}",
+          "dark": "{color-soot}"
+        },
+        "usage": "Faint separators: section-header rule, muted dividers."
+      },
+      {
+        "name": "color-border-bright",
+        "value": {
+          "light": "{color-fossil}",
+          "dark": "{color-boulder}"
+        },
+        "usage": "Emphasised edge where a boundary must be seen."
+      },
+      {
+        "name": "color-ring",
+        "value": {
+          "light": "{color-mandarin}",
+          "dark": "{color-mandarin}"
+        },
+        "usage": "Keyboard focus ring: 2px solid, offset 2px. Dark 6.5-6.9:1 (passes); light 2.2-2.4:1 (below the 3:1 floor as shipped)."
+      },
+      {
+        "name": "color-link",
+        "value": {
+          "light": "{color-pine}",
+          "dark": "{color-pine-light}"
+        },
+        "usage": "Default link text, in the pine accent. Light 5.8:1 on bg (5.4-6.1:1 across surfaces); dark 8.8:1 on bg (7.2-8.8:1). Passes AA in both themes."
+      },
+      {
+        "name": "color-link-hover",
+        "value": {
+          "light": "{color-mandarin}",
+          "dark": "{color-mandarin}"
+        },
+        "usage": "Link under the pointer."
+      },
+      {
+        "name": "color-link-subtle",
+        "value": {
+          "light": "{color-boulder}",
+          "dark": "{color-swiss-coffee}"
+        },
+        "usage": "Quiet link in running text and footers (6.1:1 light, 11.2:1 dark)."
+      },
+      {
+        "name": "color-link-subtle-hover",
+        "value": {
+          "light": "{color-pine}",
+          "dark": "{color-pine-light}"
+        },
+        "usage": "Quiet link under the pointer - it takes the pine accent."
+      }
+    ]
+  },
+  "type": {
+    "fonts": [
+      {
+        "family": "DSEG14Classic",
+        "file": "fonts/DSEG14Classic-Regular.woff2",
+        "weight": "400",
+        "style": "normal"
+      }
+    ],
+    "families": {
+      "sans": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+      "mono": "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace",
+      "seg": "'DSEG14Classic', 'DSEG14', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace"
+    },
+    "groups": [
+      {
+        "name": "Text",
+        "family": "sans",
+        "note": "The system face. Three roles, one family.",
+        "styles": [
+          {
+            "name": "heading",
+            "fontSize": "24px",
+            "lineHeight": 1.25,
+            "fontWeight": 700,
+            "sample": "System overview",
+            "usage": "Section and page headings (text-2xl, font-bold, leading-tight)."
+          },
+          {
+            "name": "body",
+            "fontSize": "16px",
+            "lineHeight": 1.5,
+            "fontWeight": 400,
+            "sample": "All services operational. Disk usage at 82%.",
+            "usage": "Default copy (text-base, font-normal, leading-normal)."
+          },
+          {
+            "name": "small",
+            "fontSize": "14px",
+            "lineHeight": 1.5,
+            "fontWeight": 400,
+            "sample": "We'll never share your email.",
+            "usage": "Help text, secondary copy; set in color-text-muted (text-sm)."
+          }
+        ]
+      },
+      {
+        "name": "Controls",
+        "family": "sans",
+        "note": "Labels inside controls sit on leading-none so the control's padding sets its height.",
+        "styles": [
+          {
+            "name": "control",
+            "fontSize": "16px",
+            "lineHeight": 1,
+            "fontWeight": 500,
+            "sample": "Save",
+            "usage": "Medium button label (text-base, font-medium)."
+          },
+          {
+            "name": "control-sm",
+            "fontSize": "14px",
+            "lineHeight": 1,
+            "fontWeight": 500,
+            "sample": "Add",
+            "usage": "Small button, medium badge and chip labels (text-sm, font-medium)."
+          },
+          {
+            "name": "badge",
+            "fontSize": "12px",
+            "lineHeight": 1,
+            "fontWeight": 500,
+            "sample": "3",
+            "usage": "Small badge and chip labels (text-xs, font-medium)."
+          },
+          {
+            "name": "panel-label",
+            "fontSize": "12px",
+            "fontWeight": 600,
+            "letterSpacing": "0.05em",
+            "sample": "EXPLORER",
+            "usage": "Panel-header label, always uppercase, color-text-muted."
+          }
+        ]
+      },
+      {
+        "name": "Instrument",
+        "family": "mono",
+        "note": "Mono is the instrument voice: labels, readouts, terminals, code.",
+        "styles": [
+          {
+            "name": "section-label",
+            "fontSize": "12px",
+            "fontWeight": 600,
+            "letterSpacing": "2px",
+            "sample": "SERVICES",
+            "usage": "Section-header title, always uppercase, color-text-muted, tracking-widest."
+          },
+          {
+            "name": "code",
+            "fontSize": "14px",
+            "lineHeight": 1.625,
+            "fontWeight": 400,
+            "sample": "npm install @bruk-io/bh-01",
+            "usage": "Inline and block code (text-sm, leading-relaxed)."
+          },
+          {
+            "name": "terminal",
+            "fontSize": "13px",
+            "lineHeight": 1.5,
+            "fontWeight": 400,
+            "sample": "▸ deploy --env staging",
+            "usage": "Terminal output and input lines."
+          }
+        ]
+      },
+      {
+        "name": "Readout",
+        "family": "seg",
+        "note": "14-segment LED readouts. Uppercase only; digits, A-Z and + - . : render.",
+        "styles": [
+          {
+            "name": "segment-sm",
+            "fontSize": "10px",
+            "lineHeight": 1,
+            "fontWeight": 400,
+            "letterSpacing": "0.5px",
+            "sample": "CPU 42",
+            "usage": "Segment display size sm."
+          },
+          {
+            "name": "segment-md",
+            "fontSize": "14px",
+            "lineHeight": 1,
+            "fontWeight": 400,
+            "letterSpacing": "1px",
+            "sample": "READY",
+            "usage": "Segment display size md (default)."
+          },
+          {
+            "name": "segment-lg",
+            "fontSize": "20px",
+            "lineHeight": 1,
+            "fontWeight": 400,
+            "letterSpacing": "1.5px",
+            "sample": "12:45",
+            "usage": "Segment display size lg."
+          },
+          {
+            "name": "segment-xl",
+            "fontSize": "28px",
+            "lineHeight": 1,
+            "fontWeight": 400,
+            "letterSpacing": "2px",
+            "sample": "88.8",
+            "usage": "Segment display size xl - hero readouts."
+          }
+        ]
+      }
+    ]
+  },
+  "spacing": {
+    "note": "A 4px-based rem scale (1rem = 16px) with half steps below 4. Layout gaps use the named subset: none 0 · xs 1 · sm 2 · md 4 · lg 6 · xl 8 · 2xl 12.",
+    "tokens": [
+      {
+        "name": "spacing-0",
+        "value": "0",
+        "usage": "No gap."
+      },
+      {
+        "name": "spacing-0-5",
+        "value": "0.125rem",
+        "usage": "2px - small badge and chip vertical padding."
+      },
+      {
+        "name": "spacing-1",
+        "value": "0.25rem",
+        "usage": "4px - gap xs; medium badge/chip vertical padding."
+      },
+      {
+        "name": "spacing-1-5",
+        "value": "0.375rem",
+        "usage": "6px - small button vertical padding, form-field gap, tooltip vertical padding."
+      },
+      {
+        "name": "spacing-2",
+        "value": "0.5rem",
+        "usage": "8px - gap sm; control inner gap (icon to label); medium button vertical padding; card padding sm."
+      },
+      {
+        "name": "spacing-2-5",
+        "value": "0.625rem",
+        "usage": "10px - large button vertical padding; medium badge/chip horizontal padding."
+      },
+      {
+        "name": "spacing-3",
+        "value": "0.75rem",
+        "usage": "12px - small button horizontal padding; panel-header and status-bar side padding."
+      },
+      {
+        "name": "spacing-3-5",
+        "value": "0.875rem",
+        "usage": "14px."
+      },
+      {
+        "name": "spacing-4",
+        "value": "1rem",
+        "usage": "16px - the base unit. Gap md (layout default); medium button horizontal padding; card padding md."
+      },
+      {
+        "name": "spacing-5",
+        "value": "1.25rem",
+        "usage": "20px."
+      },
+      {
+        "name": "spacing-6",
+        "value": "1.5rem",
+        "usage": "24px - gap lg; large button horizontal padding; card padding lg; status-bar height."
+      },
+      {
+        "name": "spacing-7",
+        "value": "1.75rem",
+        "usage": "28px."
+      },
+      {
+        "name": "spacing-8",
+        "value": "2rem",
+        "usage": "32px - gap xl."
+      },
+      {
+        "name": "spacing-9",
+        "value": "2.25rem",
+        "usage": "36px."
+      },
+      {
+        "name": "spacing-10",
+        "value": "2.5rem",
+        "usage": "40px."
+      },
+      {
+        "name": "spacing-11",
+        "value": "2.75rem",
+        "usage": "44px."
+      },
+      {
+        "name": "spacing-12",
+        "value": "3rem",
+        "usage": "48px - gap 2xl."
+      },
+      {
+        "name": "spacing-14",
+        "value": "3.5rem",
+        "usage": "56px."
+      },
+      {
+        "name": "spacing-16",
+        "value": "4rem",
+        "usage": "64px."
+      },
+      {
+        "name": "spacing-20",
+        "value": "5rem",
+        "usage": "80px."
+      },
+      {
+        "name": "spacing-24",
+        "value": "6rem",
+        "usage": "96px."
+      },
+      {
+        "name": "spacing-28",
+        "value": "7rem",
+        "usage": "112px."
+      },
+      {
+        "name": "spacing-32",
+        "value": "8rem",
+        "usage": "128px - largest step."
+      }
+    ]
+  },
+  "radius": {
+    "note": "Machined, not soft: 6px is the default corner; pills only for badges, chips, LEDs and switches.",
+    "tokens": [
+      {
+        "name": "radius-none",
+        "value": "0",
+        "usage": "No rounding - flush edges and panels that sit edge to edge."
+      },
+      {
+        "name": "radius-sm",
+        "value": "0.125rem",
+        "usage": "2px - checkbox."
+      },
+      {
+        "name": "radius-md",
+        "value": "0.375rem",
+        "usage": "6px - the default: buttons, inputs, selects, textareas."
+      },
+      {
+        "name": "radius-lg",
+        "value": "0.5rem",
+        "usage": "8px - cards, tables, pixel panels."
+      },
+      {
+        "name": "radius-xl",
+        "value": "0.75rem",
+        "usage": "12px."
+      },
+      {
+        "name": "radius-2xl",
+        "value": "1rem",
+        "usage": "16px."
+      },
+      {
+        "name": "radius-full",
+        "value": "9999px",
+        "usage": "Pills and discs: badges, chips, LEDs, switch, avatar."
+      }
+    ]
+  },
+  "shadow": {
+    "note": "Two kinds of depth. Elevation (sm-xl) lifts things off the ground. Relief (inset, raised, emboss) makes the surface itself feel machined - pressed wells and embossed rules. Dark theme uses heavier elevation.",
+    "tokens": [
+      {
+        "name": "shadow-none",
+        "value": "none",
+        "usage": "Flat."
+      },
+      {
+        "name": "shadow-sm",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        "usage": "Primitive - smallest lift."
+      },
+      {
+        "name": "shadow-md",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        "usage": "Primitive - card default (card variant default)."
+      },
+      {
+        "name": "shadow-lg",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        "usage": "Primitive - popovers and menus."
+      },
+      {
+        "name": "shadow-xl",
+        "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+        "usage": "Primitive - modal and command palette."
+      },
+      {
+        "name": "shadow-surface",
+        "value": {
+          "light": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+          "dark": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)"
+        },
+        "usage": "Semantic - resting lift for a surface (sm in light, md in dark)."
+      },
+      {
+        "name": "shadow-inset",
+        "value": {
+          "light": "inset 0 1px 3px rgba(0, 0, 0, 0.08)",
+          "dark": "inset 0 1px 3px rgba(0, 0, 0, 0.25)"
+        },
+        "usage": "Semantic - pressed wells: switch track, recessed displays."
+      },
+      {
+        "name": "shadow-raised",
+        "value": {
+          "light": "0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.06)",
+          "dark": "0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 6px rgba(0, 0, 0, 0.2)"
+        },
+        "usage": "Semantic - a physical key sitting proud: switch thumb, keycaps."
+      },
+      {
+        "name": "shadow-emboss",
+        "value": {
+          "light": "inset 0 -1px 0 rgba(255, 255, 255, 0.5), inset 0 1px 0 rgba(0, 0, 0, 0.06)",
+          "dark": "inset 0 -1px 0 rgba(255, 255, 255, 0.04), inset 0 1px 0 rgba(0, 0, 0, 0.2)"
+        },
+        "usage": "Semantic - the machined groove of a divider."
+      }
+    ]
+  },
+  "fontSize": {
+    "note": "The raw size scale behind the type styles.",
+    "tokens": [
+      {
+        "name": "text-2xs",
+        "value": "0.625rem",
+        "usage": "10px - smallest; pixel captions."
+      },
+      {
+        "name": "text-xs",
+        "value": "0.75rem",
+        "usage": "12px - labels, badges sm, status bar."
+      },
+      {
+        "name": "text-sm",
+        "value": "0.875rem",
+        "usage": "14px - small text, code, button sm, tooltip."
+      },
+      {
+        "name": "text-base",
+        "value": "1rem",
+        "usage": "16px - body, button md."
+      },
+      {
+        "name": "text-lg",
+        "value": "1.125rem",
+        "usage": "18px - button lg."
+      },
+      {
+        "name": "text-xl",
+        "value": "1.25rem",
+        "usage": "20px."
+      },
+      {
+        "name": "text-2xl",
+        "value": "1.5rem",
+        "usage": "24px - heading."
+      },
+      {
+        "name": "text-3xl",
+        "value": "1.875rem",
+        "usage": "30px - large heading."
+      },
+      {
+        "name": "text-4xl",
+        "value": "2.25rem",
+        "usage": "36px - display heading."
+      }
+    ]
+  },
+  "fontWeight": {
+    "tokens": [
+      {
+        "name": "font-normal",
+        "value": "400",
+        "usage": "Body."
+      },
+      {
+        "name": "font-medium",
+        "value": "500",
+        "usage": "Control labels, badges, chips."
+      },
+      {
+        "name": "font-semibold",
+        "value": "600",
+        "usage": "Uppercase labels."
+      },
+      {
+        "name": "font-bold",
+        "value": "700",
+        "usage": "Headings."
+      }
+    ]
+  },
+  "lineHeight": {
+    "tokens": [
+      {
+        "name": "leading-none",
+        "value": "1",
+        "usage": "Inside controls and readouts."
+      },
+      {
+        "name": "leading-tight",
+        "value": "1.25",
+        "usage": "Headings."
+      },
+      {
+        "name": "leading-snug",
+        "value": "1.375",
+        "usage": "Dense multi-line labels."
+      },
+      {
+        "name": "leading-normal",
+        "value": "1.5",
+        "usage": "Body, small, terminal."
+      },
+      {
+        "name": "leading-relaxed",
+        "value": "1.625",
+        "usage": "Code."
+      }
+    ]
+  },
+  "letterSpacing": {
+    "tokens": [
+      {
+        "name": "tracking-tighter",
+        "value": "-0.5px",
+        "usage": "Display headings."
+      },
+      {
+        "name": "tracking-tight",
+        "value": "-0.3px",
+        "usage": "Headings."
+      },
+      {
+        "name": "tracking-normal",
+        "value": "0",
+        "usage": "Default."
+      },
+      {
+        "name": "tracking-wide",
+        "value": "0.5px",
+        "usage": "Small caps labels."
+      },
+      {
+        "name": "tracking-wider",
+        "value": "1px",
+        "usage": "Segment md."
+      },
+      {
+        "name": "tracking-widest",
+        "value": "2px",
+        "usage": "Section-header instrument labels."
+      }
+    ]
+  },
+  "borderWidth": {
+    "note": "1px is the rule; 2 and 4 are for indicators, never outlines.",
+    "tokens": [
+      {
+        "name": "border-0",
+        "value": "0px",
+        "usage": "None."
+      },
+      {
+        "name": "border-1",
+        "value": "1px",
+        "usage": "Every outline and hairline."
+      },
+      {
+        "name": "border-2",
+        "value": "2px",
+        "usage": "Active indicators (tab underline, activity bar), card corner accents, focus ring width."
+      },
+      {
+        "name": "border-4",
+        "value": "4px",
+        "usage": "Heavy indicator."
+      }
+    ]
+  },
+  "zIndex": {
+    "note": "Stacking order, lowest to highest.",
+    "tokens": [
+      {
+        "name": "z-base",
+        "value": "0",
+        "usage": "In flow."
+      },
+      {
+        "name": "z-dropdown",
+        "value": "100",
+        "usage": "Select menus, dropdowns."
+      },
+      {
+        "name": "z-sticky",
+        "value": "200",
+        "usage": "Sticky toolbar and table headers."
+      },
+      {
+        "name": "z-fixed",
+        "value": "300",
+        "usage": "Fixed chrome."
+      },
+      {
+        "name": "z-overlay",
+        "value": "400",
+        "usage": "Backdrops."
+      },
+      {
+        "name": "z-modal",
+        "value": "500",
+        "usage": "Dialogs, command palette."
+      },
+      {
+        "name": "z-popover",
+        "value": "600",
+        "usage": "Popovers, context menu."
+      },
+      {
+        "name": "z-tooltip",
+        "value": "700",
+        "usage": "Tooltips - always on top."
+      }
+    ]
+  },
+  "duration": {
+    "note": "The continuous clock. Transitions are a duration plus ease-default. See the Motion section for the display clock and sequences.",
+    "tokens": [
+      {
+        "name": "duration-frame",
+        "value": "83ms",
+        "usage": "One display frame (1/12 s at fps-display). The stagger unit between items in a sequence."
+      },
+      {
+        "name": "duration-fast",
+        "value": "100ms",
+        "usage": "Hover, focus, press, colour changes - most shipped transitions."
+      },
+      {
+        "name": "duration-pixel",
+        "value": "150ms",
+        "usage": "A pixel or LED turning on or off (pixel display)."
+      },
+      {
+        "name": "duration-normal",
+        "value": "200ms",
+        "usage": "State and size changes: sidebar and shell width, progress fill, card corner glow."
+      },
+      {
+        "name": "duration-sweep",
+        "value": "300ms",
+        "usage": "A pixel-matrix redraw sweeping left to right (pixel panel sweep transition)."
+      },
+      {
+        "name": "duration-slow",
+        "value": "400ms",
+        "usage": "One beat of a motion sequence: a power-on step, a readout count. No shipped component uses it."
+      }
+    ]
+  },
+  "frameRate": {
+    "note": "The display clock. Readouts, pixel matrices, meters and terminal text update in whole frames at this rate and never tween between values.",
+    "tokens": [
+      {
+        "name": "fps-display",
+        "value": "12",
+        "usage": "Display updates in every medium: pixel panels (the source default), segment counts, type-on, cell-medium spinners and meters."
+      }
+    ]
+  },
+  "loop": {
+    "note": "Periods of the looping indicators. Only one loop may run in a view besides the cursor.",
+    "tokens": [
+      {
+        "name": "loop-cursor",
+        "value": "1s",
+        "usage": "Terminal cursor blink, ease-in-out."
+      },
+      {
+        "name": "loop-spinner",
+        "value": "0.75s",
+        "usage": "One spinner turn, ease-linear."
+      },
+      {
+        "name": "loop-skeleton",
+        "value": "1.5s",
+        "usage": "Skeleton opacity pulse, ease-in-out."
+      },
+      {
+        "name": "loop-progress",
+        "value": "1.5s",
+        "usage": "Indeterminate progress sweep, ease-in-out."
+      },
+      {
+        "name": "loop-led",
+        "value": "2s",
+        "usage": "LED pulse (live, or waiting on you), ease-in-out."
+      }
+    ]
+  },
+  "easing": {
+    "tokens": [
+      {
+        "name": "ease-default",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "usage": "Standard deceleration - every transition unless noted."
+      },
+      {
+        "name": "ease-in",
+        "value": "cubic-bezier(0.4, 0, 1, 1)",
+        "usage": "Accelerating - things leaving."
+      },
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0, 0, 0.2, 1)",
+        "usage": "Decelerating - things arriving."
+      },
+      {
+        "name": "ease-in-out",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "usage": "Symmetric (same curve as default). Breathing loops: LED, skeleton, indeterminate progress."
+      },
+      {
+        "name": "ease-linear",
+        "value": "linear",
+        "usage": "Constant rate - spinner rotation and the display clock."
+      }
+    ]
+  },
+  "blur": {
+    "tokens": [
+      {
+        "name": "blur-sm",
+        "value": "8px",
+        "usage": "Subtle backdrop blur."
+      },
+      {
+        "name": "blur-md",
+        "value": "20px",
+        "usage": "Pronounced backdrop blur behind overlays."
+      }
+    ]
+  }
+}
