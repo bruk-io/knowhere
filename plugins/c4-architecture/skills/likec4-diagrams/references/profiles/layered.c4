@@ -1,0 +1,26 @@
+// Pattern profile: LAYERED architecture — role tags for components.
+// Add via: scaffold.sh <dir> --profile layered   (or copy this file into the project)
+//
+// Rules of use (annotation, not structure — see c4-components heuristics):
+// - Tags mark a component's ROLE; names stay capability-based
+//   (`#layered-application Payment Authorization`, never `component applicationLayer`).
+// - One pattern profile per container. Don't mix with hexagonal/cqrs tags
+//   on the same container's components.
+// - Typical mapping: controllers/routes -> layered-presentation;
+//   use-case/service components -> layered-application; business rules ->
+//   layered-domain; repositories, gateways, messaging -> layered-infrastructure.
+
+specification {
+  tag layered-presentation {
+    color #2F80ED
+  }
+  tag layered-application {
+    color #27AE60
+  }
+  tag layered-domain {
+    color #F2994A
+  }
+  tag layered-infrastructure {
+    color #9B51E0
+  }
+}

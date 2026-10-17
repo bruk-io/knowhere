@@ -1,0 +1,3 @@
+id: http-route__express__js
+valid: ["const s = 'hello'", "logger.info('done')"]
+invalid: ["router.post('/invoices', h)", "app.get('/users', h)"]

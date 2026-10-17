@@ -1,0 +1,13 @@
+id: controller__vapor__swift
+language: swift
+severity: hint
+message: Vapor controller (RouteCollection)
+rule:
+  kind: type_identifier
+  inside:
+    kind: class_declaration
+    field: name
+    has:
+      kind: inheritance_specifier
+      stopBy: end
+      has: { kind: type_identifier, stopBy: end, regex: '(RouteCollection|Controller)$' }

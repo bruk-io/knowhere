@@ -1,0 +1,12 @@
+[{ "projectId":"x",
+  "elements":{
+    "alpha":{"kind":"softwareSystem","title":"Alpha","description":"d"},
+    "alpha.api":{"kind":"container","title":"API","description":"d","technology":"gRPC"},
+    "beta":{"kind":"softwareSystem","title":"Beta","description":"d"},
+    "beta.db":{"kind":"database","title":"DB","description":"d","technology":"pg"}
+  },
+  "relations":[
+    {"source":{"model":"alpha.api"},"target":{"model":"beta.db"},"title":"reads from","technology":"jdbc"},
+    {"source":{"model":"alpha"},"target":{"model":"beta"},"title":"sends settlement files to"}
+  ],
+  "views":{} }]

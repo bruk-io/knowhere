@@ -1,0 +1,12 @@
+id: repository__springdata__java
+language: java
+severity: hint
+message: Spring Data repository (interface extends *Repository)
+rule:
+  kind: identifier
+  inside:
+    kind: interface_declaration
+    field: name
+    has:
+      kind: extends_interfaces
+      has: { kind: type_identifier, stopBy: end, regex: 'Repository$' }

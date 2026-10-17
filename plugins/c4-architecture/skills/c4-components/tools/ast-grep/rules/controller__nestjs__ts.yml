@@ -1,0 +1,13 @@
+id: controller__nestjs__ts
+language: typescript
+severity: hint
+message: NestJS @Controller
+rule:
+  kind: type_identifier
+  all:
+    - inside: { kind: class_declaration, field: name }
+    - inside:
+        stopBy: end
+        has:
+          kind: decorator
+          has: { kind: identifier, stopBy: end, regex: '^Controller$' }

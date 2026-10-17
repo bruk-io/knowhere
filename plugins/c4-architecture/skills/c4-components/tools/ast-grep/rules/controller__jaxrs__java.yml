@@ -1,0 +1,14 @@
+id: controller__jaxrs__java
+language: java
+severity: hint
+message: JAX-RS @Path resource
+rule:
+  kind: identifier
+  inside:
+    kind: class_declaration
+    field: name
+    has:
+      stopBy: end
+      any:
+        - { kind: marker_annotation, has: { field: name, regex: '^Path$' } }
+        - { kind: annotation, has: { field: name, regex: '^Path$' } }

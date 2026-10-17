@@ -1,0 +1,3 @@
+id: controller__nestjs__ts
+valid: ["class Plain {}", "@Other() class X {}"]
+invalid: ["@Controller() class Svc {}", "@Controller('x') export class Exp {}"]

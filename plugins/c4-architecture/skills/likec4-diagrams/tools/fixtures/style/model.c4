@@ -1,0 +1,10 @@
+model {
+  sys = system 'S' {
+    description 'a system'
+    a = component 'A' { description 'd' technology 't' }
+    b = component 'B' { description 'd' technology 't' }
+    a -> b 'talks to'
+    it -> a 'parent wires to'
+    -> b 'owns'
+  }
+}

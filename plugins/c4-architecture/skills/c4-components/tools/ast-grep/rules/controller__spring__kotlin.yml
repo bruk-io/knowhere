@@ -1,0 +1,12 @@
+id: controller__spring__kotlin
+language: kotlin
+severity: hint
+message: Kotlin Spring @RestController (controller)
+rule:
+  kind: type_identifier
+  inside:
+    kind: class_declaration
+    has:
+      kind: annotation
+      stopBy: end
+      has: { kind: type_identifier, stopBy: end, regex: '^(RestController|Controller)$' }

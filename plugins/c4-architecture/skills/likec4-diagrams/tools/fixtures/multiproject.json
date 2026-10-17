@@ -1,0 +1,19 @@
+[
+  {
+    "projectId": "alpha",
+    "elements": {
+      "sys": { "kind": "softwareSystem", "title": "Sys", "description": "a system" },
+      "sys.db": { "kind": "database", "title": "DB", "description": "stores data", "technology": "Postgres" }
+    },
+    "relations": [],
+    "views": {}
+  },
+  {
+    "projectId": "beta",
+    "elements": {
+      "widget": { "kind": "widget", "title": "Widget", "description": "not a C4 kind" }
+    },
+    "relations": [],
+    "views": {}
+  }
+]

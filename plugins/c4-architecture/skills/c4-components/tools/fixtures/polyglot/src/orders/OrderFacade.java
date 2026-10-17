@@ -1,0 +1,3 @@
+@Service
+public class OrderFacade {
+}

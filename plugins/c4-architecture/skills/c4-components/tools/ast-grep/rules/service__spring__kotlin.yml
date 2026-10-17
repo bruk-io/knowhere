@@ -1,0 +1,12 @@
+id: service__spring__kotlin
+language: kotlin
+severity: hint
+message: Kotlin Spring @Service (service)
+rule:
+  kind: type_identifier
+  inside:
+    kind: class_declaration
+    has:
+      kind: annotation
+      stopBy: end
+      has: { kind: type_identifier, stopBy: end, regex: '^(Service)$' }

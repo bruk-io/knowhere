@@ -1,0 +1,12 @@
+id: repository__springdata__kotlin
+language: kotlin
+severity: hint
+message: 'Kotlin Spring Data repository (interface extends *Repository)'
+rule:
+  kind: type_identifier
+  inside:
+    kind: class_declaration
+    has:
+      kind: delegation_specifier
+      stopBy: end
+      has: { kind: type_identifier, stopBy: end, regex: 'Repository' }

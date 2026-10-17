@@ -1,0 +1,13 @@
+id: controller__django__py
+language: python
+severity: hint
+message: Django class-based view / DRF viewset
+rule:
+  kind: identifier
+  inside:
+    kind: class_definition
+    field: name
+    has:
+      kind: argument_list
+      field: superclasses
+      has: { kind: identifier, stopBy: end, regex: '(View|ViewSet|APIView)$' }

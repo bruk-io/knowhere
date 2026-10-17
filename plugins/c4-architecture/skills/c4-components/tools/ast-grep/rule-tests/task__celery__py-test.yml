@@ -1,0 +1,5 @@
+id: task__celery__py
+valid: ["def plain(): pass"]
+invalid:
+  - "@shared_task\ndef send_receipt(): pass"
+  - "@app.task\ndef enqueue(): pass"

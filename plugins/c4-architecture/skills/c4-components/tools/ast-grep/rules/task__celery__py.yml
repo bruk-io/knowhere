@@ -1,0 +1,14 @@
+id: task__celery__py
+language: python
+severity: hint
+message: Celery task
+rule:
+  kind: identifier
+  inside:
+    kind: function_definition
+    field: name
+    inside:
+      kind: decorated_definition
+      has:
+        kind: decorator
+        has: { kind: identifier, stopBy: end, regex: '(shared_task|task)$' }

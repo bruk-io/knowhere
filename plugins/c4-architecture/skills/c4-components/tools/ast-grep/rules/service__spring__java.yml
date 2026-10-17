@@ -1,0 +1,13 @@
+id: service__spring__java
+language: java
+severity: hint
+message: Spring @Service (service)
+rule:
+  kind: identifier
+  inside:
+    kind: class_declaration
+    field: name
+    has:
+      kind: marker_annotation
+      stopBy: end
+      has: { field: name, regex: '^(Service)$' }

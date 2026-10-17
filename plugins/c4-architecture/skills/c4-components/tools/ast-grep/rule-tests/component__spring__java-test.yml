@@ -1,0 +1,3 @@
+id: component__spring__java
+valid: ["class Plain {}", "@Deprecated class D {}"]
+invalid: ["@Component class PetTypeFormatter {}"]
