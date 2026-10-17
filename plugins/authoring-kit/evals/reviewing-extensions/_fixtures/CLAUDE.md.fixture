@@ -1,0 +1,6 @@
+# acme monorepo
+
+- Build: `npm run build`. Tests: `npm test`. Lint: `npm run lint`.
+- Services live under `services/<name>/`, shared code under `packages/`.
+- Always run `npm run lint -- --fix` on every file after you edit it, before moving on.
+- Commit messages follow conventional commits (feat, fix, chore).

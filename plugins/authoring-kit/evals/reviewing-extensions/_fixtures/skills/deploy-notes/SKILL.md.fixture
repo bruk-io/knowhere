@@ -1,0 +1,12 @@
+---
+name: deploy-notes
+description: Use whenever editing any file under deploy/ or touching a Dockerfile, so the deployment notes stay in sync.
+---
+
+# Deploy notes
+
+Keep `deploy/NOTES.md` current with what the deployment does.
+
+- Describe each service that changed and why.
+- Note any new environment variable and where it is set.
+- Flag anything that needs a manual step after rollout.

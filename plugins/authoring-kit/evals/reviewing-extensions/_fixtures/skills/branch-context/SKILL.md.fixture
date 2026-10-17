@@ -1,0 +1,13 @@
+---
+name: branch-context
+description: Summarise what the current branch is about. Use when the user asks what this branch does, what has changed here, or for a branch summary.
+---
+
+# Branch context
+
+Current branch: !`git rev-parse --abbrev-ref HEAD`
+
+Recent commits:
+!`git log --oneline -5`
+
+Read the commits above and write two or three sentences on what the branch is for and whether it looks finished.

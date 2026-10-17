@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: hooks-lint-feedback-reaches-claude
+context:
+  scaffold_script: scaffold.sh

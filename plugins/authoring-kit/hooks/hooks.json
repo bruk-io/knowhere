@@ -1,0 +1,41 @@
+{
+  "description": "authoring-kit: on Read, Write and Edit of an authoring artifact, the kind's rule on first touch (led once per session by the prefer-code litmus) and write-time lint; the auditor agent's Bash is held to the linter",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/reset-rule-delivery.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/auditor-bash-guard.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read|Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/lint-on-write.sh\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

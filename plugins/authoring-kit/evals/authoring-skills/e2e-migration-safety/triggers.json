@@ -1,0 +1,16 @@
+{
+ "skill": "migration-safety",
+ "should_fire": [
+  "Write a migration that adds a non-null `status` column with default 'active' to the orders table (about 40M rows).",
+  "Add an index on users.email. We're on Postgres; migrations are plain SQL files in db/migrations.",
+  "Review this migration before I merge it: ALTER TABLE payments ADD COLUMN refunded_at timestamptz; CREATE INDEX idx_payments_refunded ON payments(refunded_at);",
+  "I need to rename the `region` column on customers to `market` without downtime. Write the migrations.",
+  "Backfill the new `normalized_email` column on users from `email`. Write the migration."
+ ],
+ "near_miss": [
+  "Write a SQL query that returns our top 10 customers by total order value last month.",
+  "Explain what this EXPLAIN line means: Seq Scan on orders (cost=0.00..431.00 rows=21000 width=8)",
+  "How do I connect to Postgres from Python with psycopg 3?",
+  "Write a Python function that validates an email address with a regex."
+ ]
+}

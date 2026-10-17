@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+"""claude-lint launcher. The code is in claude_lint.py beside this file.
+
+It is imported rather than run so Python caches its compiled form; compiling
+it on every hook call was most of the hook's cost. In hook mode the payload is
+first read by claude_lint_gate alone, and the linter is imported only when the
+payload names an artifact or a session event. Where this directory is
+read-only the bytecode cache goes in a per-user directory under the user's
+cache home, used only when that directory is the user's own and closed to
+others; failing that, nothing is cached. Never a shared temp directory: anyone
+who could write there could plant compiled code that every hook call runs.
+"""
+import os
+import sys
+
+_here = os.path.dirname(os.path.realpath(__file__))
+
+
+def _private_cache():
+    """A cache directory only this user can write, or None."""
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
+    path = os.path.join(base, "claude-lint-pycache")
+    try:
+        os.makedirs(path, mode=0o700, exist_ok=True)
+        st = os.lstat(path)
+    except OSError:
+        return None
+    import stat
+    if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid() or st.st_mode & 0o022:
+        return None
+    return path
+
+
+if not os.access(_here, os.W_OK):
+    sys.pycache_prefix = _private_cache()
+sys.path.insert(0, _here)
+
+
+def _run():
+    if sys.argv[1:] == ["hook"]:
+        import claude_lint_gate
+        try:
+            step = claude_lint_gate.read_hook_payload(sys.stdin.buffer.read())
+        except Exception:  # noqa: BLE001 - a hook must never fail the tool call
+            step = None
+        if step is None:
+            return 0
+        import claude_lint
+        claude_lint._HOOK_STEP = step
+        return claude_lint.main()
+    import claude_lint
+    return claude_lint.main()
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(_run())
+    except BrokenPipeError:
+        sys.exit(0)

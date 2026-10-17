@@ -1,0 +1,16 @@
+{
+ "skill": "textual-8",
+ "should_fire": [
+  "Write a Textual app with a Select of three colours and a Static that shows the chosen colour.",
+  "In my Textual app, pressing Enter on a modal screen should read the Input on that screen, but `self.app.query_one(Input)` raises NoMatches. Fix it.",
+  "Add a status bar widget to our Textual app that updates its text every second.",
+  "Review this Textual snippet: `if self.select.value == Select.BLANK: self.label.renderable = 'none'`",
+  "Build a small Textual screen with a DataTable of users and a button that removes the selected row."
+ ],
+ "near_miss": [
+  "Write a Rich table that prints three users to the terminal.",
+  "Write a curses program that draws a box in the centre of the terminal.",
+  "Write a Click CLI with a `greet` command that takes a --name option.",
+  "Explain what an event loop is in asyncio."
+ ]
+}

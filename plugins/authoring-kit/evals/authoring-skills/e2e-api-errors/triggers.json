@@ -1,0 +1,16 @@
+{
+ "skill": "api-errors",
+ "should_fire": [
+  "Add error handling to POST /orders in our Express app: return an error when the cart is empty and when the payment is declined.",
+  "What should GET /users/:id return when the user doesn't exist? Write the handler.",
+  "Our signup endpoint returns {error: 'bad input'} when validation fails. Fix it.",
+  "Write the FastAPI exception handler for our API so unexpected errors don't leak internals.",
+  "Review this handler's error response: res.status(400).json({ message: err.message, stack: err.stack })"
+ ],
+ "near_miss": [
+  "Write a curl command that calls GET https://api.acme.dev/orders with a bearer token.",
+  "Add pagination (limit and cursor query params) to GET /orders in our Express app.",
+  "Write a TypeScript type for our Order object: id, items, total, status.",
+  "Set up CORS in our Express app to allow https://app.acme.dev."
+ ]
+}
