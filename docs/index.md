@@ -18,6 +18,7 @@ knowhere is a plugin marketplace for [Claude Code](https://claude.com/claude-cod
 | **mkdocs** | development | MkDocs Material documentation scaffolding |
 | **node** | development | Node.js/TypeScript project scaffolding |
 | **obsidian-plugin-dev** | development | Obsidian plugin development scaffolding |
+| **philosophy** | development | How Bruk builds software: standing constraints, code, Python and test rules, the work-loop skills, and the reviewer |
 | **python** | development | Python project scaffolding (UV, Ruff, Hatchling) |
 | **rust** | development | Rust project scaffolding with Makefile |
 | **textual** | development | Textual TUI framework scaffolding |

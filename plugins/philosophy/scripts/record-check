@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""record-check: run a check and put its own output on the task, word for word.
+
+    record-check <id> --tier fast|full [--lines N] [--root DIR]
+    record-check <id> [--lines N] [--root DIR] -- <command...>
+    record-check <id> --repro [--lines N] [--root DIR] -- <command that runs one test>
+
+Runs the command in the current directory, prints its output, and appends the command,
+its exit code, and the last N lines of its output (60 by default) to the task's notes.
+Exits with the command's own exit code, so it works as the check.
+
+--tier runs a check the board's repository declares in `.claude/checks.json` at its
+root, `{"fast": "<the change's tier>", "full": "<the single full check>"}`, from that
+root. Claude Code asks before its Edit and Write tools change a file under `.claude/`,
+unless permissions are bypassed, and `close-task` refuses a task whose declared checks
+changed since it was accepted. So the guard lets the reviewer run a declared check
+without a prompt. A command after `--` gets no such pass.
+
+With --repro the command is a test that reproduces a bug. It must fail, and the test
+files it names must be committed, because the note records the commit. `close-task`
+then refuses to close the task if those files changed since, since a fix doesn't edit
+the test that reproduced the bug. With --repro, exit 0 means the failure was recorded.
+
+Exit 2 means the check could not be recorded.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import board as b  # noqa: E402
+
+
+def parser() -> argparse.ArgumentParser:
+    top = argparse.ArgumentParser(
+        prog="record-check",
+        usage="record-check <id> (--tier fast|full | [--repro] -- <command...>) [--lines N]",
+        description="Record a check on a task.",
+    )
+    top.add_argument("id", help="the task, such as TASK-5 or 5")
+    top.add_argument("--lines", type=int, default=60, help="how much of the output to keep")
+    top.add_argument("--repro", action="store_true", help="record a failing repro test")
+    top.add_argument("--tier", choices=("fast", "full"), help="run a declared check")
+    top.add_argument("--root", type=Path, help="the repository holding backlog/")
+    return top
+
+
+def fail(message: str) -> int:
+    print("record-check: %s" % message, file=sys.stderr)
+    return 2
+
+
+def fenced(output: str, lines: int) -> str:
+    """The last `lines` of the output in a code fence no line inside can close."""
+    kept = output.rstrip("\n").splitlines()
+    omitted = max(0, len(kept) - lines)
+    body = "\n".join(kept[omitted:])
+    longest = max([len(run) for run in re.findall(r"`+", body)] + [2])
+    fence = "`" * (longest + 1)
+    head = "(%d earlier lines omitted)\n" % omitted if omitted else ""
+    return "%s%stext\n%s\n%s" % (head, fence, body, fence)
+
+
+def test_files(command: str, cwd: Path, top: Path) -> list[str]:
+    """The files the command names, such as `tests/test_x.py::test_y`, relative to the repo."""
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        words = command.split()
+    found = []
+    for word in words:
+        candidate = (cwd / word.split("::", 1)[0]).resolve()
+        if candidate.is_file():
+            found.append(os.path.relpath(candidate, top).replace(os.sep, "/"))
+    return list(dict.fromkeys(found))
+
+
+def declared_check(tier: str, top: Path) -> str:
+    """The command a repository declares for a tier in `.claude/checks.json`.
+
+    Raises:
+        LookupError: the file, or the tier in it, is missing or not a command.
+    """
+    path = top / b.CHECKS_FILE
+    try:
+        declared = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise LookupError(
+            "no checks declared: write %s as "
+            '{"fast": "<the change\'s tier>", "full": "<the single full check>"} (%s)'
+            % (path, error)
+        ) from error
+    command = declared.get(tier) if isinstance(declared, dict) else None
+    if not isinstance(command, str) or not command.strip():
+        raise LookupError("%s declares no %r check" % (path, tier))
+    return command
+
+
+def main(argv: list[str] | None = None) -> int:
+    given = list(sys.argv[1:] if argv is None else argv)
+    cut = given.index("--") if "--" in given else len(given)
+    args = parser().parse_args(given[:cut])
+    words = given[cut + 1 :]
+    if args.tier and (words or args.repro):
+        return fail("--tier runs the declared check, so it takes no command and no --repro")
+    if not args.tier and not words:
+        return fail("give --tier fast|full, or the command after --")
+    root = args.root or b.find_root(Path.cwd())
+    if root is None or not (root / "backlog" / "config.yml").is_file():
+        return fail("no backlog/config.yml here or above; pass --root")
+    run_in = Path.cwd()
+    if args.tier:
+        # The board's own repository declares its checks, and they run at its root.
+        run_in = b.repo_top(root) or root
+        try:
+            command = declared_check(args.tier, run_in)
+        except LookupError as error:
+            return fail(str(error))
+    else:
+        command = words[0] if len(words) == 1 else shlex.join(words)
+    try:
+        task = b.find_task(b.load_board(root), args.id)
+    except (LookupError, OSError, UnicodeDecodeError) as error:
+        return fail(str(error))
+    if task is None:
+        return fail("no task %r on the board" % args.id)
+
+    heading = "Check `%s`" % command
+    if args.repro:
+        cwd = Path.cwd()
+        top = (b.git(cwd, "rev-parse", "--show-toplevel") or "").strip()
+        commit = (b.git(cwd, "rev-parse", "HEAD") or "").strip()
+        if not top or not commit:
+            return fail("--repro needs a git repository with a commit to record")
+        files = test_files(command, cwd, Path(top))
+        if not files:
+            return fail("--repro needs the test file in the command, such as tests/test_x.py")
+        dirty = (b.git(Path(top), "status", "--porcelain", "--", *files) or "").strip()
+        if dirty:
+            return fail("commit the repro test first, so the note can name its commit:\n" + dirty)
+        heading = "Repro at %s, test files: %s; command: `%s`" % (
+            commit[:12],
+            ", ".join(files),
+            command,
+        )
+
+    done = subprocess.run(
+        command,
+        shell=True,
+        cwd=str(run_in),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        errors="replace",
+    )
+    print(done.stdout, end="")
+    if args.repro and done.returncode == 0:
+        return fail("the repro passed, so it doesn't reproduce the bug; nothing recorded")
+
+    note = "%s exited %d\n\n%s" % (heading, done.returncode, fenced(done.stdout, args.lines))
+    try:
+        edit = subprocess.run(
+            ["backlog", "task", "edit", task.id, "--append-notes", note],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        return fail("could not run the backlog CLI: %s" % error)
+    if edit.returncode != 0:
+        return fail("backlog task edit failed: %s" % (edit.stderr or edit.stdout).strip())
+    print("record-check: recorded on %s" % task.id, file=sys.stderr)
+    return 0 if args.repro else done.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
