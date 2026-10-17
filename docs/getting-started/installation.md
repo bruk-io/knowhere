@@ -3,26 +3,21 @@
 ## Requirements
 
 - [Claude Code](https://claude.com/claude-code) CLI installed
-- [UV](https://docs.astral.sh/uv/) (used by copier templates)
+- `python3` on PATH: the philosophy plugin's hooks and scripts run under it, 3.9 or later, with nothing to install
+- The [Backlog.md](https://github.com/MrLesk/Backlog.md) CLI (`backlog`) on PATH, for the board tools
 
 ## Add the Marketplace
 
-Add knowhere as a plugin marketplace in your Claude Code settings:
-
 ```bash
-claude plugins add-marketplace https://github.com/bruk-io/knowhere.git
+claude plugin marketplace add bruk-io/knowhere
 ```
 
-This registers the marketplace so you can browse and install plugins from it.
+Inside Claude Code the same step is `/plugin marketplace add bruk-io/knowhere`.
 
 ## Install a Plugin
 
 ```bash
-claude plugins install <plugin-name>
+claude plugin install philosophy@knowhere
 ```
 
-For example, to install the Python scaffolding plugin:
-
-```bash
-claude plugins install python
-```
+Start a new session afterwards.

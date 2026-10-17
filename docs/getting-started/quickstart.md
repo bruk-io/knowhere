@@ -1,41 +1,26 @@
 # Quick Start
 
-Get up and running with knowhere plugins.
+Get up and running with the philosophy plugin.
 
-## Scaffold a Python Project
+## What arrives, and when
 
-After installing the `python` plugin, ask Claude to create a project:
+- **Every session:** the standing constraints, printed at start, with the repository's
+  mode. A repository whose origin is one of mine is in owner mode and gets the full
+  standard; any other is in guest mode, where its own style governs.
+- **The first time a file is touched:** the rule for it. Code design for a source file,
+  the Python dialect for a `.py` file, how to choose a test layer for a test file, and
+  that layer's own rule for a file under `tests/unit/`, `tests/integration/` or
+  `tests/e2e/`.
+- **On demand:** one skill per step of the work loop, from `philosophy:capture-intent`
+  to `philosophy:learn-from-work`, and `philosophy:python-idioms` for the full dialect.
+- **At close:** the `philosophy:reviewer` agent reviews a finished board task as someone
+  who did not do the work, and closes it when every acceptance criterion is met.
 
-```
-> Create a new Python CLI tool called my-tool
-```
-
-Claude will use the copier template to generate a complete project with pyproject.toml, three-layer architecture, tests, and CI.
-
-## Generate a CI Workflow
-
-With the `github` plugin installed:
-
-```
-> Set up CI for this project
-```
-
-Claude generates a GitHub Actions workflow with linting, formatting, type checking, and tests — tailored to your project's language.
-
-## Deploy Documentation
-
-With the `mkdocs` and `github` plugins installed:
+## Start a piece of work
 
 ```
-> Create documentation for this project and deploy it to GitHub Pages
+> Write this down as an intent: <the problem, in your own words>
 ```
 
-Claude scaffolds an MkDocs Material site and adds a Pages deployment workflow.
-
-## How Plugins Work
-
-Each plugin provides:
-
-- **Skills** — Instructions and copier templates Claude uses to generate code
-- **Hooks** — Guard rails that prevent Claude from writing files from scratch when a template exists
-- **Cross-plugin references** — Plugins compose with each other (e.g., the Python plugin generates CI via the GitHub plugin)
+Claude drafts the intent on the repository's Backlog.md board, and the rest of the loop
+picks up from there.
