@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+"""close-task: close a board task, the same way every time.
+
+    close-task <id> --notes "<closing notes>" [--root DIR] [--no-commit]
+
+Refuses, and changes nothing, unless every acceptance criterion is ticked, every child
+is Done, the criteria and the finish-moved label match the last commit, and any change
+to the criteria since acceptance carries that label. So a reviewer can tick criteria
+but not reword them. Then it sets the task to Done through the backlog CLI, appends the
+closing notes, and commits the task file on its own.
+
+Whether the task should close is the reviewer's judgement. This script only makes the
+close itself identical each time. Exit 0 means closed, 1 means it refused, and 2 means
+something failed along the way.
+"""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import board as b  # noqa: E402
+
+
+def parser() -> argparse.ArgumentParser:
+    top = argparse.ArgumentParser(prog="close-task", description="Close a board task.")
+    top.add_argument("id", help="the task, such as TASK-5 or 5")
+    top.add_argument(
+        "--notes",
+        required=True,
+        help="the closing notes: the verdict, and what was done with each finding",
+    )
+    top.add_argument("--root", type=Path, help="the repository holding backlog/")
+    top.add_argument("--no-commit", action="store_true", help="leave the change uncommitted")
+    return top
+
+
+def fail(message: str) -> int:
+    print("close-task: %s" % message, file=sys.stderr)
+    return 2
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parser().parse_args(argv)
+    if not args.notes.strip():
+        return fail("--notes is empty: the closing notes are the record of the review")
+    root = args.root or b.find_root(Path.cwd())
+    if root is None or not (root / "backlog" / "config.yml").is_file():
+        return fail("no backlog/config.yml here or above; pass --root")
+    try:
+        board = b.load_board(root)
+        task = b.find_task(board, args.id)
+    except (LookupError, OSError, UnicodeDecodeError) as error:
+        return fail(str(error))
+    if task is None:
+        return fail("no task %r on the board" % args.id)
+
+    found = b.closing_findings(root, board, task)
+    checked_history = b.has_history(root)
+    if found:
+        print(b.render(found, False, ""))
+        print("close-task: %s not closed; nothing changed" % task.id, file=sys.stderr)
+        return 1
+
+    try:
+        edit = subprocess.run(
+            ["backlog", "task", "edit", task.id, "-s", "Done", "--append-notes", args.notes],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        return fail("could not run the backlog CLI: %s" % error)
+    if edit.returncode != 0:
+        output = (edit.stderr or edit.stdout).strip()
+        now = b.find_task(b.load_board(root), task.id)
+        if now is not None and b.is_done(now):
+            return fail(
+                "%s is Done with the notes appended, but Backlog.md reported a failure, most "
+                "likely its own commit: %s" % (task.id, output)
+            )
+        return fail("backlog task edit failed, and nothing changed: %s" % output)
+
+    if args.no_commit or b.git(root, "rev-parse", "--git-dir") is None:
+        print("closed %s; not committed" % task.id)
+        if not checked_history:
+            print("close-task: no git history, so the finish line was not checked against it")
+        return 0
+    if b.git(root, "check-ignore", "-q", "--", task.path) is not None:
+        print("closed %s; not committed, because git ignores %s" % (task.id, task.path))
+        return 0
+    if not (b.git(root, "status", "--porcelain", "--", task.path) or "").strip():
+        print("closed %s; Backlog.md committed it" % task.id)
+        return 0
+    message = "Close %s: %s" % (task.id, task.title)
+    if b.git(root, "add", "--", task.path) is None or (
+        b.git(root, "commit", "-q", "-m", message, "--", task.path) is None
+    ):
+        return fail("%s is Done, but the commit failed: commit %s by hand" % (task.id, task.path))
+    print(
+        "closed %s in %s" % (task.id, (b.git(root, "rev-parse", "--short", "HEAD") or "").strip())
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

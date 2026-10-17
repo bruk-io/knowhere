@@ -1,0 +1,7 @@
+# The hooks and scripts run under whatever python3 is on PATH, so they target 3.9
+# rather than the 3.15 floor my projects use.
+target-version = "py39"
+line-length = 100
+
+[lint]
+select = ["E4", "E7", "E9", "F", "B", "I", "EXE"]

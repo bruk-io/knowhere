@@ -1,0 +1,18 @@
+{
+  "name": "philosophy",
+  "version": "0.4.6",
+  "description": "The standing constraints every session, code, Python and board rules when a matching file is touched, small composable skills for each step of the work loop following Anthropic's AI-native SDLC plays, and the scripts and reviewer agent that check and close the work.",
+  "author": {
+    "name": "Bruk Habtu"
+  },
+  "keywords": [
+    "philosophy",
+    "python",
+    "rules",
+    "hooks",
+    "work",
+    "backlog",
+    "review"
+  ],
+  "license": "MIT"
+}
