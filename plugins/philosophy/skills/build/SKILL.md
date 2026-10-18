@@ -23,7 +23,7 @@ has unblocked it: go to step 5.
    step naming its requirement; the risks; and the proof, the checks that will show it
    works. Someone who never saw this session must be able to implement from it. Run
    `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" intent/$slug`, then commit the
-   plan alone as the branch's first commit.
+   plan alone as the branch's first commit, with the message `plan: NN <title>`.
 4. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" <the plan>`. Exit 0 means
    nothing is gated: go on. Exit 2 means it couldn't read the plan: stop and say so.
    Exit 1 lists the gated paths: push, open the PR with the plan and those paths, ask
