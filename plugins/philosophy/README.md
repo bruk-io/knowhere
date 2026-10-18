@@ -98,7 +98,7 @@ to set up:
 The loop measures itself, and the measurement is code:
 
 ```sh
-python3 scripts/loop-metrics                       # per intent: handover hours, spec rework;
+python3 scripts/loop-metrics                       # per intent: handover hours, spec rework, stalled;
                                                    # merged without the owner; Important findings
 python3 scripts/loop-readings ci_failure_rate | python3 scripts/band-check --metric ci_failure_rate
 ```
@@ -108,7 +108,8 @@ and 3 sigma and two Western Electric drift rules. `loop-bands.yml` runs it daily
 metrics in `bands.yaml`. 1 sigma logs; 2 sigma has Claude diagnose, read-only, into the
 run's summary; 3 sigma has `/philosophy:intent` write the breach up as an intent, which
 the owner triages like any other. Readings are daily, and a verdict needs seven earlier
-days.
+days. The same run warns about any stalled intent: one whose next change is held by a
+build branch with no open PR, or by a PR open more than three days.
 
 ### The gates
 

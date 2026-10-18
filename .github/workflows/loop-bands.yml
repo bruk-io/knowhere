@@ -24,6 +24,8 @@ jobs:
       evidence: ${{ steps.worst.outputs.evidence }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Readings and tiers
         env:
@@ -39,6 +41,16 @@ jobs:
               echo "$metric: not enough readings yet"
             fi
           done
+
+      - name: Stalled intents
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch -q origin '+refs/heads/build/*:refs/remotes/origin/build/*' || true
+          python3 plugins/philosophy/scripts/loop-metrics --recent 0 > metrics.json
+          jq -r '.intents[] | select(.stalled) | "\(.intent): \(.stalled)"' metrics.json > stalled.txt
+          while read -r line; do echo "::warning title=Stalled intent::$line"; done < stalled.txt
+          { echo "## Stalled intents"; echo; if [ -s stalled.txt ]; then sed 's/^/- /' stalled.txt; else echo "None."; fi; echo; } >> "$GITHUB_STEP_SUMMARY"
 
       - id: worst
         name: The worst tier, and what the bands say it means
