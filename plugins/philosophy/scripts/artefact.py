@@ -40,9 +40,19 @@ DEFINED = re.compile(r"^[-*]\s+\*\*R(\d+)\.\*\*")
 CITED = re.compile(r"\bR(\d+)\b")
 LISTED_PATH = re.compile(r"^[-*]\s+`([^`]+)`")
 PLAN_NAME = re.compile(r"^\d{2}-[a-z0-9][a-z0-9-]*\.md$")
-CARRIED = re.compile(r"carried forward:\s*\S", re.I)  # with its reason
+# "Carried forward:" opening the question's text or one of its sentences, with a reason
+# after it. Quoting the phrase mid-sentence doesn't settle a question.
+CARRIED = re.compile(r"(?:^|[.?!]\s+)carried forward:\s*\S", re.I)
 OWNER = re.compile(r"\bOwner:\s*\S", re.I)
 APPLIED = re.compile(r"^Applied:\s*\S", re.M)
+
+
+def header_field(name: str) -> re.Pattern[str]:
+    """A header field such as `Author:` as a word of its own, with a value after it."""
+    return re.compile(r"(?<![\w-])%s:[ \t]*[^\s.]" % name)
+
+
+HEADER_FIELDS = {name: header_field(name) for name in ("Author", "Status", "Intent")}
 
 
 class Finding(NamedTuple):
@@ -141,6 +151,10 @@ def checkboxes(body: str) -> tuple[Item, ...]:
 
 
 def settled(question: Item) -> bool:
+    """Ticked, or carried forward with its reason. A question still in the template's
+    `<...>` placeholder is never settled."""
+    if question.text.lstrip().startswith("<"):
+        return False
     return question.ticked or bool(CARRIED.search(question.text))
 
 
@@ -212,9 +226,11 @@ def check_questions(doc: Doc) -> list[Finding]:
 
 def check_intent(doc: Doc) -> list[Finding]:
     out = check_title(doc, "Intent") + check_sections(doc, INTENT_SECTIONS)
-    for field in ("Author:", "Status:"):
-        if field not in doc.header:
-            out.append(Finding(doc.path, "header", "the line under the title needs '%s'" % field))
+    for field in ("Author", "Status"):
+        if not HEADER_FIELDS[field].search(doc.header):
+            out.append(
+                Finding(doc.path, "header", "the line under the title needs '%s: <value>'" % field)
+            )
     return out + check_questions(doc)
 
 
@@ -288,7 +304,7 @@ def check_concerns(spec: Doc) -> list[Finding]:
 
 def check_spec(spec: Doc, intent: Optional[Doc]) -> list[Finding]:
     out = check_title(spec, "Spec") + check_sections(spec, SPEC_SECTIONS)
-    if "Intent:" not in spec.header:
+    if not HEADER_FIELDS["Intent"].search(spec.header):
         out.append(Finding(spec.path, "header", "the header needs an 'Intent:' line"))
     if not APPLIED.search(spec.header):
         out.append(
