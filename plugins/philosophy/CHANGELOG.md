@@ -3,7 +3,7 @@
 ## 0.5.0
 
 The work loop follows Anthropic's AI-native SDLC playbook, and the Backlog.md board is
-gone. Built from `intent/self-running-loop/` in knowhere; changes 01 to 07 of its spec.
+gone. Built from `intent/self-running-loop/` in knowhere; changes 01 to 08 of its spec.
 
 ### Added
 
@@ -25,6 +25,9 @@ gone. Built from `intent/self-running-loop/` in knowhere; changes 01 to 07 of it
   subagent gets the constraints. `/philosophy:review` also takes a branch, for runs
   without GitHub, and reads it through `scripts/branch-diff`, which accepts only a plain
   branch name.
+- **`scripts/loop-metrics`, `loop-readings` and `band-check`:** the loop's own numbers
+  from git and PR history, and control bands over them. `loop-bands.yml` and
+  `templates/bands.yaml` turn a 3-sigma breach into an intent for the owner to triage.
 - **`templates/github/`**: the workflows that run the plays on a merge (spec on an
   intent, the next build on a spec or a change, the review on every PR, and the owner's
   `@claude continue`), for a repository to copy.
