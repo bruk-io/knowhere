@@ -1,7 +1,7 @@
 #!/bin/sh
-# PreToolUse (Bash|Edit|Write) hook: the shell in front of guard.py.
+# PreToolUse (Bash) hook: the shell in front of guard.py.
 #
-# This runs before every Bash call and every edit, so for most of them it must cost no
+# This runs before every Bash call, so for most of them it must cost no
 # more than a shell start. guard.py only acts on `git ... init` today, so anything else
 # exits here before Python starts. What is denied, and why, is decided in guard.py.
 #

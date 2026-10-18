@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hold the loop's guardrails. PreToolUse on Bash, Edit and Write.
+"""Hold the loop's guardrails. PreToolUse on Bash.
 
 - `git init` without `-b main` is denied unless git already defaults to `main`.
 
