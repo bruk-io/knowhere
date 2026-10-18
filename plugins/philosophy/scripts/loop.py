@@ -22,6 +22,8 @@ CHANGE = re.compile(r"^(\d{2})\s+(.*)$")
 BUILD_BRANCH = re.compile(r"refs/heads/build/[^/]+/(\d{2})$")
 CODEOWNERS_HOMES = (".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS")
 TIERS = ("fast", "full")
+TIMED_OUT = 124  # the exit code `timeout` uses, for a check that ran too long
+GIT_TIMEOUT = 60
 
 
 class Change(NamedTuple):
@@ -152,9 +154,12 @@ def declared(text: str, tier: str) -> Optional[str]:
 
 def evidence(command: str, code: int, output: str, lines: int) -> str:
     """A check's run as a block to paste into a PR: the command, its output's last lines,
-    and its exit code, all as the tool printed them."""
-    tail = output.rstrip("\n").splitlines()[-lines:] if lines else []
-    return "\n".join(["```", "$ " + command, *tail, "exit=%d" % code, "```"])
+    and its exit code, all as the tool printed them. The fence is longer than any run of
+    backticks in the output, so the output can't close it early."""
+    tail = output.rstrip("\n").splitlines()[-lines:] if lines > 0 else []
+    longest = max((len(run) for run in re.findall(r"`+", "\n".join(tail))), default=0)
+    fence = "`" * max(3, longest + 1)
+    return "\n".join([fence, "$ " + command, *tail, "exit=%d" % code, fence])
 
 
 # --- the shell ----------------------------------------------------------------------
@@ -176,12 +181,16 @@ def remote_build_numbers(root: Path, slug: str, remote: str) -> frozenset[str]:
     Raises:
         LoopError: git could not list the remote's branches.
     """
-    done = subprocess.run(
-        ["git", "-C", str(root), "ls-remote", "--heads", remote, "build/%s/*" % slug],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        done = subprocess.run(
+            ["git", "-C", str(root), "ls-remote", "--heads", remote, "build/%s/*" % slug],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=GIT_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise LoopError("listing %s's branches took over %ds" % (remote, GIT_TIMEOUT)) from error
     if done.returncode != 0:
         raise LoopError("could not list %s's branches: %s" % (remote, done.stderr.strip()))
     return frozenset(
@@ -219,8 +228,9 @@ def load_rules(root: Path) -> tuple[Rule, ...]:
     return ()
 
 
-def run_declared(root: Path, tier: str, lines: int) -> tuple[int, str]:
-    """Run the repository's declared check for a tier, from the repository root.
+def run_declared(root: Path, tier: str, lines: int, timeout: int) -> tuple[int, str]:
+    """Run the repository's declared check for a tier, from the repository root. A check
+    that runs past `timeout` seconds is stopped and reported with exit code 124.
 
     Raises:
         LoopError: the repository declares no command for the tier.
@@ -233,12 +243,19 @@ def run_declared(root: Path, tier: str, lines: int) -> tuple[int, str]:
             'whole check>"} to %s, one command per tier that exits non-zero on failure'
             % (tier, path)
         )
-    done = subprocess.run(
-        ["bash", "-c", command],
-        cwd=root,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        check=False,
-    )
+    try:
+        done = subprocess.run(
+            ["bash", "-c", command],
+            cwd=root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as error:
+        partial = error.stdout or ""
+        partial = partial.decode() if isinstance(partial, bytes) else partial
+        output = partial + "\nrun-check: stopped after %ds" % timeout
+        return TIMED_OUT, evidence(command, TIMED_OUT, output, lines)
     return done.returncode, evidence(command, done.returncode, done.stdout, lines)

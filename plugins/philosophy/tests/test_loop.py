@@ -171,6 +171,15 @@ def test_evidence_keeps_the_command_the_tail_and_the_exit_code():
     ]
 
 
+def test_evidence_fences_output_that_holds_backticks():
+    block = loop.evidence("x", 0, "```\nfake close\n````", 5)
+    assert block.splitlines()[0] == "`````" and block.splitlines()[-1] == "`````"
+
+
+def test_evidence_keeps_no_lines_for_zero():
+    assert loop.evidence("x", 0, "a\nb\n", 0).splitlines() == ["```", "$ x", "exit=0", "```"]
+
+
 def test_declared_reads_a_tier():
     text = json.dumps({"fast": "make test", "full": " "})
     assert (loop.declared(text, "fast"), loop.declared(text, "full")) == ("make test", None)
@@ -268,6 +277,18 @@ def test_run_check_without_a_declaration_exits_2(repo):
     result = command("run-check", "fast", cwd=repo)
     assert result.returncode == 2
     assert result.stdout.startswith("run-check: ") and "checks.json" in result.stdout
+
+
+def test_run_check_stops_a_check_that_runs_too_long(repo):
+    (repo / ".claude").mkdir()
+    (repo / ".claude" / "checks.json").write_text(json.dumps({"fast": "echo started; sleep 5"}))
+    result = command("run-check", "fast", "--timeout", "1", cwd=repo)
+    assert result.returncode == 124
+    assert "started" in result.stdout and "stopped after 1s" in result.stdout
+
+
+def test_run_check_refuses_negative_lines(repo):
+    assert command("run-check", "fast", "--lines", "-5", cwd=repo).returncode == 2
 
 
 def test_run_check_refuses_a_checks_file_that_is_not_an_object(repo):

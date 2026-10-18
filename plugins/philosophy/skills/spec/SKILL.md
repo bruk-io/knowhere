@@ -3,7 +3,7 @@ description: Write intent/<slug>/spec.md from an accepted intent - numbered requ
 argument-hint: <slug>
 arguments: [slug]
 disable-model-invocation: true
-allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *)
+allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b spec/*), Bash(git add intent/*), Bash(git commit *), Bash(git push origin spec/*), Bash(git push -u origin spec/*), Bash(gh pr create *)
 ---
 
 # Write the spec

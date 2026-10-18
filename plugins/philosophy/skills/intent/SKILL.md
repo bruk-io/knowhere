@@ -3,7 +3,7 @@ description: Write a piece of work down as intent/<slug>/intent.md, in the reque
 argument-hint: <slug>
 arguments: [slug]
 disable-model-invocation: true
-allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *)
+allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b intent/*), Bash(git add intent/*), Bash(git commit *), Bash(git push origin intent/*), Bash(git push -u origin intent/*), Bash(gh pr create *)
 ---
 
 # Capture an intent
