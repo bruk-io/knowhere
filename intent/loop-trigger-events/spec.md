@@ -12,7 +12,9 @@ gates every path this touches; the pinned `claude-code-action`'s own source
 `src/github/validation/actor.ts` at `f27be6b65a4652f08a2ba3cff79114829b588967`), read
 directly rather than guessed, to settle which event the action accepts and what it
 checks once it does; GitHub's "Permissions required for GitHub Apps" table for the
-dispatch endpoint's permission.
+dispatch endpoint's permission; and GitHub's "Triggering a workflow" page, which says
+`workflow_dispatch` and `repository_dispatch` events always create workflow runs, the
+exception to `GITHUB_TOKEN`-caused events creating none.
 
 ## Requirements
 
@@ -30,7 +32,10 @@ dispatch endpoint's permission.
   can read its matrix with `fromJSON(github.event.client_payload.slugs)`, the same
   call shape `needs.find.outputs.slugs` already used. Every run of the action now
   has `repository_dispatch` as its triggering event, which `context.ts` accepts,
-  instead of `push`, which it doesn't.
+  instead of `push`, which it doesn't. The action job keeps the concurrency group per
+  slug that today's job carries (`intent-${{ matrix.slug }}` and
+  `build-${{ matrix.slug }}`), so two quick pushes, now two dispatches, still can't run
+  the same intent's play twice at once (self-running-loop R9).
   `plugins/philosophy/templates/github/README.md`'s table row for each workflow is
   updated to say it runs in two hops (`find` on the merge, the action on `find`'s
   dispatch), so a repository that copies these templates doesn't read the old
@@ -59,8 +64,9 @@ dispatch endpoint's permission.
   started, because anyone with a write-scoped token can send `repository_dispatch` by
   hand, with no merge and no review, and the job runs Claude with
   `CLAUDE_CODE_OAUTH_TOKEN`. The job checks out `main` with its full history
-  (`fetch-depth: 0`), and before the action step, a step fails the run unless all of
-  these hold:
+  (`fetch-depth: 0`), and before the action step, a step fails the run unless the
+  first three of these hold, and skips the action step, with the run staying green,
+  unless the fourth does:
   - `client_payload.sha` is a commit on `main`, and `client_payload.before` is one of
     its ancestors;
   - the diff over that range, `git diff --name-only before sha` with the same filter
@@ -73,12 +79,16 @@ dispatch endpoint's permission.
   - `main` still calls for the play: for `intent-spec`, the intent has no `spec.md` on
     `main` and no `spec/<slug>` branch on the remote, so a replayed dispatch or a
     second push can't open a duplicate spec PR; for `intent-build`, `next-change` says
-    `build`, which already treats a `build/<slug>/NN` branch as taken.
+    `build`, which already treats a `build/<slug>/NN` branch as taken. A play that
+    isn't due is the routine case, as `intent-build.yml` treats `next-change`'s exit 1
+    today (`[ $code -le 1 ]`), so it's a skip, not a failure: a red run here would
+    count against the CI failure rate the control bands watch (self-running-loop
+    R19).
 
   The slugs and the sha reach shell steps through `env:`, never as an inline `${{ }}`
   in `run:`, in both workflows and their template copies. A dispatch that names no
-  merge, a merge that didn't touch the intent, or an intent whose next play is done
-  starts nothing. What it can't rule out is in Areas of concern 3.
+  merge, or a merge that didn't touch the intent, fails; one for an intent whose next
+  play is done or already taken starts nothing and passes. What it can't rule out is in Areas of concern 3.
 
 ## Design
 
