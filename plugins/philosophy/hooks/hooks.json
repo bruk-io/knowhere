@@ -1,5 +1,5 @@
 {
-  "description": "philosophy: constraints at session start; each rule the first time a matching file or command is touched; the close held to close-task and the reviewer",
+  "description": "philosophy: constraints at session start; each rule the first time a matching file or command is touched; the close held to close-task and the reviewer; intents, specs and plans checked as they are written",
   "hooks": {
     "SessionStart": [
       {
@@ -42,6 +42,16 @@
             "type": "command",
             "if": "Bash(backlog *)",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/context.py\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/artefact_hook.py\"",
             "timeout": 10
           }
         ]
