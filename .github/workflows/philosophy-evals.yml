@@ -45,6 +45,38 @@ jobs:
           --runs 1 --ablation none --threshold 1.0
           --no-publish --report eval-report.html
 
+      # A failed run's workspace is kept and sealed. Print what its tools said, so a
+      # failure in CI can be read from the log instead of guessed at.
+      - name: What the failed cases' tools said
+        if: failure()
+        run: |
+          for kept in /tmp/claude-eval-*; do
+            [ -d "$kept" ] || continue
+            chmod -R u+rwX "$kept" 2>/dev/null || true
+            find "$kept" -name trace.jsonl | while read -r trace; do
+              echo "== $trace"
+              python3 - "$trace" <<'PY'
+          import json, sys
+          for line in open(sys.argv[1]):
+              try:
+                  event = json.loads(line)
+              except ValueError:
+                  continue
+              message = event.get("message") if isinstance(event, dict) else None
+              for block in (message or {}).get("content") or [] if isinstance(message, dict) else []:
+                  if not isinstance(block, dict):
+                      continue
+                  if block.get("type") == "tool_use":
+                      shown = block.get("input", {})
+                      print("  tool:", block.get("name"), json.dumps(shown)[:200])
+                  elif block.get("type") == "tool_result" and block.get("is_error"):
+                      content = block.get("content")
+                      text = content if isinstance(content, str) else json.dumps(content)
+                      print("  ERROR:", text[:400].replace("\n", " "))
+          PY
+            done
+          done
+
       - name: Keep the report
         if: always()
         uses: actions/upload-artifact@v4
