@@ -9,6 +9,8 @@ Spec: [spec.md](../spec.md), change 01. Delivers R1, R2, R3, R4, R5.
 - `plugins/philosophy/scripts/dispatch-check`
 - `plugins/philosophy/tests/test_dispatch_check.py`
 - `plugins/philosophy/README.md`
+- `.github/scripts/inline-expressions.py`
+- `.github/scripts/check.sh`
 - `.github/workflows/intent-spec.yml`
 - `.github/workflows/intent-build.yml`
 - `plugins/philosophy/templates/github/intent-spec.yml`
@@ -22,7 +24,7 @@ Spec: [spec.md](../spec.md), change 01. Delivers R1, R2, R3, R4, R5.
    its eleventh requirement's chaining sentence to say the merge starts `find` on
    `push`, and `find`'s dispatch, not the merge itself, is what starts the action (R4).
 2. `plugins/philosophy/scripts/dispatch-check`: the R5 checks as a script, so the
-   property this change rests on is tested before merge, not only by step 7's live run
+   property this change rests on is tested before merge, not only by step 8's live run
    ("validation logic is a script"). `dispatch-check spec|build <slug> --before <sha>
    --sha <sha> [--root DIR] [--remote origin]` exits 2, saying why, unless, in order:
    the slug matches `^[a-z0-9][a-z0-9-]*$`; `before` and `sha` are each a full 40-hex
@@ -40,14 +42,18 @@ Spec: [spec.md](../spec.md), change 01. Delivers R1, R2, R3, R4, R5.
 3. `.github/workflows/intent-spec.yml`:
    - `on:` gains `repository_dispatch: types: [intent-spec]` alongside the unchanged
      `push` trigger (R1).
-   - `find` gains `if: github.event_name == 'push'`; its diff logic is unchanged (R1).
+   - `find` gains `if: github.event_name == 'push'`; its diff logic is unchanged, but
+     the `github.event.before` and `github.sha` it diffs move from inline `${{ }}` in
+     its `run:` to `env:` (R1, R5).
    - A new `dispatch` job (`needs: find`,
      `if: "github.event_name == 'push' && needs.find.outputs.slugs != '[]'"`,
      `permissions: contents: write`) posts
      `repos/${{ github.repository }}/dispatches` with `event_type: intent-spec` and
      `client_payload` fields `slugs` (`needs.find.outputs.slugs`, the compact JSON
      array string unchanged), `before` (`github.event.before`) and `sha`
-     (`github.sha`), read through `env:` rather than inlined into `run:` (R1, R2). On
+     (`github.sha`), read through `env:` rather than inlined into `run:`, with
+     `GH_TOKEN: ${{ github.token }}` in the same `env:` so `gh api` is authenticated
+     (R1, R2). On
      a `repository_dispatch`-triggered run `dispatch` is skipped: an `if:` with no
      status-check function gets an implicit `success() &&`, and `find`, which it
      needs, is skipped on that run. The explicit `github.event_name == 'push'` says the
@@ -63,7 +69,9 @@ Spec: [spec.md](../spec.md), change 01. Delivers R1, R2, R3, R4, R5.
      `env:`, runs `dispatch-check spec` (step 2): exit 2 fails the job red, exit 1 sets
      `due=false` (the run stays green and the action step is skipped), and exit 0 sets
      `due=true` (R5). The action step gains `if: steps.<verify>.outputs.due == 'true'`
-     and `allowed_bots: "github-actions[bot]"` (R3).
+     and `allowed_bots: "github-actions[bot]"` (R3). The job keeps today's concurrency
+     group, `intent-${{ matrix.slug }}`, so two dispatches for one intent never run at
+     once (R1).
 4. `.github/workflows/intent-build.yml`: the same shape as step 3 for `find`,
    `dispatch` and the `build` job, which likewise drops `needs: find`, with two
    differences the spec's chosen checks already draw: `dispatch-check build` uses
@@ -72,9 +80,10 @@ Spec: [spec.md](../spec.md), change 01. Delivers R1, R2, R3, R4, R5.
    ordering inside the `build` job becomes: the verify step runs `dispatch-check build`
    first and hard-fails the job on exit 2; only if it passes does the existing `next`
    step run `next-change` and keep its current `[ $code -le 1 ]` behaviour (skip green
-   on "done"/"taken", fail red above that); the action step keeps its existing
-   `if: steps.next.outputs.build == 'true'` and gains `allowed_bots`
-   (R1, R2, R3, R5).
+   on "done"/"taken", fail red above that), with the `matrix.slug` it passes to
+   `next-change` moved from inline `${{ }}` to `env:`; the action step keeps its
+   existing `if: steps.next.outputs.build == 'true'` and gains `allowed_bots`. The job
+   keeps its concurrency group, `build-${{ matrix.slug }}` (R1, R2, R3, R5).
 5. `plugins/philosophy/templates/github/intent-spec.yml` and `intent-build.yml`: the
    same edits as steps 3 and 4, keeping each template's existing divergence from its
    `.github/workflows/` counterpart (the pinned `actions/checkout` version, the
@@ -82,11 +91,16 @@ Spec: [spec.md](../spec.md), change 01. Delivers R1, R2, R3, R4, R5.
    The templates run `dispatch-check` from the knowhere clone, as the build template
    already runs `next-change`; the `intent-spec.yml` template gains that clone step,
    since it has none today (R1).
-6. `plugins/philosophy/templates/github/README.md`: reword the `intent-spec.yml` and
+6. `.github/scripts/inline-expressions.py`, run by `check.sh` in the fast tier: it
+   fails, naming the file and line, on any `${{` inside a `run:` block of
+   `.github/workflows/intent-*.yml` or `plugins/philosophy/templates/github/intent-*.yml`,
+   so R5's rule that the slugs and shas reach shell steps only through `env:` is a
+   check, not a convention (R5).
+7. `plugins/philosophy/templates/github/README.md`: reword the `intent-spec.yml` and
    `intent-build.yml` table rows to say each runs in two hops, `find` on the merge and
    the action on `find`'s dispatch, so a repository copying these templates doesn't
    read the old single-hop description as current (R1).
-7. After this PR merges to `main` (the relay only exists once `main` has it, so this
+8. After this PR merges to `main` (the relay only exists once `main` has it, so this
    step can't run from the branch): push a throwaway smoke-test intent on its own
    branch, merged by hand the way `loop-smoke-test` verified the handovers before it,
    and watch `find` and `dispatch` run on that merge, then confirm the `spec` job's
@@ -105,13 +119,13 @@ Spec: [spec.md](../spec.md), change 01. Delivers R1, R2, R3, R4, R5.
   nested JSON object GitHub's dispatches endpoint expects, with `slugs` staying a
   string field rather than becoming a nested array; a malformed call either errors
   loudly or silently changes the payload shape the `spec`/`build` job reads with
-  `fromJSON`. Step 7's live push is what proves this, not a local check.
+  `fromJSON`. Step 8's live push is what proves this, not a local check.
 - `find`'s diff filter and `dispatch-check`'s filter must stay identical (R5's third
   check exists only to re-derive what `find` already decided); a drift reopens the gap
   between what `find` found and what the dispatched job verifies. The tests pin
   `dispatch-check`'s side; `find`'s stays in the workflow.
 - The `checkHumanActor` actor for a `GITHUB_TOKEN`-fired `repository_dispatch` rests on
-  convention (spec Areas of concern 2), not on a run in this repository. Step 7 is
+  convention (spec Areas of concern 2), not on a run in this repository. Step 8 is
   where that gets settled, and the fix if it's wrong is scoped in this plan already.
 - `fetch-depth: 0` is required wherever `dispatch-check` runs; a shallow checkout
   makes the ancestry checks fail closed (exit 2, not a false pass), which is the safe
@@ -135,8 +149,11 @@ Spec: [spec.md](../spec.md), change 01. Delivers R1, R2, R3, R4, R5.
   2; for `spec`, a `spec.md` on `main` or a `spec/<slug>` branch on the remote, not
   due with exit 1; a genuine merge of an unspecced intent, due with exit 0; and a push
   of several commits whose intent change is in an earlier commit, which passes.
+- `bash .github/scripts/check.sh fast` runs `inline-expressions.py` clean over the four
+  workflow files, and the script names the file and line when a `${{` is put back into
+  a `run:` block.
 - `python3 -c "import yaml,glob; [yaml.safe_load(open(p)) for p in glob.glob('.github/workflows/intent-*.yml') + glob.glob('plugins/philosophy/templates/github/intent-*.yml')]"` exits without error, confirming the edited workflows still parse.
-- Step 7's smoke-test run, added as a comment on this PR once it merges: the `find`
+- Step 8's smoke-test run, added as a comment on this PR once it merges: the `find`
   job's run (triggered by `push`), the `dispatch` job's run, and the `spec` (or
   `build`) job's run (triggered by `repository_dispatch`), with the action step shown
   reaching Claude's run rather than `Unsupported event type` or `checkHumanActor`.
