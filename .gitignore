@@ -3,3 +3,5 @@
 site/
 .venv/
 **/evals/results/
+__pycache__/
+*.pyc

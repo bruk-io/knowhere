@@ -60,7 +60,8 @@ Spec: [spec.md](../spec.md), change 05. Delivers R17.
 4. A workflow that runs the suite on every PR touching `plugins/philosophy/`, one run
    per case, failing below a pass-rate threshold (R17). Change 06 makes it required.
 5. Run the suite once locally, one run per case, and record the result.
-6. README, changelog, and `evals/results/` in `.gitignore`.
+6. README, changelog, and `evals/results/` in `.gitignore`, with Python's bytecode
+   (`__pycache__/`, `*.pyc`), which the tests and evals leave beside the scripts.
 
 ## Risks
 
