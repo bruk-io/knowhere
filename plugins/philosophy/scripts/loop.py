@@ -92,10 +92,14 @@ def pattern_regex(pattern: str) -> str:
     """Translate a CODEOWNERS pattern into a regex over a repository-relative path.
 
     A pattern with a slash before its end is anchored at the root; one without matches
-    at any depth. A match on a directory covers everything under it.
+    at any depth. A pattern that ends in `/`, or whose last segment has no wildcard,
+    also covers everything under what it names. One whose last segment is a wildcard,
+    such as `docs/*`, covers only what is directly there, as GitHub reads it.
     """
     anchored = "/" in pattern.rstrip("/")
     glob = pattern.strip("/")
+    last = glob.rsplit("/", 1)[-1]
+    covers_below = pattern.endswith("/") or not any(c in last for c in "*?")
     out = []
     i = 0
     while i < len(glob):
@@ -114,7 +118,8 @@ def pattern_regex(pattern: str) -> str:
         else:
             out.append(re.escape(glob[i]))
             i += 1
-    return "^%s%s(?:/.*)?$" % ("" if anchored else "(?:.*/)?", "".join(out))
+    below = "(?:/.*)?" if covers_below else ""
+    return "^%s%s%s$" % ("" if anchored else "(?:.*/)?", "".join(out), below)
 
 
 def owners_of(path: str, rules: tuple[Rule, ...]) -> tuple[str, ...]:
@@ -132,8 +137,16 @@ def gated(paths: tuple[str, ...], rules: tuple[Rule, ...]) -> tuple[str, ...]:
 
 
 def declared(text: str, tier: str) -> Optional[str]:
-    """The command a `.claude/checks.json` declares for a tier, or None."""
-    value = json.loads(text).get(tier)
+    """The command a `.claude/checks.json` declares for a tier, or None.
+
+    Raises:
+        LoopError: the file is not a JSON object.
+        ValueError: the file is not JSON.
+    """
+    data = json.loads(text)
+    if not isinstance(data, dict):
+        raise LoopError('.claude/checks.json must be a JSON object: {"fast": "...", "full": "..."}')
+    value = data.get(tier)
     return value if isinstance(value, str) and value.strip() else None
 
 

@@ -3,7 +3,7 @@ description: Review a pull request as someone who did not write it - bugs, secur
 argument-hint: <pr-number>
 arguments: [pr]
 disable-model-invocation: true
-allowed-tools: Bash(gh pr view *), Bash(gh pr diff *)
+allowed-tools: Bash(gh pr view *), Bash(gh pr diff *), Bash(gh pr comment *), mcp__github_inline_comment__create_inline_comment
 ---
 
 # Review a pull request
@@ -25,7 +25,7 @@ merge, and an Important one holds it.
    count. Skip what CI already checks.
 4. Post each finding on its line as an inline comment, then one top-level comment: the
    verdict first, then the counts.
-5. End with the counts as your final answer, Important first, so the workflow can hold
-   the merge on them.
+5. End with this line and nothing after it, so a workflow or a script can hold the
+   merge on it: `important=<N> nits=<M>`.
 
 Never push, approve, or edit the change.

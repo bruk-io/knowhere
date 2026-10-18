@@ -122,6 +122,7 @@ CODEOWNERS = """
 plugins/*/hooks/ @owner
 docs/generated/ @owner
 docs/generated/free.md
+/notes/* @owner
 """
 RULES = loop.parse_codeowners(CODEOWNERS)
 
@@ -139,6 +140,8 @@ RULES = loop.parse_codeowners(CODEOWNERS)
         ("plugins/philosophy/skills/build/SKILL.md", False),
         ("docs/generated/api.md", True),
         ("docs/generated/free.md", False),
+        ("notes/today.md", True),
+        ("notes/2026/today.md", False),
         ("README.md", False),
     ],
 )
@@ -264,4 +267,11 @@ def test_run_check_prints_evidence_and_passes_the_exit_code_on(repo):
 def test_run_check_without_a_declaration_exits_2(repo):
     result = command("run-check", "fast", cwd=repo)
     assert result.returncode == 2
-    assert "checks.json" in result.stderr
+    assert result.stdout.startswith("run-check: ") and "checks.json" in result.stdout
+
+
+def test_run_check_refuses_a_checks_file_that_is_not_an_object(repo):
+    (repo / ".claude").mkdir()
+    (repo / ".claude" / "checks.json").write_text("[]")
+    result = command("run-check", "fast", cwd=repo)
+    assert result.returncode == 2 and "JSON object" in result.stdout
