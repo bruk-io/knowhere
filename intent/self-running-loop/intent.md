@@ -1,6 +1,6 @@
 # Intent: a work loop that runs itself from intent
 
-Author: Bruk Habtu. Status: draft.
+Author: Bruk Habtu. Status: draft. Merging this file into `main` accepts it.
 
 ## Problem
 
@@ -37,8 +37,8 @@ its control band, the loop writes a new intent.
   repository I own.
 - The philosophy plugin in knowhere: its skills, hooks, scripts, reviewer agent and
   rules.
-- knowhere, which owns this intent and so runs it. It has no Claude workflows and no
-  `CLAUDE_CODE_OAUTH_TOKEN` secret yet.
+- knowhere, which owns this intent and so runs it. It has the review and `@claude`
+  workflows and its token; nothing in it yet runs a play on a git event.
 - Repositories that use the plugin, through the Claude GitHub integration
   (`claude-code-action` on the subscription token). Where it is set up today, it is the
   read-only review and `@claude` workflows.
@@ -56,8 +56,10 @@ its control band, the loop writes a new intent.
   still apply (plan shape, numbered requirements and their coverage, settled open
   questions) become checks on the artefact files.
 - Triggers use the Claude GitHub integration on the subscription token, not an API key.
-- Claude never approves its own work. Merges are the approvals, and a change to the
-  architecture or its enforcement needs mine.
+- Claude never approves its own work, and a merge is the approval. A PR merges without
+  me only when every required check is green, no Important review finding is open, and
+  it touches no architecture path. Claude's review can stop a merge but never approves
+  one. A change to the architecture or its enforcement always needs me.
 - One intent goes through end to end by hand before any handover is automated.
 - The existing policy rules and skills (Python, code design, test layers,
   `python-idioms`) keep working.
@@ -72,8 +74,9 @@ its control band, the loop writes a new intent.
       need to approve plans inside an approved spec?
 - [ ] How is "touches the architecture" detected: CODEOWNERS paths with required
       code-owner review, a check that labels the PR, or both? Which paths?
-- [ ] Which PRs merge without me: green checks, no Important review findings, and no
-      architecture paths?
+- [ ] Which checks are required before a PR merges without me, and how does an open
+      Important finding hold the merge: the review job fails, or it sets a required
+      status?
 - [ ] Chaining: a PR opened by `claude[bot]` needs `allowed_bots` before the review
       workflow runs on it, and a merge made with `GITHUB_TOKEN` starts no further
       workflows. Verify both before relying on them.
