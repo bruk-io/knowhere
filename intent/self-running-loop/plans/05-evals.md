@@ -13,6 +13,7 @@ Spec: [spec.md](../spec.md), change 05. Delivers R17.
 - `plugins/philosophy/evals/build/build-plans-first/graders/plan-written.md`
 - `plugins/philosophy/evals/build/build-plans-first/graders/code-written.md`
 - `plugins/philosophy/evals/build/build-plans-first/graders/plan-commit-first.md`
+- `plugins/philosophy/evals/build/build-plans-first/graders/code-committed.md`
 - `plugins/philosophy/evals/spec/spec-flags-policy-conflict/prompt.md`
 - `plugins/philosophy/evals/spec/spec-flags-policy-conflict/case.yaml`
 - `plugins/philosophy/evals/spec/spec-flags-policy-conflict/scaffold.sh`
@@ -27,6 +28,7 @@ Spec: [spec.md](../spec.md), change 05. Delivers R17.
 - `plugins/philosophy/evals/subagent/subagent-gets-constraints/prompt.md`
 - `plugins/philosophy/evals/subagent/subagent-gets-constraints/graders/mode-line-quoted.md`
 - `plugins/philosophy/skills/review/SKILL.md`
+- `plugins/philosophy/skills/build/SKILL.md`
 - `plugins/philosophy/README.md`
 - `plugins/philosophy/CHANGELOG.md`
 - `.gitignore`
@@ -59,8 +61,11 @@ Spec: [spec.md](../spec.md), change 05. Delivers R17.
 
 - Each run is a full Claude session on the subscription, so the CI workflow runs each
   case once rather than the default three, and only when the plugin changes.
-- The ordering check (plan committed before code) has no deterministic grader type, so
-  the case asks for `git log --stat` at the end and an LLM grader reads it.
+- The ordering check (plan committed before code) reads git's own reflog,
+  `.git/logs/HEAD`, rather than the model's account of its commits. That needs the
+  plan commit's message to be fixed, so the build skill names it: `plan: NN <title>`.
+  A first local run used an LLM grader on a printed log instead; the build ran out of
+  turns before printing it, which is why this changed.
 - `claude plugin eval` runs scaffolds only with `--scaffold`, and the workflow has to
   pass it, with `--trust-plugin`, since the cases are this repository's own.
 

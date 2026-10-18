@@ -2,4 +2,4 @@
 .claude/
 site/
 .venv/
-evals/results/
+**/evals/results/
