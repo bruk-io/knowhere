@@ -55,10 +55,11 @@ Triggers
 - **R8.** A push to `main` that adds `intent/*/intent.md` runs `/philosophy:spec` in CI,
   which opens a spec PR for me.
 - **R9.** A push to `main` that adds `intent/*/spec.md` or `intent/*/plans/*.md` runs
-  `/philosophy:build` for the next change, until the delivery order is done. Builds for
-  one intent run one at a time (a concurrency group per slug), and a change with an
-  open `build/<slug>/NN` PR counts as taken, so two quick pushes never start the same
-  change twice.
+  `/philosophy:build` for the next change, until the delivery order is done. The next
+  change is always the lowest-numbered one with no plan on `main`; if its build is
+  already open, nothing starts, so a later change never builds on a base without the
+  earlier one. Builds for one intent also run one at a time (a concurrency group per
+  slug), so two quick pushes never start the same change twice.
 - **R10.** Every PR is reviewed by `/philosophy:review`. The review check fails when the
   Important count is above zero, and it is a required check on `main`.
 
@@ -71,8 +72,11 @@ Gates
   the toolchain's, not the session's. The review workflow lists `claude[bot]` in
   `allowed_bots`, so it reviews the PRs the loop opens. The build job turns on
   auto-merge with the Claude app's token, so a merge the loop makes is made by
-  `claude[bot]` and starts the next workflow; it is never made with `GITHUB_TOKEN`. This
-  gate is live from change 06; until then `main` requires a PR and nothing more.
+  `claude[bot]` and starts the next workflow; it is never made with `GITHUB_TOKEN`.
+  Turning on auto-merge is not Claude approving its own work: GitHub merges only once
+  every required check passes and CODEOWNERS asks for no one, so the approval is the
+  spec I approved plus checks Claude can't loosen (R12). This gate is live from change
+  06; until then `main` requires a PR and nothing more.
 - **R12.** CODEOWNERS assigns `@brukhabtu` what starts work, what establishes the
   architecture and what gates the work, and `main` requires code-owner review. I accept
   each intent and approve the architecture once, in the spec, so a build that
@@ -80,8 +84,9 @@ Gates
   and `intent/*/spec.md`; the gates themselves, so a build can't loosen what checks it
   (`.github/`, which holds the workflows and CODEOWNERS, `REVIEW.md`,
   `.claude/settings.json`, `.claude/checks.json`, `bands.yaml`, and in knowhere the
-  code that does the checking: `plugins/*/hooks/`, `plugins/*/scripts/` and
-  `plugins/*/evals/`); and a repository's architecture definitions (LikeC4 models and
+  code that does the checking: `plugins/*/hooks/`, `plugins/*/scripts/`,
+  `plugins/*/evals/` and the review play, `plugins/*/skills/review/`, which the review
+  gate runs); and a repository's architecture definitions (LikeC4 models and
   boundary configuration files). GitHub doesn't let me approve my own PRs, so mine
   merge through admin bypass, as `main`'s protection allows today.
 
@@ -242,13 +247,15 @@ won't.
    the extra reviews.
 3. **The chaining traps are unverified.** A PR that `claude[bot]` opens may not be
    reviewed until `allowed_bots` is set, and a merge made with `GITHUB_TOKEN` starts
-   nothing. Owner: Bruk. Proposed: before change 07 relies on them, run one throwaway
-   intent through by hand and watch each handover.
+   nothing. Owner: Bruk. Proposed: once changes 06 and 07 are on `main`, and before a
+   real intent relies on the loop, run one throwaway intent through and watch each
+   handover. Neither trap can be checked from a branch.
 4. **Plugin commands in CI are unverified.** It isn't confirmed that
    `claude-code-action`'s `prompt` runs `/philosophy:spec <slug>` the same way typing it
-   does, and R8 and R9 depend on it. Owner: Bruk. Proposed: check it in change 01 with
-   a manually dispatched job; if it doesn't, the prompt tells Claude to run the command
-   by name.
+   does, and R8 and R9 depend on it. Owner: Bruk. Proposed: change 01 checked the
+   mechanism locally, with `claude -p` running a plugin command that has model
+   invocation off; the first real trigger confirms it in CI. If it doesn't hold there,
+   the prompt tells Claude to run the command by name.
 5. **One subscription carries every CI run.** A long build chain can hit the
    subscription's limits partway through an intent. Owner: Bruk. Proposed: builds run
    one change at a time, as designed, and `loop-metrics` reports usage per intent.
