@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hold the loop's guardrails. PreToolUse on Bash, Edit and Write.
+"""Hold the loop's guardrails. PreToolUse on Bash, Edit, Write and NotebookEdit.
 
 - `git init` without `-b main` is denied unless git already defaults to `main`.
 - On a `build/<slug>/NN` branch, an Edit or Write is held to the change's plan,
@@ -197,9 +197,13 @@ def existing_dir(path: Path) -> Path:
     return path
 
 
-def edit_decision(file_path: str) -> Optional[Decision]:
-    """Read what `decide_edit` needs for one file, and decide."""
+def edit_decision(file_path: str, cwd: str) -> Optional[Decision]:
+    """Read what `decide_edit` needs for one file, and decide. The repro tests that are
+    frozen come from the plan as committed, not as edited since: removing a `Repro:`
+    line from the plan must not unfreeze its test."""
     target = Path(file_path)
+    if not target.is_absolute():
+        target = Path(cwd) / target
     found = git(
         str(existing_dir(target.parent)), "rev-parse", "--show-toplevel", "--abbrev-ref", "HEAD"
     )
@@ -217,10 +221,10 @@ def edit_decision(file_path: str) -> Optional[Decision]:
     plans = tuple(p.relative_to(root).as_posix() for p in found)
     plan = a.read(found[0]) if len(found) == 1 else None
     plan_committed = bool(plans) and git(root, "cat-file", "-e", "HEAD:%s" % plans[0]) is not None
+    committed_plan = git(root, "show", "HEAD:%s" % plans[0]) if plan_committed else None
+    frozen = repro_tests(a.parse(committed_plan, plans[0])) if committed_plan else frozenset()
     committed = frozenset(
-        test
-        for test in (repro_tests(plan) if plan else frozenset())
-        if git(root, "cat-file", "-e", "HEAD:%s" % test) is not None
+        test for test in frozen if git(root, "cat-file", "-e", "HEAD:%s" % test) is not None
     )
     return decide_edit(path, build, plans, plan, plan_committed, committed)
 
@@ -230,8 +234,9 @@ def decide(tool: str, tool_input: dict, cwd: str) -> Optional[Decision]:
         command = str(tool_input.get("command") or "")
         default = git_default_branch(cwd) if "init" in command else ""
         return decide_bash(command, default)
-    if tool in ("Edit", "Write") and tool_input.get("file_path"):
-        return edit_decision(str(tool_input["file_path"]))
+    path = tool_input.get("file_path") or tool_input.get("notebook_path")
+    if tool in ("Edit", "Write", "NotebookEdit") and path:
+        return edit_decision(str(path), cwd)
     return None
 
 

@@ -80,8 +80,8 @@ in `.claude/checks.json` and prints the command, its output's tail and its exit 
 ```
 
 `hooks/guard.py` holds a build to its plan. On a `build/<slug>/NN` branch, only the
-change's plan can be written until it is committed; after that, an Edit or Write to a file
-the plan doesn't list is denied with the fix in the reason, and so is a repro test the
+change's plan can be written until it is committed; after that, an Edit, Write or notebook edit to a
+file the plan doesn't list is denied with the fix in the reason, and so is a repro test the
 plan's Proof names once it is committed. It also denies `git init` without `-b main`
 unless git already defaults to `main`. It is a guardrail, not a security boundary: it
 fails open, and a shell command can still write a file.
