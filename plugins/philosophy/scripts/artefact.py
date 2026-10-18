@@ -31,7 +31,7 @@ SPEC_SECTIONS = (
 PLAN_SECTIONS = ("Files that change", "Order of work", "Risks", "Proof")
 
 HEADING = re.compile(r"^## +(.+?)\s*$")
-FENCE = re.compile(r"^\s*(```|~~~)")
+FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 CHECKBOX = re.compile(r"^[-*]\s+\[([ xX])\]\s*(.*)$")
 BULLET = re.compile(r"^[-*]\s+(.*)$")
 NUMBERED = re.compile(r"^\d+\.\s+(.*)$")
@@ -78,10 +78,14 @@ def parse(text: str, path: str) -> Doc:
     title = ""
     header: list[str] = []
     sections: list[tuple[str, list[str]]] = []
-    fenced = False
+    fence = ""  # the marker that opened the current code fence, or "" outside one
     for line in text.splitlines():
-        if FENCE.match(line):
-            fenced = not fenced
+        marker = FENCE.match(line)
+        if marker and not fence:
+            fence = marker.group(1)
+        elif marker and marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence):
+            fence = ""
+        fenced = bool(fence) or bool(marker)
         heading = None if fenced else HEADING.match(line)
         if heading:
             sections.append((heading.group(1), []))
@@ -236,9 +240,19 @@ def check_mapping(spec: Doc, intent: Optional[Doc]) -> list[Finding]:
         return []
     constraints = items(section(intent, "Constraints") or "", BULLET)
     rows = table_rows(section(spec, "Constraint mapping") or "")
+    firsts = [row.strip().strip("|").split("|")[0].strip().lower() for row in rows]
+    repeated = sorted({cell for cell in firsts if cell and firsts.count(cell) > 1})
+    out = [
+        Finding(
+            spec.path,
+            "mapping",
+            'the constraint mapping lists "%s" twice: one row per constraint' % cell,
+        )
+        for cell in repeated
+    ]
     if len(rows) == len(constraints):
-        return []
-    return [
+        return out
+    return out + [
         Finding(
             spec.path,
             "mapping",

@@ -139,6 +139,19 @@ def test_carried_forward_needs_a_reason():
     assert [a.settled(question) for question in bare] == [False]
 
 
+def test_a_fence_closes_only_on_its_own_marker():
+    text = INTENT.replace(
+        "It is broken.\n",
+        "It is broken.\n\n~~~\n```\n## Still inside\n~~~\n\n````\n```\n## Inside too\n````\n",
+    )
+    assert [name for name, _ in doc(text).sections] == list(a.INTENT_SECTIONS)
+
+
+def test_spec_listing_a_constraint_twice_is_found():
+    broken = SPEC.replace("| Don't break the API | R2 |", "| Keep it small | R2 |")
+    assert checks(a.check_spec(doc(broken), doc(INTENT))) == ["mapping"]
+
+
 def test_a_heading_inside_a_code_fence_is_not_a_section():
     text = INTENT.replace(
         "It is broken.\n", "It is broken.\n\n```markdown\n## Not a section\n# Nor a title\n```\n"
