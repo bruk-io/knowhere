@@ -12,7 +12,7 @@ Abandon a build by deleting its branch, or the intent waits on it. Prints one li
     continue NN<TAB><title><TAB>R1, R2  this branch is change NN's build and its plan is
                                         committed: carry on building it; exit 0
     taken NN<TAB><title>                the next change is already being built; exit 1
-    done                              every change has a plan; exit 1
+    done                                every change has a plan; exit 1
 
 Exit 2 means the spec or the remote could not be read.
 """
