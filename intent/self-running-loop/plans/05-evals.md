@@ -31,6 +31,7 @@ Spec: [spec.md](../spec.md), change 05. Delivers R17.
 - `plugins/philosophy/skills/build/SKILL.md`
 - `plugins/philosophy/README.md`
 - `plugins/philosophy/CHANGELOG.md`
+- `plugins/philosophy/tests/test_plugin.py`
 - `.gitignore`
 - `.github/workflows/philosophy-evals.yml`
 
