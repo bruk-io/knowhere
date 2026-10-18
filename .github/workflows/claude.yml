@@ -1,7 +1,8 @@
 name: Claude
 
-# Answers @claude in issues, PR comments and reviews. Only people with write access can
-# trigger it. Claude pushes to the PR's branch or a new claude/ branch and opens a PR; it
+# Answers @claude in issues, PR comments and reviews, from the repository's owner only:
+# a reply on a build PR that stopped at a gated path is the owner unblocking it (spec
+# R20), so nobody else's comment may do that. Claude pushes to the PR's branch or a new claude/ branch and opens a PR; it
 # never merges. The marketplace's own plugins are installed, so a run here follows the
 # same rules and hooks as a local session.
 
@@ -18,10 +19,11 @@ on:
 jobs:
   claude:
     if: |
+      github.actor == 'brukhabtu' && (
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))))
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -1,8 +1,10 @@
 name: Claude Review
 
-# Reviews each PR when it opens and again on every push. Claude comments and never
-# approves: the agent that wrote a change has no way to approve it, and the merge stays a
-# person's call. PRs from forks get no secrets, so they are skipped rather than failed.
+# Runs /philosophy:review on each PR when it opens and on every push. Claude comments
+# and never approves: the agent that wrote a change has no way to approve it. The job
+# fails when the review finds anything Important, so as a required check it holds the
+# merge until the finding is fixed (`@claude` on it starts the fix). PRs from forks get
+# no secrets, so they are skipped rather than failed.
 
 on:
   pull_request:
@@ -23,34 +25,33 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: anthropics/claude-code-action@v1
+      - id: review
+        uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The loop's own PRs come from the Claude app; without this they go unreviewed.
+          allowed_bots: "claude[bot],claude"
           plugin_marketplaces: |
             https://github.com/bruk-io/knowhere.git
           plugins: |
             philosophy@knowhere
             authoring-kit@knowhere
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            Review this pull request. You did not write it, and you do not approve it.
-
-            If REVIEW.md exists at the repository root, follow its passes and severity
-            rules. Otherwise run three passes:
-            - Bugs: logic errors, broken edge cases, regressions.
-            - Security: injection, leaked secrets, workflow or hook permissions wider
-              than the job needs.
-            - Compliance: when the change belongs to an intent under intent/, check it
-              against that intent.md, and against its spec.md and plan.md when they
-              exist.
-
-            Mark each finding Important (it breaks behaviour, leaks data, or breaches
-            policy) or Nit. Report at most five nits and give the rest as a count. Skip
-            whatever CI already checks.
-
-            Put each finding on its line as an inline comment. Then leave one top-level
-            comment with the verdict and the counts.
+          prompt: /philosophy:review ${{ github.event.pull_request.number }}
           claude_args: |
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --json-schema '{"type":"object","properties":{"important":{"type":"integer","minimum":0},"nits":{"type":"integer","minimum":0}},"required":["important","nits"]}'
+
+      - name: Hold the merge on Important findings
+        env:
+          COUNTS: ${{ steps.review.outputs.structured_output }}
+        run: |
+          important=$(printf '%s' "$COUNTS" | jq -r '.important // empty')
+          if [ -z "$important" ]; then
+            echo "The review returned no Important count, so it can't vouch for this PR."
+            exit 1
+          fi
+          echo "Important findings: $important"
+          if [ "$important" -gt 0 ]; then
+            echo "An Important finding holds the merge. Fix it, or reply @claude on it."
+            exit 1
+          fi

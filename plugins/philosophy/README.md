@@ -80,6 +80,20 @@ in `.claude/checks.json` and prints the command, its output's tail and its exit 
 {"fast": "just test-changed", "full": "just check"}
 ```
 
+### The gates
+
+A merge is the approval, so the gates are GitHub's. In knowhere:
+
+- **CODEOWNERS** (`templates/CODEOWNERS` for another repository) holds intents, specs,
+  the gates themselves (including the review play, which the review gate runs), and
+  architecture definitions for the owner. Anything else merges
+  on its checks, because the architecture it implements was approved in its spec.
+- **Required checks:** the full check from `.claude/checks.json`, run by CI; the review,
+  which fails while it has an Important finding; and the evals, which skip themselves
+  when the plugin didn't change.
+- **Only the owner** can trigger `@claude`, so only they can continue a build that
+  stopped at a gated path.
+
 `hooks/guard.py` holds a build to its plan. On a `build/<slug>/NN` branch, only the
 change's plan can be written until it is committed; after that, an Edit, Write or notebook edit to a
 file the plan doesn't list is denied with the fix in the reason, and so is a repro test the
@@ -128,8 +142,7 @@ says how to run it. In knowhere it runs on every PR that changes the plugin.
 ## Planned
 
 - **The rest of the self-running loop** (`intent/self-running-loop/spec.md` in
-  knowhere): CODEOWNERS and the required checks as gates, workflows that run the plays
-  on a merge, and metrics with control bands.
+  knowhere): workflows that run the plays on a merge, and metrics with control bands.
 - **Programmatic enforcement of the Python rules with pypeeker.** Then `rules/python.md`
   shrinks to the judgement lines and a pointer to `philosophy:python-idioms`, and the
   checkable lines become checks with their reasons in the messages.

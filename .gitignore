@@ -1,5 +1,7 @@
 *.DS_Store
-.claude/
+# Local Claude state stays out; the declared checks are shared (R11).
+.claude/*
+!.claude/checks.json
 site/
 .venv/
 **/evals/results/
