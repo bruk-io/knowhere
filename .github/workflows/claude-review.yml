@@ -57,9 +57,18 @@ jobs:
       - name: Hold the merge on Important findings
         env:
           COUNTS: ${{ steps.review.outputs.structured_output }}
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           important=$(printf '%s' "$COUNTS" | jq -r '.important // empty')
           if [ -z "$important" ]; then
+            # The action runs only a review workflow identical to main's, so a PR that
+            # changes this file can't be reviewed by it. Say so rather than fail red;
+            # .github/ waits for the owner through CODEOWNERS.
+            if gh pr diff "$PR" --repo "$GITHUB_REPOSITORY" --name-only | grep -qx '.github/workflows/claude-review.yml'; then
+              echo "::notice::Not reviewed: this PR changes claude-review.yml, and the action only runs the version on main. The owner reviews it (CODEOWNERS)."
+              exit 0
+            fi
             echo "The review returned no Important count, so it can't vouch for this PR."
             exit 1
           fi
