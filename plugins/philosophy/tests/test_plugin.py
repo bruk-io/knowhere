@@ -7,10 +7,14 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+# The plugin's own text: not its tests, and not eval results, which are generated.
 TEXT = sorted(
     p
     for p in ROOT.rglob("*")
-    if p.suffix in (".md", ".json") and ".git" not in p.parts and "tests" not in p.parts
+    if p.suffix in (".md", ".json")
+    and ".git" not in p.parts
+    and "tests" not in p.parts
+    and not {"evals", "results"} <= set(p.relative_to(ROOT).parts)
 )
 SKILLS = {p.parent.name for p in ROOT.glob("skills/*/SKILL.md")}
 AGENTS = {p.stem for p in ROOT.glob("agents/*.md")}

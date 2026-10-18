@@ -3,7 +3,7 @@
 ## 0.5.0
 
 The work loop follows Anthropic's AI-native SDLC playbook, and the Backlog.md board is
-gone. Built from `intent/self-running-loop/` in knowhere; changes 01 to 04 of its spec.
+gone. Built from `intent/self-running-loop/` in knowhere; changes 01 to 05 of its spec.
 
 ### Added
 
@@ -20,6 +20,11 @@ gone. Built from `intent/self-running-loop/` in knowhere; changes 01 to 04 of it
   gates, and the declared check's output as evidence.
 - **Subagents get the constraints.** `SessionStart` never fires for a subagent, so the
   context hook answers `SubagentStart` with the same text.
+- **An eval suite** in `evals/`: a build commits its plan first, a spec flags a policy
+  conflict instead of settling it, a review reports a file outside the plan, and a
+  subagent gets the constraints. `/philosophy:review` also takes a branch, for runs
+  without GitHub, and reads it through `scripts/branch-diff`, which accepts only a plain
+  branch name.
 - **The guard holds a build to its plan.** On a `build/<slug>/NN` branch, nothing but
   the plan can be written until it is committed, a file the plan doesn't list is denied, and
   a committed repro test named on a `Repro:` line of the plan's Proof can't be edited.

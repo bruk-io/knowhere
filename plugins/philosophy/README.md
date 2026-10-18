@@ -35,7 +35,7 @@ repositories: `git config --global init.defaultBranch main`.
 | `philosophy:python-idioms` | The full idiom dictionary and the yielded-effects example | On demand |
 | `templates/` | The shapes of an intent, a spec and a plan | When a play writes one |
 | `scripts/artefact-check` | The artefacts' shapes as checks | When an artefact is written, in CI, or when run |
-| `scripts/next-change`, `gated-paths`, `run-check` | The build's mechanical decisions | When the build runs them |
+| `scripts/next-change`, `gated-paths`, `run-check`, `branch-diff` | The plays' mechanical steps | When a play runs them |
 | `docs/engineering-philosophy.md` | The reasoning | Never; the constraints point at it |
 
 Claude Code does not load a plugin's `CLAUDE.md` or `rules/`, so `hooks/context.py` does
@@ -63,6 +63,7 @@ python3 scripts/artefact-check intent               # every intent's shape
 python3 scripts/next-change intent/<slug>           # build NN, taken NN, or done
 python3 scripts/gated-paths intent/<slug>/plans/01-x.md   # plan files CODEOWNERS gates
 python3 scripts/run-check fast                      # the declared check, as evidence
+python3 scripts/branch-diff build/<slug>/01         # a branch's commits and diff, for a review
 ```
 
 `artefact-check` prints one finding per line, saying what is wrong and how to fix it, or
@@ -108,6 +109,9 @@ specific interpreter, set `HOOK_PYTHON`.
 
 `claude plugin validate --strict .` checks the manifests and the hook config.
 
+`evals/` holds the eval suite, one case per behaviour the loop depends on; its README
+says how to run it. In knowhere it runs on every PR that changes the plugin.
+
 ## What it does not do
 
 - **Most of the Python standard is prose.** ruff, mypy, and pypeeker are named in
@@ -124,8 +128,8 @@ specific interpreter, set `HOOK_PYTHON`.
 ## Planned
 
 - **The rest of the self-running loop** (`intent/self-running-loop/spec.md` in
-  knowhere): an eval suite, CODEOWNERS and the required checks as gates, workflows that
-  run the plays on a merge, and metrics with control bands.
+  knowhere): CODEOWNERS and the required checks as gates, workflows that run the plays
+  on a merge, and metrics with control bands.
 - **Programmatic enforcement of the Python rules with pypeeker.** Then `rules/python.md`
   shrinks to the judgement lines and a pointer to `philosophy:python-idioms`, and the
   checkable lines become checks with their reasons in the messages.
