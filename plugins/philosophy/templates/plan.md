@@ -1,6 +1,6 @@
 # Plan: <the change>
 
-Spec: [spec.md](../spec.md), change <NN>. Delivers <R-numbers>.
+Spec: `../spec.md`, change <NN>. Delivers <R-numbers>.
 
 ## Files that change
 

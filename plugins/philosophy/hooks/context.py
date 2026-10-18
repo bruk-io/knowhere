@@ -5,6 +5,8 @@ Claude Code does not load a plugin's CLAUDE.md or rules/, so this hook does it:
 
 - SessionStart: prints the repository mode (owner or guest) and constraints.md. Stdout
   from a SessionStart hook becomes context.
+- SubagentStart: returns the same text as additionalContext, because SessionStart does
+  not fire for a subagent and the subagent never sees what it printed.
 - PostToolUse: the first time a session or subagent touches a file matching a rule's
   `paths`, or runs a command named in its `commands`, returns that rule as
   additionalContext.
@@ -129,7 +131,7 @@ def parse_rule(name: str, text: str) -> Rule:
 
 
 def command_words(command: str) -> tuple[str, ...]:
-    """Name the programs a shell command runs, such as `backlog` or `git`.
+    """Name the programs a shell command runs, such as `uv` or `git`.
 
     A command the shell lexer cannot read falls back to the first word after each
     separator.
@@ -283,16 +285,28 @@ def touched(payload: dict) -> Optional[Touch]:
     return None
 
 
-def on_session_start(payload: dict, root: Path) -> None:
+def standing_text(payload: dict, root: Path) -> str:
+    """The mode line and the constraints, for a session or a subagent alike. One helper
+    for both, so what a subagent is told can't drift from what a session is told."""
     cwd = str(payload.get("cwd") or os.getcwd())
     remote = origin(cwd)
     constraints = (root / "constraints.md").read_text()
-    print(session_text(repo_mode(remote, owners(root)), remote, constraints, str(root)))
+    return session_text(repo_mode(remote, owners(root)), remote, constraints, str(root))
+
+
+def on_session_start(payload: dict, root: Path) -> None:
+    print(standing_text(payload, root))
     sys.stdout.flush()
     if payload.get("source") in RESET_SOURCES:
         # The rules injected earlier are no longer in context, so let them load again.
         for marker in session_dir(payload).glob("*/*.seen"):
             marker.unlink()
+
+
+def on_subagent_start(payload: dict, root: Path) -> None:
+    output = {"hookEventName": "SubagentStart", "additionalContext": standing_text(payload, root)}
+    print(json.dumps({"hookSpecificOutput": output}))
+    sys.stdout.flush()
 
 
 def on_tool_use(payload: dict, root: Path) -> None:
@@ -324,6 +338,8 @@ def main() -> int:
         root = plugin_root()
         if payload.get("hook_event_name") == "SessionStart":
             on_session_start(payload, root)
+        elif payload.get("hook_event_name") == "SubagentStart":
+            on_subagent_start(payload, root)
         elif payload.get("hook_event_name") == "PostToolUse":
             on_tool_use(payload, root)
     except Exception as error:  # noqa: BLE001 - a hook must never break the session

@@ -17,9 +17,11 @@ AGENTS = {p.stem for p in ROOT.glob("agents/*.md")}
 
 
 def test_every_philosophy_name_resolves() -> None:
+    # The changelog records names that have since been removed, so it is left out.
     named = {
         (path.relative_to(ROOT).as_posix(), name)
         for path in TEXT
+        if path.name != "CHANGELOG.md"
         for name in re.findall(r"philosophy:([a-z][a-z-]*)", path.read_text())
     }
     assert {(where, name) for where, name in named if name not in SKILLS | AGENTS} == set()

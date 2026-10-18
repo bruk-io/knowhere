@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.5.0
+
+The work loop follows Anthropic's AI-native SDLC playbook, and the Backlog.md board is
+gone. Built from `intent/self-running-loop/` in knowhere; changes 01 to 03 of its spec.
+
+### Added
+
+- **The four plays as commands:** `/philosophy:intent`, `/philosophy:spec`,
+  `/philosophy:build` and `/philosophy:review`, skills with model invocation off, so a
+  play runs only when a person or a workflow invokes it. Each stage commits a file the
+  next reads (`intent/<slug>/intent.md`, `spec.md`, `plans/NN-<change>.md`), and each
+  handover is a merge.
+- **`templates/`** for the intent, the spec and the plan.
+- **`scripts/artefact-check`** asserts each artefact's shape, and runs as a hook when
+  Claude writes one and as a PR check in knowhere.
+- **`scripts/next-change`, `gated-paths` and `run-check`**, the build's mechanical
+  calls: which change is next (one at a time per intent), which plan files CODEOWNERS
+  gates, and the declared check's output as evidence.
+- **Subagents get the constraints.** `SessionStart` never fires for a subagent, so the
+  context hook answers `SubagentStart` with the same text.
+
+### Removed
+
+- **The board:** `board.py`, `board-check`, `close-task`, `record-check`,
+  `rules/board.md` and `docs/board-examples.md`.
+- **The reviewer agent and the ten step skills** (`capture-intent`, `size-work`,
+  `accept-work`, `write-spec`, `record-decision`, `plan-change`, `delegate-work`,
+  `verify-work`, `close-work`, `learn-from-work`). Process that was left to the model
+  to discover is now a command that is invoked, and closing is a merge.
+- **The guard's close and reviewer logic.** It keeps `git init -b main`.
+
+### Changed
+
+- **"Doing the work" in `constraints.md`** describes the new loop, the gates, and where
+  a lesson goes: a mistake made twice into CLAUDE.md, an incident into an eval case.
+
 ## 0.4.6
 
 - **Published in the knowhere marketplace** (`bruk-io/knowhere`, `plugins/philosophy/`),
