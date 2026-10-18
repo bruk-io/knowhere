@@ -1,14 +1,16 @@
 name: Claude Review
 
-# Runs /philosophy:review on each PR when it opens and on every push. Claude comments
-# and never approves: the agent that wrote a change has no way to approve it. The job
-# fails when the review finds anything Important, so as a required check it holds the
-# merge until the finding is fixed (`@claude` on it starts the fix). PRs from forks get
-# no secrets, so they are skipped rather than failed.
+# Runs /philosophy:review once a PR is ready: when it opens as ready, or moves from
+# draft to ready. Pushes after that don't start it again; to review again, turn the PR
+# back to a draft and mark it ready. Claude comments and never approves: the agent that
+# wrote a change has no way to approve it. Its comments are the gate, because main
+# requires every conversation to be resolved, so each finding, Important or nit, is
+# answered and resolved before merge. The job also fails while the review finds
+# anything Important. PRs from forks get no secrets, so they are skipped, not failed.
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    types: [opened, ready_for_review]
 
 jobs:
   review:
