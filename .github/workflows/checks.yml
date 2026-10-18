@@ -1,0 +1,22 @@
+name: Checks
+
+# The repository's full check on every PR, the one `.claude/checks.json` declares, so
+# the evidence a merge rests on is CI's, not a session's account of it. It includes the
+# artefact check, so a malformed intent, spec or plan can't merge.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  full-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Full check
+        run: bash .github/scripts/check.sh full
