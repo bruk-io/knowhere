@@ -14,6 +14,7 @@ Spec: [spec.md](../spec.md), change 05. Delivers R17.
 - `plugins/philosophy/evals/build/build-plans-first/graders/code-written.md`
 - `plugins/philosophy/evals/build/build-plans-first/graders/plan-commit-first.md`
 - `plugins/philosophy/evals/build/build-plans-first/graders/code-committed.md`
+- `plugins/philosophy/evals/build/build-plans-first/graders/plan-alone-first.md`
 - `plugins/philosophy/evals/spec/spec-flags-policy-conflict/prompt.md`
 - `plugins/philosophy/evals/spec/spec-flags-policy-conflict/case.yaml`
 - `plugins/philosophy/evals/spec/spec-flags-policy-conflict/scaffold.sh`

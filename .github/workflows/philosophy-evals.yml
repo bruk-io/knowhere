@@ -13,6 +13,11 @@ on:
 permissions:
   contents: read
 
+# A new push to the PR replaces a run still in progress, rather than stacking another.
+concurrency:
+  group: philosophy-evals-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   evals:
     if: github.event.pull_request.head.repo.full_name == github.repository
