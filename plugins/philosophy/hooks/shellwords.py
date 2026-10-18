@@ -99,7 +99,7 @@ def program(words: list[str]) -> Program:
                 return Program(name, args, rest[0])
             rest = args
         else:
-            return Program("backlog" if name == "backlog.md" else name, rest[1:], rest[0])
+            return Program(name, rest[1:], rest[0])
     return Program("", [], "")
 
 
