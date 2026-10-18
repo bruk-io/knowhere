@@ -147,6 +147,26 @@ def test_a_fence_closes_only_on_its_own_marker():
     assert [name for name, _ in doc(text).sections] == list(a.INTENT_SECTIONS)
 
 
+def test_a_fence_line_with_an_info_string_does_not_close_the_fence():
+    text = INTENT.replace(
+        "It is broken.\n", "It is broken.\n\n````\n```python\n## Still inside\n````\n"
+    )
+    assert [name for name, _ in doc(text).sections] == list(a.INTENT_SECTIONS)
+
+
+def test_numbered_constraints_count():
+    numbered = INTENT.replace(
+        "- Keep it small.\n- Don't break the API,\n  which other teams call.\n",
+        "1. Keep it small.\n2. Don't break the API.\n",
+    )
+    assert a.check_spec(doc(SPEC), doc(numbered)) == []
+
+
+def test_a_table_without_a_separator_keeps_its_first_row():
+    assert len(a.table_rows("| head |\n| first |\n| second |\n")) == 2
+    assert len(a.table_rows("| head |\n|---|\n| first |\n")) == 1
+
+
 def test_spec_listing_a_constraint_twice_is_found():
     broken = SPEC.replace("| Don't break the API | R2 |", "| Keep it small | R2 |")
     assert checks(a.check_spec(doc(broken), doc(INTENT))) == ["mapping"]

@@ -67,8 +67,8 @@ def artefact_path(payload: dict) -> Optional[Path]:
 
 def context(findings: list[a.Finding], where: Path) -> str:
     return (
-        "[%s] artefact-check found %d problem%s in %s. Fix them before this goes to "
-        "review:\n%s"
+        "[%s] artefact-check found %d problem%s across %s, the intent this write belongs "
+        "to; some may be in its other files. Fix them before this goes to review:\n%s"
         % (PLUGIN, len(findings), "" if len(findings) == 1 else "s", where, a.render(findings))
     )
 
