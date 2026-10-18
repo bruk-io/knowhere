@@ -105,6 +105,23 @@ def test_a_change_in_flight_holds_the_rest():
     assert loop.next_change(ORDER, NONE, frozenset({"01"})) == loop.Next(loop.Step.TAKEN, ORDER[0])
 
 
+def test_a_build_branch_with_its_plan_committed_continues():
+    assert loop.next_change(ORDER, frozenset({"01"}), frozenset({"01"}), "01") == loop.Next(
+        loop.Step.CONTINUE, ORDER[0]
+    )
+
+
+def test_a_build_branch_without_its_plan_builds_as_usual():
+    assert loop.next_change(ORDER, NONE, NONE, "01") == loop.Next(loop.Step.BUILD, ORDER[0])
+
+
+def test_build_number_reads_only_this_intents_build_branches():
+    assert loop.build_number("build/thing/02", "thing") == "02"
+    assert loop.build_number("build/other/02", "thing") is None
+    assert loop.build_number("main", "thing") is None
+    assert loop.build_number(None, "thing") is None
+
+
 def test_every_change_planned_is_done():
     assert loop.next_change(ORDER, frozenset({"01", "02"}), NONE) == loop.Next(loop.Step.DONE, None)
 
@@ -253,6 +270,16 @@ def test_next_change_moves_on_once_the_plan_is_in(repo):
     (repo / "intent" / "thing" / "plans" / "01-core.md").write_text("# Plan: the core\n")
     result = command("next-change", "intent/thing", cwd=repo)
     assert result.stdout.startswith("build 02\t")
+
+
+def test_next_change_continues_on_the_changes_own_build_branch(repo):
+    git(repo, "checkout", "-q", "-b", "build/thing/01")
+    (repo / "intent" / "thing" / "plans").mkdir(exist_ok=True)
+    (repo / "intent" / "thing" / "plans" / "01-core.md").write_text("# Plan\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-q", "-m", "plan: 01 core")
+    result = command("next-change", "intent/thing", "--no-remote", cwd=repo)
+    assert (result.returncode, result.stdout.split("\t")[0]) == (0, "continue 01")
 
 
 def test_next_change_says_done(repo):

@@ -60,7 +60,7 @@ a workflow invokes it. The judgement is the model's; the mechanical steps are sc
 
 ```sh
 python3 scripts/artefact-check intent               # every intent's shape
-python3 scripts/next-change intent/<slug>           # build NN, taken NN, or done
+python3 scripts/next-change intent/<slug>           # build NN, continue NN, taken NN, or done
 python3 scripts/gated-paths intent/<slug>/plans/01-x.md   # plan files CODEOWNERS gates
 python3 scripts/run-check fast                      # the declared check, as evidence
 python3 scripts/branch-diff build/<slug>/01         # a branch's commits and diff, for a review
@@ -91,7 +91,7 @@ to set up:
 | `intent-spec.yml` | `/philosophy:spec <slug>` | An intent merges and has no spec yet |
 | `intent-build.yml` | `/philosophy:build <slug> auto-merge` | A spec or a change merges, and `next-change` says build |
 | `build-continue.yml` | `/philosophy:build <slug>` on the PR's branch | The owner replies `@claude continue` on a build PR that stopped at a gated path |
-| `claude-review.yml` | `/philosophy:review <pr>` | Every PR |
+| `claude-review.yml` | `/philosophy:review <pr>` | A PR opened as ready, or moved from draft to ready |
 
 ### Watching the loop
 
@@ -119,9 +119,12 @@ A merge is the approval, so the gates are GitHub's. In knowhere:
   the gates themselves (including the review play, which the review gate runs), and
   architecture definitions for the owner. Anything else merges
   on its checks, because the architecture it implements was approved in its spec.
-- **Required checks:** the full check from `.claude/checks.json`, run by CI; the review,
-  which fails while it has an Important finding; and the evals, which skip themselves
-  when the plugin didn't change.
+- **Required checks:** the full check from `.claude/checks.json`, run by CI, and the
+  evals, which skip themselves when the plugin didn't change.
+- **Resolved conversations:** the review runs once a PR is ready, and `main` requires
+  every conversation to be resolved, so each of its findings, Important or nit, is
+  answered and resolved before merge. A build opens its PR as a draft and marks it
+  ready when the work is done.
 - **Only the owner** can trigger `@claude`, so only they can continue a build that
   stopped at a gated path.
 

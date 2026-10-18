@@ -54,4 +54,15 @@ jobs:
             philosophy@knowhere
           prompt: /philosophy:build ${{ steps.pr.outputs.slug }} auto-merge
           claude_args: |
-            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh pr create:*),Bash(gh pr edit:*),Bash(gh pr merge:*),Bash(python3:*),Bash(bash .github/scripts/check.sh:*),Bash(uv:*),Bash(uvx:*)"
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh pr create:*),Bash(gh pr edit:*),Bash(gh pr ready:*),Bash(gh pr checks:*),Bash(gh pr merge:*),Bash(python3:*),Bash(bash .github/scripts/check.sh:*),Bash(uv:*),Bash(uvx:*)"
+
+      # The build's whole run: every tool call and every denied one. Kept a week, for
+      # when a build stops without saying why.
+      - name: Keep the build's execution log
+        if: always() && steps.pr.outputs.slug != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: claude-continue-${{ github.event.issue.number }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/claude-execution-output.json
+          if-no-files-found: ignore
+          retention-days: 7

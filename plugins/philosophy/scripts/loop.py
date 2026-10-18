@@ -22,6 +22,7 @@ import artefact as a
 
 CHANGE = re.compile(r"^(\d{2})\s+(.*)$")
 BUILD_BRANCH = re.compile(r"refs/heads/build/[^/]+/(\d{2})$")
+CURRENT_BUILD = re.compile(r"^build/([^/]+)/(\d{2})$")  # a checked-out build branch
 CODEOWNERS_HOMES = (".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS")
 TIERS = ("fast", "full")
 TIMED_OUT = 124  # the exit code `timeout` uses, for a check that ran too long
@@ -36,6 +37,7 @@ class Change(NamedTuple):
 
 class Step(Enum):
     BUILD = "build"
+    CONTINUE = "continue"
     TAKEN = "taken"
     DONE = "done"
 
@@ -76,9 +78,20 @@ def delivery_order(spec: a.Doc) -> tuple[Change, ...]:
     return tuple(out)
 
 
-def next_change(order: tuple[Change, ...], planned: frozenset[str], taken: frozenset[str]) -> Next:
+def next_change(
+    order: tuple[Change, ...],
+    planned: frozenset[str],
+    taken: frozenset[str],
+    current: Optional[str] = None,
+) -> Next:
     """The first change with no plan yet. If its build is already in flight, nothing
-    starts: builds for one intent run one at a time, in order."""
+    starts: builds for one intent run one at a time, in order.
+
+    `current` is the change whose build branch is checked out, if any. When its plan is
+    committed there, that build is under way and continues, whatever comes next."""
+    for change in order:
+        if change.number == current and current in planned:
+            return Next(Step.CONTINUE, change)
     for change in order:
         if change.number in planned:
             continue
@@ -213,9 +226,26 @@ def remote_build_numbers(root: Path, slug: str, remote: str) -> frozenset[str]:
     )
 
 
-def find_next(folder: Path, remote: Optional[str]) -> Next:
+def build_number(branch: Optional[str], slug: str) -> Optional[str]:
+    """The change number a `build/<slug>/NN` branch builds, or None for any other branch."""
+    found = CURRENT_BUILD.match(branch or "")
+    return found.group(2) if found and found.group(1) == slug else None
+
+
+def current_branch(root: Path) -> Optional[str]:
+    done = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True,
+        text=True,
+        timeout=GIT_TIMEOUT,
+    )
+    return done.stdout.strip() if done.returncode == 0 else None
+
+
+def find_next(folder: Path, remote: Optional[str], branch: Optional[str] = None) -> Next:
     """The next change for the intent in `folder`, with the remote's build branches
-    counted as taken unless `remote` is None.
+    counted as taken unless `remote` is None. On the build branch of a change whose plan
+    is committed, `branch` makes that change the one to continue.
 
     Raises:
         LoopError: the intent has no readable spec, or the remote could not be read.
@@ -232,7 +262,7 @@ def find_next(folder: Path, remote: Optional[str]) -> Next:
         )
     planned = frozenset(path.name[:2] for path in (folder / "plans").glob("[0-9][0-9]-*.md"))
     taken = remote_build_numbers(repo_root(folder), folder.name, remote) if remote else frozenset()
-    return next_change(order, planned, taken)
+    return next_change(order, planned, taken, build_number(branch, folder.name))
 
 
 def load_rules(root: Path) -> tuple[Rule, ...]:
