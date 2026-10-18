@@ -72,6 +72,12 @@ Spec: [spec.md](../spec.md), change 01. Delivers R1.
     "intent/thing/plans/01-core.md",
 )
 NONE: frozenset[str] = frozenset()
+ONE_PLAN = ("intent/thing/plans/01-core.md",)
+
+
+def edit(path, plan=PLAN, plans=ONE_PLAN, plan_committed=True, repros=NONE, build=BUILD):
+    """Ask the guard about an edit, by default with one committed plan."""
+    return guard.decide_edit(path, build, plans if plan else (), plan, plan_committed, repros)
 
 
 def verdict(decision: guard.Decision | None) -> str:
@@ -85,32 +91,48 @@ def test_build_branch_is_read_from_its_name() -> None:
 
 
 def test_nothing_is_held_off_a_build_branch() -> None:
-    assert guard.decide_edit("src/other.py", None, None, NONE) is None
+    assert edit("src/other.py", build=None) is None
 
 
 def test_before_the_plan_only_the_plan_can_be_written() -> None:
-    denied = guard.decide_edit("src/core.py", BUILD, None, NONE)
+    denied = edit("src/core.py", plan=None)
     assert verdict(denied) == "deny" and "intent/thing/plans/01-<change>.md" in denied.reason
-    assert guard.decide_edit("intent/thing/plans/01-core.md", BUILD, None, NONE) is None
+    assert edit("intent/thing/plans/01-core.md", plan=None) is None
+
+
+def test_an_uncommitted_plan_does_not_unlock_code() -> None:
+    denied = edit("src/core.py", plan_committed=False)
+    assert verdict(denied) == "deny" and "first commit" in denied.reason
+    assert edit("intent/thing/plans/01-core.md", plan_committed=False) is None
+
+
+def test_only_the_plan_itself_counts_as_the_plan() -> None:
+    for path in ("intent/thing/plans/x/01-anything.py", "intent/thing/plans/01-core.py"):
+        assert verdict(edit(path, plan=None)) == "deny", path
+
+
+def test_two_plans_for_one_change_is_an_error() -> None:
+    plans = ONE_PLAN + ("intent/thing/plans/01-again.md",)
+    assert verdict(edit("src/core.py", plans=plans)) == "deny"
 
 
 def test_another_changes_plan_is_held_like_any_file() -> None:
-    assert verdict(guard.decide_edit("intent/thing/plans/02-next.md", BUILD, PLAN, NONE)) == "deny"
+    assert verdict(edit("intent/thing/plans/02-next.md")) == "deny"
 
 
 def test_listed_files_go_ahead() -> None:
     for path in ("src/core.py", "tests/test_core.py", ".github/workflows/ci.yml"):
-        assert guard.decide_edit(path, BUILD, PLAN, NONE) is None, path
+        assert edit(path) is None, path
 
 
 def test_an_unlisted_file_is_denied_with_the_fix() -> None:
-    denied = guard.decide_edit("src/other.py", BUILD, PLAN, NONE)
+    denied = edit("src/other.py")
     assert verdict(denied) == "deny"
     assert "Files that change" in denied.reason and "same commit" in denied.reason
 
 
 def test_a_file_outside_the_repository_is_left_alone() -> None:
-    assert guard.decide_edit(None, BUILD, PLAN, NONE) is None
+    assert edit(None) is None
 
 
 def test_the_repro_is_read_from_the_proof() -> None:
@@ -119,7 +141,7 @@ def test_the_repro_is_read_from_the_proof() -> None:
 
 def test_a_committed_repro_is_frozen() -> None:
     committed = frozenset({"tests/test_core.py"})
-    denied = guard.decide_edit("tests/test_core.py", BUILD, PLAN, committed)
+    denied = edit("tests/test_core.py", repros=committed)
     assert verdict(denied) == "deny" and "Fix the code" in denied.reason
 
 
@@ -216,7 +238,7 @@ def build_repo(tmp_path: Path) -> Path:
     return repo
 
 
-def edit(repo: Path, file: str) -> dict:
+def edit_payload(repo: Path, file: str) -> dict:
     return {
         "hook_event_name": "PreToolUse",
         "tool_name": "Edit",
@@ -245,33 +267,40 @@ def write_plan(repo: Path) -> None:
 
 
 def test_hook_holds_code_until_the_plan_exists(tmp_path: Path, build_repo: Path) -> None:
-    assert hook_verdict(tmp_path, edit(build_repo, "src/core.py")) == "deny"
-    assert hook_verdict(tmp_path, edit(build_repo, "intent/thing/plans/01-core.md")) == "none"
+    assert hook_verdict(tmp_path, edit_payload(build_repo, "src/core.py")) == "deny"
+    assert (
+        hook_verdict(tmp_path, edit_payload(build_repo, "intent/thing/plans/01-core.md")) == "none"
+    )
 
 
 def test_hook_holds_edits_to_the_plan(tmp_path: Path, build_repo: Path) -> None:
     write_plan(build_repo)
-    assert hook_verdict(tmp_path, edit(build_repo, "src/core.py")) == "none"
-    assert hook_verdict(tmp_path, edit(build_repo, "src/other.py")) == "deny"
+    assert hook_verdict(tmp_path, edit_payload(build_repo, "src/core.py")) == "deny"
+    git(build_repo, "add", ".")
+    git(build_repo, "commit", "-q", "-m", "plan: 01 x")
+    assert hook_verdict(tmp_path, edit_payload(build_repo, "src/core.py")) == "none"
+    assert hook_verdict(tmp_path, edit_payload(build_repo, "src/other.py")) == "deny"
 
 
 def test_hook_freezes_the_repro_once_committed(tmp_path: Path, build_repo: Path) -> None:
     write_plan(build_repo)
+    git(build_repo, "add", ".")
+    git(build_repo, "commit", "-q", "-m", "plan: 01 x")
     test = build_repo / "tests" / "test_core.py"
     test.parent.mkdir()
     test.write_text("def test_x(): assert False\n")
-    assert hook_verdict(tmp_path, edit(build_repo, "tests/test_core.py")) == "none"
+    assert hook_verdict(tmp_path, edit_payload(build_repo, "tests/test_core.py")) == "none"
     git(build_repo, "add", ".")
     git(build_repo, "commit", "-q", "-m", "repro")
-    assert hook_verdict(tmp_path, edit(build_repo, "tests/test_core.py")) == "deny"
+    assert hook_verdict(tmp_path, edit_payload(build_repo, "tests/test_core.py")) == "deny"
 
 
 def test_hook_leaves_main_alone(tmp_path: Path, build_repo: Path) -> None:
     git(build_repo, "checkout", "-q", "main")
-    assert hook_verdict(tmp_path, edit(build_repo, "src/core.py")) == "none"
+    assert hook_verdict(tmp_path, edit_payload(build_repo, "src/core.py")) == "none"
 
 
 def test_hook_leaves_files_outside_the_repository_alone(tmp_path: Path, build_repo: Path) -> None:
-    payload = edit(build_repo, "x")
+    payload = edit_payload(build_repo, "x")
     payload["tool_input"]["file_path"] = str(tmp_path / "elsewhere" / "notes.md")
     assert hook_verdict(tmp_path, payload) == "none"
