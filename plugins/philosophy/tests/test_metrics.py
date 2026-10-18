@@ -73,6 +73,22 @@ def test_spec_rework_counts_changes_after_the_first_plan():
     assert metrics.spec_rework(commits, None) == 0
 
 
+def test_an_intent_nothing_holds_has_not_stalled():
+    assert metrics.stalled(None, [], "2026-10-05T00:00:00Z") is None
+
+
+def test_a_build_branch_with_no_open_pr_stalls_the_intent():
+    prs = [{"state": "CLOSED", "createdAt": "2026-10-01T00:00:00Z"}]
+    assert "no PR from it is open" in metrics.stalled("03", prs, "2026-10-01T01:00:00Z")
+    assert "no PR from it is open" in metrics.stalled("03", [], "2026-10-01T01:00:00Z")
+
+
+def test_a_pr_open_past_three_days_stalls_the_intent():
+    prs = [{"state": "OPEN", "createdAt": "2026-10-01T00:00:00Z"}]
+    assert metrics.stalled("03", prs, "2026-10-03T00:00:00Z") is None
+    assert "open 96 hours" in metrics.stalled("03", prs, "2026-10-05T00:00:00Z")
+
+
 def test_handover_hours():
     row = metrics.report_row(
         metrics.Handovers(
@@ -195,6 +211,7 @@ def test_loop_metrics_times_each_handover_from_merges(tmp_path, merged_repo):
             "spec_to_last_build_hours": 24.0,
             "changes_merged": 2,
             "spec_changes_after_first_plan": 0,
+            "stalled": None,
         }
     ]
     assert report["merged_without_owner"] == 1.0

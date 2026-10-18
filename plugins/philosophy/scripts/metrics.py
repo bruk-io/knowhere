@@ -98,6 +98,25 @@ def spec_rework(spec_commits: list[str], first_plan: Optional[str]) -> int:
     return sum(when(stamp) > when(first_plan) for stamp in spec_commits)
 
 
+STALE_HOURS = 72
+
+
+def stalled(taken: Optional[str], prs: list[dict], now: str) -> Optional[str]:
+    """Why an intent has stalled, or None. `taken` is the change number whose build
+    branch holds the intent (None when nothing holds it); `prs` are the PRs from that
+    branch. It stalls when no PR from the branch is open, or the open one has waited
+    more than STALE_HOURS."""
+    if taken is None:
+        return None
+    open_prs = [pr for pr in prs if pr.get("state") == "OPEN"]
+    if not open_prs:
+        return "change %s is held by its build branch, but no PR from it is open" % taken
+    waited = hours(min(pr["createdAt"] for pr in open_prs), now)
+    if waited is not None and waited > STALE_HOURS:
+        return "change %s's PR has been open %.0f hours" % (taken, waited)
+    return None
+
+
 def report_row(stages: Handovers) -> dict:
     return {
         "intent": stages.slug,

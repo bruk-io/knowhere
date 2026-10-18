@@ -4,8 +4,9 @@
     loop-metrics [--owner LOGIN] [--reviewer LOGIN] [--root DIR]
 
 For each intent under `intent/`: hours from the intent's merge to its spec PR opening,
-and from the spec's merge to the last change's merge; and how many times the spec
-changed after the first plan landed. Across the repository: the share of merged PRs
+and from the spec's merge to the last change's merge; how many times the spec changed
+after the first plan landed; and whether it has stalled, held by a build branch with
+no open PR or by a PR open more than three days. Across the repository: the share of merged PRs
 that merged without the owner, and the Important findings the reviewer left on recent
 PRs. Merge times come from `main`'s first-parent history. Prints JSON. Exit 2 means git
 or `gh` failed.
@@ -17,11 +18,13 @@ import argparse
 import json
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import loop  # noqa: E402
 import metrics  # noqa: E402
 
 
@@ -81,6 +84,34 @@ def first(stamps: list[str]) -> Optional[str]:
     return stamps[0] if stamps else None
 
 
+def stall(root: Path, slug: str) -> Optional[str]:
+    """Why this intent has stalled, or None: its next change is held by a build branch
+    with no open PR, or by a PR open too long."""
+    try:
+        found = loop.find_next(root / "intent" / slug, "origin")
+    except (loop.LoopError, OSError, ValueError):
+        return None
+    if found.step is not loop.Step.TAKEN or found.change is None:
+        return None
+    number = found.change.number
+    prs = json.loads(
+        run(
+            root,
+            "gh",
+            "pr",
+            "list",
+            "--state",
+            "all",
+            "--head",
+            "build/%s/%s" % (slug, number),
+            "--json",
+            "state,createdAt",
+        )
+    )
+    now = datetime.now(timezone.utc).isoformat()
+    return metrics.stalled(number, prs, now)
+
+
 def intent_row(root: Path, slug: str) -> dict:
     prs = json.loads(
         run(
@@ -106,6 +137,7 @@ def intent_row(root: Path, slug: str) -> dict:
     )
     row = metrics.report_row(stages)
     row["changes_merged"] = len(plans)
+    row["stalled"] = stall(root, slug)
     row["spec_changes_after_first_plan"] = metrics.spec_rework(
         changed(root, "intent/%s/spec.md" % slug), first(plans)
     )
