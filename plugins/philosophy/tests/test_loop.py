@@ -149,6 +149,15 @@ def test_codeowners_patterns_match_as_github_reads_them(path, owned):
     assert bool(loop.owners_of(path, RULES)) is owned
 
 
+def test_a_catch_all_owner_gates_every_path():
+    rules = loop.parse_codeowners("* @team\n")
+    assert loop.gated(("README.md", "src/a.py"), rules) == ("README.md", "src/a.py")
+
+
+def test_a_signal_exit_reads_as_a_shell_reports_it():
+    assert (loop.exit_code(-9), loop.exit_code(0), loop.exit_code(3)) == (137, 0, 3)
+
+
 def test_gated_keeps_only_owned_paths():
     paths = ("README.md", ".github/workflows/ci.yml")
     assert loop.gated(paths, RULES) == (".github/workflows/ci.yml",)
@@ -285,6 +294,14 @@ def test_run_check_stops_a_check_that_runs_too_long(repo):
     result = command("run-check", "fast", "--timeout", "1", cwd=repo)
     assert result.returncode == 124
     assert "started" in result.stdout and "stopped after 1s" in result.stdout
+
+
+def test_run_check_stops_what_the_check_started(repo):
+    (repo / ".claude").mkdir()
+    command_line = "sleep 30 & echo started; wait"
+    (repo / ".claude" / "checks.json").write_text(json.dumps({"fast": command_line}))
+    result = command("run-check", "fast", "--timeout", "1", cwd=repo)
+    assert result.returncode == 124 and "stopped after 1s" in result.stdout
 
 
 def test_run_check_refuses_negative_lines(repo):

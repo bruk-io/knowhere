@@ -38,5 +38,7 @@ has unblocked it: go to step 5.
    the plan, and the block `run-check` printed, exactly as printed. If `$merge` is
    `auto-merge`, turn on auto-merge with `gh pr merge --auto --merge`.
 
-Never approve or merge the PR yourself. The required checks decide, and the owner
-where CODEOWNERS says so.
+Never approve the PR or merge it yourself. Turning on auto-merge is allowed: it asks
+GitHub to merge once the required checks pass and CODEOWNERS asks for no one, so the
+checks decide, and the owner where CODEOWNERS says so. In CI the workflow runs this with
+the Claude app's token, so that merge starts the next workflow (spec R11).
