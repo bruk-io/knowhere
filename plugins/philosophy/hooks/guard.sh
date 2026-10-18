@@ -1,5 +1,5 @@
 #!/bin/sh
-# PreToolUse (Bash|Edit|Write) hook: the shell in front of guard.py.
+# PreToolUse (Bash|Edit|Write|NotebookEdit) hook: the shell in front of guard.py.
 #
 # This runs before every Bash call and every edit, so for most of them it must cost no
 # more than a shell start. guard.py acts only on `git ... init` and on Edit and Write,
@@ -10,7 +10,7 @@
 
 payload=$(cat)
 case $payload in
-  *'git '*init*|*'"tool_name"'*'"Edit"'*|*'"tool_name"'*'"Write"'*) ;;
+  *'git '*init*|*'"tool_name"'*'"Edit"'*|*'"tool_name"'*'"Write"'*|*'"tool_name"'*'"NotebookEdit"'*) ;;
   *) exit 0 ;;
 esac
 

@@ -295,6 +295,35 @@ def test_hook_freezes_the_repro_once_committed(tmp_path: Path, build_repo: Path)
     assert hook_verdict(tmp_path, edit_payload(build_repo, "tests/test_core.py")) == "deny"
 
 
+def test_hook_keeps_the_repro_frozen_when_the_plan_drops_it(
+    tmp_path: Path, build_repo: Path
+) -> None:
+    write_plan(build_repo)
+    test = build_repo / "tests" / "test_core.py"
+    test.parent.mkdir()
+    test.write_text("def test_x(): assert False\n")
+    git(build_repo, "add", ".")
+    git(build_repo, "commit", "-q", "-m", "plan and repro")
+    plan = build_repo / "intent" / "thing" / "plans" / "01-core.md"
+    plan.write_text(plan.read_text().replace("- Repro: `tests/test_core.py` fails first.\n", ""))
+    assert hook_verdict(tmp_path, edit_payload(build_repo, "tests/test_core.py")) == "deny"
+
+
+def test_hook_holds_notebook_edits_too(tmp_path: Path, build_repo: Path) -> None:
+    payload = edit_payload(build_repo, "x")
+    payload["tool_name"] = "NotebookEdit"
+    payload["tool_input"] = {"notebook_path": str(build_repo / "analysis.ipynb")}
+    assert hook_verdict(tmp_path, payload) == "deny"
+
+
+def test_hook_resolves_a_relative_path_against_the_payload_cwd(
+    tmp_path: Path, build_repo: Path
+) -> None:
+    payload = edit_payload(build_repo, "x")
+    payload["tool_input"]["file_path"] = "src/core.py"
+    assert hook_verdict(tmp_path, payload) == "deny"
+
+
 def test_hook_leaves_main_alone(tmp_path: Path, build_repo: Path) -> None:
     git(build_repo, "checkout", "-q", "main")
     assert hook_verdict(tmp_path, edit_payload(build_repo, "src/core.py")) == "none"

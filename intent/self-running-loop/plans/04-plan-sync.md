@@ -7,6 +7,7 @@ Spec: [spec.md](../spec.md), change 04. Delivers R13 and R14.
 - `intent/self-running-loop/plans/04-plan-sync.md`
 - `plugins/philosophy/hooks/guard.py`
 - `plugins/philosophy/hooks/guard.sh`
+- `plugins/philosophy/hooks/hooks.json`
 - `plugins/philosophy/tests/test_guard.py`
 - `plugins/philosophy/templates/plan.md`
 - `plugins/philosophy/skills/build/SKILL.md`
