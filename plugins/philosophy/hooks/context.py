@@ -285,11 +285,17 @@ def touched(payload: dict) -> Optional[Touch]:
     return None
 
 
-def on_session_start(payload: dict, root: Path) -> None:
+def standing_text(payload: dict, root: Path) -> str:
+    """The mode line and the constraints, for a session or a subagent alike. One helper
+    for both, so what a subagent is told can't drift from what a session is told."""
     cwd = str(payload.get("cwd") or os.getcwd())
     remote = origin(cwd)
     constraints = (root / "constraints.md").read_text()
-    print(session_text(repo_mode(remote, owners(root)), remote, constraints, str(root)))
+    return session_text(repo_mode(remote, owners(root)), remote, constraints, str(root))
+
+
+def on_session_start(payload: dict, root: Path) -> None:
+    print(standing_text(payload, root))
     sys.stdout.flush()
     if payload.get("source") in RESET_SOURCES:
         # The rules injected earlier are no longer in context, so let them load again.
@@ -298,11 +304,7 @@ def on_session_start(payload: dict, root: Path) -> None:
 
 
 def on_subagent_start(payload: dict, root: Path) -> None:
-    cwd = str(payload.get("cwd") or os.getcwd())
-    remote = origin(cwd)
-    constraints = (root / "constraints.md").read_text()
-    text = session_text(repo_mode(remote, owners(root)), remote, constraints, str(root))
-    output = {"hookEventName": "SubagentStart", "additionalContext": text}
+    output = {"hookEventName": "SubagentStart", "additionalContext": standing_text(payload, root)}
     print(json.dumps({"hookSpecificOutput": output}))
     sys.stdout.flush()
 

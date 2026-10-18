@@ -83,7 +83,8 @@ The first line of this message says which mode this repository is in.
   repository's CLAUDE.md, and an incident becomes an eval case that stays in the suite.
 - Subagents are for sizeable, independent tracks of work. Do not delegate what one agent
   can finish.
-- Size work by complexity, unknowns, and risk, never by time.
+- Split work by complexity, unknowns, and risk, never by time. Each change in a spec's
+  delivery order is one PR's worth.
 
 ## Conventions
 

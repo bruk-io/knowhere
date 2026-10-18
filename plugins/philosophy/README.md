@@ -71,7 +71,8 @@ read a file. It runs on its own whenever Claude writes an intent, a spec or a pl
 
 `next-change` reads the spec's delivery order: the first change with no plan is next,
 and it is taken while a `build/<slug>/NN` branch for it exists on the remote, so one
-intent builds one change at a time. `run-check` runs the command a repository declares
+intent builds one change at a time. It reads branches, not PRs, so it needs no GitHub;
+abandon a build by deleting its branch. `run-check` runs the command a repository declares
 in `.claude/checks.json` and prints the command, its output's tail and its exit code:
 
 ```json
