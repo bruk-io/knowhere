@@ -46,7 +46,13 @@ def show_trace(path: str) -> None:
 
 
 def main() -> int:
-    results = json.load(open(sys.argv[1]))
+    try:
+        with open(sys.argv[1], encoding="utf-8") as handle:
+            results = json.load(handle)
+    except (OSError, ValueError) as error:
+        # The eval step died before writing its results: its own log above says why.
+        print("no eval results to read (%s); see the eval step's output" % error)
+        return 0
     for case in results.get("cases", []):
         for run in case.get("arms", {}).get("with", []):
             if run.get("passed"):
@@ -54,7 +60,10 @@ def main() -> int:
             print("== %s: score %s %s" % (case["name"], run.get("score"), run.get("error") or ""))
             for grader in run.get("graders", []):
                 verdict = "pass" if grader.get("passed") else "FAIL"
-                print("  grader %s %s: %s" % (verdict, grader.get("name"), (grader.get("explanation") or "")[:300]))
+                print(
+                    "  grader %s %s: %s"
+                    % (verdict, grader.get("name"), (grader.get("explanation") or "")[:300])
+                )
                 if not grader.get("passed") and grader.get("evidence"):
                     print("    judged:", str(grader["evidence"])[:300].replace("\n", " "))
             show_trace(run.get("tracePath") or "")
