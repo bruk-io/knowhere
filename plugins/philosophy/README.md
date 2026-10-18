@@ -35,7 +35,7 @@ repositories: `git config --global init.defaultBranch main`.
 | `philosophy:python-idioms` | The full idiom dictionary and the yielded-effects example | On demand |
 | `templates/` | The shapes of an intent, a spec and a plan | When a play writes one |
 | `scripts/artefact-check` | The artefacts' shapes as checks | When an artefact is written, in CI, or when run |
-| `scripts/next-change`, `gated-paths`, `run-check` | The build's mechanical decisions | When the build runs them |
+| `scripts/next-change`, `gated-paths`, `run-check`, `branch-diff` | The plays' mechanical steps | When a play runs them |
 | `docs/engineering-philosophy.md` | The reasoning | Never; the constraints point at it |
 
 Claude Code does not load a plugin's `CLAUDE.md` or `rules/`, so `hooks/context.py` does
@@ -63,6 +63,7 @@ python3 scripts/artefact-check intent               # every intent's shape
 python3 scripts/next-change intent/<slug>           # build NN, taken NN, or done
 python3 scripts/gated-paths intent/<slug>/plans/01-x.md   # plan files CODEOWNERS gates
 python3 scripts/run-check fast                      # the declared check, as evidence
+python3 scripts/branch-diff build/<slug>/01         # a branch's commits and diff, for a review
 ```
 
 `artefact-check` prints one finding per line, saying what is wrong and how to fix it, or

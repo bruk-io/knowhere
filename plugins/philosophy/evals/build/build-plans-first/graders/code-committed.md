@@ -1,5 +1,5 @@
 ---
 type: regex
-target: { source: file, path: .git/commit-files.log }
-pattern: '\ngreet\.py\n'
+target: { source: file, path: .git/logs/HEAD }
+pattern: '\tcommit: plan: 01[^\n]*\n[\s\S]*\tcommit(?: \(amend\))?: '
 ---

@@ -23,7 +23,8 @@ gone. Built from `intent/self-running-loop/` in knowhere; changes 01 to 05 of it
 - **An eval suite** in `evals/`: a build commits its plan first, a spec flags a policy
   conflict instead of settling it, a review reports a file outside the plan, and a
   subagent gets the constraints. `/philosophy:review` also takes a branch, for runs
-  without GitHub.
+  without GitHub, and reads it through `scripts/branch-diff`, which accepts only a plain
+  branch name.
 - **The guard holds a build to its plan.** On a `build/<slug>/NN` branch, nothing but
   the plan can be written until it is committed, a file the plan doesn't list is denied, and
   a committed repro test named on a `Repro:` line of the plan's Proof can't be edited.
