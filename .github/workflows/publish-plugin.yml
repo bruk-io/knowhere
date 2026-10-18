@@ -7,8 +7,12 @@ on:
       - publish-inline-plugin
       - remove-plugin
 
+# main requires a pull request, and the workflow token can't bypass that: GitHub won't
+# list github-actions[bot] as a bypass actor. So each job checks out with
+# MARKETPLACE_PAT, the owner's token, whose admin bypass lets these pushes land on main.
+# The workflow token itself only needs to read.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   publish-url-plugin:
@@ -16,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.MARKETPLACE_PAT }}
 
       - uses: actions/setup-python@v5
         with:
@@ -95,6 +101,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.MARKETPLACE_PAT }}
 
       - uses: actions/setup-python@v5
         with:
@@ -197,6 +205,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.MARKETPLACE_PAT }}
 
       - uses: actions/setup-python@v5
         with:
