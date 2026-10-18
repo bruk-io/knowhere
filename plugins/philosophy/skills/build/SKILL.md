@@ -3,7 +3,7 @@ description: Build the next change of an approved spec - commit its plan first, 
 argument-hint: <slug> [auto-merge]
 arguments: [slug, merge]
 disable-model-invocation: true
-allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b build/*), Bash(git add *), Bash(git commit *), Bash(git push *), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr merge --auto *)
+allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b build/*), Bash(git add *), Bash(git commit *), Bash(git push origin build/*), Bash(git push -u origin build/*), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr merge --auto *)
 ---
 
 # Build the next change
@@ -24,8 +24,10 @@ has unblocked it: go to step 5.
    works. Someone who never saw this session must be able to implement from it. Run
    `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" intent/$slug`, then commit the
    plan alone as the branch's first commit.
-4. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" <the plan>`. If it lists a
-   path, push, open the PR with the plan and those paths, ask the owner there to reply
+4. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" <the plan>`. Exit 0 means
+   nothing is gated: go on. Exit 2 means it couldn't read the plan: stop and say so.
+   Exit 1 lists the gated paths: push, open the PR with the plan and those paths, ask
+   the owner there to reply
    `@claude` to continue, and stop.
 5. Implement in the plan's order. Edit only the files the plan lists. If another file
    turns out to need changing, add it to the plan in the same commit and say why in the
