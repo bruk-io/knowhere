@@ -3,7 +3,7 @@ description: Review a pull request as someone who did not write it - bugs, secur
 argument-hint: <pr-number or branch>
 arguments: [pr]
 disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Bash(gh pr view *), Bash(gh pr diff *), Bash(gh pr comment *), mcp__github_inline_comment__create_inline_comment, Bash(git log *), Bash(git diff *)
+allowed-tools: Read, Grep, Glob, Bash(gh pr view *), Bash(gh pr diff *), Bash(gh pr comment *), mcp__github_inline_comment__create_inline_comment, Bash(git log main..*), Bash(git diff main...*), Bash(git log origin/main..*), Bash(git diff origin/main...*)
 ---
 
 # Review a pull request
@@ -12,8 +12,10 @@ You did not write this change and you do not approve it. Your findings inform th
 merge, and an Important one holds it.
 
 1. If `$pr` is all digits, it is a PR number: read it with `gh pr view "$pr"` and
-   `gh pr diff "$pr"`. Otherwise it names a branch: read `git log "main..$pr"` and
-   `git diff "main...$pr"`. Find its intent: a branch named
+   `gh pr diff "$pr"`. Otherwise it names a branch; if it starts with `-`, stop and say
+   it isn't one. Read `git log "main..$pr"` and `git diff "main...$pr"`, using
+   `origin/main` where there is no local `main`, as in a CI checkout. Find its intent: a
+   branch named
    `build/<slug>/NN`, or files under `intent/<slug>/`. Read that intent, its spec, and
    this change's plan when there is one.
 2. If `REVIEW.md` exists at the repository root, run its passes with its severity
