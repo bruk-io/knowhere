@@ -1,0 +1,27 @@
+name: Artefact Check
+
+# Checks every intent, spec and plan a PR touches, with the same script the write hook
+# runs, so a malformed artefact can't merge. It needs only to read.
+
+on:
+  pull_request:
+    paths:
+      - "intent/**"
+      - "plugins/philosophy/scripts/artefact*"
+      - ".github/workflows/artefact-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Check the artefacts
+        run: python3 plugins/philosophy/scripts/artefact-check intent

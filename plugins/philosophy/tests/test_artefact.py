@@ -1,0 +1,322 @@
+"""Tests for scripts/artefact.py, artefact-check and the write hook.
+
+The checks are tested on small texts shaped like the templates, each broken one way.
+The command and the hook are tested as programs, against this repository's own intent
+and against a broken copy of it in a temporary directory. Set HOOK_PYTHON to run them
+under another interpreter.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+REPO = ROOT.parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import artefact as a  # noqa: E402
+
+PYTHON = os.environ.get("HOOK_PYTHON", sys.executable)
+OWN_INTENT = REPO / "intent" / "self-running-loop"
+
+INTENT = """# Intent: a thing
+
+Author: Someone. Status: draft.
+
+## Problem
+
+It is broken.
+
+## Proposed outcome
+
+It works.
+
+## Affected users and systems
+
+- Someone
+
+## Constraints
+
+- Keep it small.
+- Don't break the API,
+  which other teams call.
+
+## Open questions
+
+- [x] Settled? Yes.
+- [ ] Later? Carried forward: it can wait for the next release.
+"""
+
+SPEC = """# Spec: a thing
+
+Intent: [intent.md](intent.md), by Someone. Status: draft.
+
+Applied: the house rules.
+
+## Requirements
+
+- **R1.** It works.
+- **R2.** The API stays.
+
+## Design
+
+Plain.
+
+## Constraint mapping
+
+| Intent constraint | Met by |
+|---|---|
+| Keep it small | R1 |
+| Don't break the API | R2 |
+
+## Open questions
+
+- [x] None left.
+
+## Areas of concern
+
+1. **Load.** Owner: Someone. Proposed: cache it,
+   for a minute.
+"""
+
+PLAN = """# Plan: the first change
+
+Spec: [spec.md](../spec.md), change 01. Delivers R1.
+
+## Files that change
+
+- `src/thing.py`
+
+## Order of work
+
+1. Fix it (R1).
+
+## Risks
+
+- None worth a line.
+
+## Proof
+
+- The tests pass.
+"""
+
+
+def doc(text: str, path: str = "x.md") -> a.Doc:
+    return a.parse(text, path)
+
+
+def checks(findings: list[a.Finding]) -> list[str]:
+    return [finding.check for finding in findings]
+
+
+# --- parsing ------------------------------------------------------------------------
+
+
+def test_parse_splits_title_header_and_sections():
+    parsed = doc(INTENT)
+    assert parsed.title == "Intent: a thing"
+    assert parsed.header == "Author: Someone. Status: draft."
+    assert [name for name, _ in parsed.sections] == list(a.INTENT_SECTIONS)
+
+
+def test_items_join_wrapped_lines():
+    constraints = a.items(a.section(doc(INTENT), "Constraints") or "", a.BULLET)
+    assert constraints == ("- Keep it small.", "- Don't break the API, which other teams call.")
+
+
+def test_carried_forward_question_is_settled():
+    questions = a.checkboxes(a.section(doc(INTENT), "Open questions") or "")
+    assert [a.settled(question) for question in questions] == [True, True]
+
+
+def test_table_rows_skip_header_and_separator():
+    rows = a.table_rows(a.section(doc(SPEC), "Constraint mapping") or "")
+    assert len(rows) == 2
+
+
+# --- intent -------------------------------------------------------------------------
+
+
+def test_clean_intent_has_no_findings():
+    assert a.check_intent(doc(INTENT)) == []
+
+
+def test_intent_missing_a_section_is_found():
+    broken = INTENT.replace("## Proposed outcome\n\nIt works.\n\n", "")
+    assert checks(a.check_intent(doc(broken))) == ["sections"]
+
+
+def test_intent_with_an_open_question_is_found():
+    broken = INTENT.replace("- [x] Settled? Yes.", "- [ ] Settled? Not yet.")
+    assert checks(a.check_intent(doc(broken))) == ["questions"]
+
+
+def test_intent_with_no_status_is_found():
+    broken = INTENT.replace(" Status: draft.", "")
+    assert checks(a.check_intent(doc(broken))) == ["header"]
+
+
+def test_intent_with_the_wrong_title_is_found():
+    broken = INTENT.replace("# Intent: a thing", "# A thing")
+    assert checks(a.check_intent(doc(broken))) == ["title"]
+
+
+# --- spec ---------------------------------------------------------------------------
+
+
+def test_clean_spec_has_no_findings():
+    assert a.check_spec(doc(SPEC), doc(INTENT)) == []
+
+
+def test_spec_with_a_gap_in_requirements_is_found():
+    broken = SPEC.replace("**R2.**", "**R3.**")
+    found = a.check_spec(doc(broken), doc(INTENT))
+    assert checks(found) == ["requirements"]
+    assert "R2" in found[0].message
+
+
+def test_spec_with_a_duplicate_requirement_is_found():
+    broken = SPEC.replace("**R2.**", "**R1.**")
+    assert "requirements" in checks(a.check_spec(doc(broken), doc(INTENT)))
+
+
+def test_spec_missing_a_mapping_row_is_found():
+    broken = SPEC.replace("| Don't break the API | R2 |\n", "")
+    found = a.check_spec(doc(broken), doc(INTENT))
+    assert checks(found) == ["mapping"]
+    assert "2 constraints" in found[0].message
+
+
+def test_spec_concern_with_no_owner_is_found():
+    broken = SPEC.replace("Owner: Someone. ", "")
+    assert checks(a.check_spec(doc(broken), doc(INTENT))) == ["concerns"]
+
+
+def test_spec_with_no_applied_line_is_found():
+    broken = SPEC.replace("Applied: the house rules.\n", "")
+    assert checks(a.check_spec(doc(broken), doc(INTENT))) == ["header"]
+
+
+# --- plan ---------------------------------------------------------------------------
+
+
+def test_clean_plan_has_no_findings():
+    assert a.check_plan(doc(PLAN), "01-first.md", doc(SPEC)) == []
+
+
+def test_plan_citing_an_undefined_requirement_is_found():
+    broken = PLAN.replace("Delivers R1.", "Delivers R1 and R9.")
+    found = a.check_plan(doc(broken), "01-first.md", doc(SPEC))
+    assert checks(found) == ["citations"]
+    assert "R9" in found[0].message
+
+
+def test_plan_citing_nothing_is_found():
+    broken = PLAN.replace("Delivers R1.", "Delivers it.").replace(" (R1)", "")
+    assert checks(a.check_plan(doc(broken), "01-first.md", doc(SPEC))) == ["citations"]
+
+
+def test_plan_listing_no_paths_is_found():
+    broken = PLAN.replace("- `src/thing.py`", "- the thing module")
+    assert checks(a.check_plan(doc(broken), "01-first.md", doc(SPEC))) == ["files"]
+
+
+def test_plan_with_a_bad_name_is_found():
+    assert checks(a.check_plan(doc(PLAN), "first.md", doc(SPEC))) == ["name"]
+
+
+def test_plan_without_a_spec_is_found():
+    assert checks(a.check_plan(doc(PLAN), "01-first.md", None)) == ["spec"]
+
+
+def test_listed_paths_reads_backticked_bullets():
+    assert a.listed_paths(doc(PLAN)) == ("src/thing.py",)
+
+
+# --- the command and the hook, against real files -----------------------------------
+
+
+def run_check(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [PYTHON, str(ROOT / "scripts" / "artefact-check"), *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def broken_copy(tmp_path: Path) -> Path:
+    copy = tmp_path / "intent" / "self-running-loop"
+    shutil.copytree(OWN_INTENT, copy)
+    spec = copy / "spec.md"
+    spec.write_text(spec.read_text().replace("**R2.**", "**R99.**"))
+    return copy
+
+
+def test_command_passes_on_this_repositorys_intent():
+    result = run_check(str(OWN_INTENT))
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_command_reports_a_broken_copy(tmp_path):
+    copy = broken_copy(tmp_path)
+    result = run_check(str(copy), "--json")
+    assert result.returncode == 1
+    # R2 is renumbered R99, so the spec has a gap and plan 01 cites an undefined R2.
+    found = {finding["check"] for finding in json.loads(result.stdout)}
+    assert found == {"requirements", "citations"}
+
+
+def test_command_exits_2_for_a_missing_path(tmp_path):
+    assert run_check(str(tmp_path / "nowhere")).returncode == 2
+
+
+def run_hook(payload: dict) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [PYTHON, str(ROOT / "hooks" / "artefact_hook.py")],
+        input=json.dumps(payload),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_hook_reports_a_write_to_a_broken_artefact(tmp_path):
+    copy = broken_copy(tmp_path)
+    result = run_hook(
+        {
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": str(copy / "spec.md")},
+        }
+    )
+    assert result.returncode == 0
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "requirements" in context
+
+
+def test_hook_is_silent_outside_intent(tmp_path):
+    result = run_hook(
+        {
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": str(tmp_path / "src" / "thing.py")},
+        }
+    )
+    assert (result.returncode, result.stdout) == (0, "")
+
+
+def test_hook_is_silent_for_a_clean_artefact():
+    result = run_hook(
+        {
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Edit",
+            "tool_input": {"file_path": str(OWN_INTENT / "intent.md")},
+        }
+    )
+    assert (result.returncode, result.stdout) == (0, "")

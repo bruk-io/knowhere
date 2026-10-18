@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""artefact-check: assert that intents, specs and plans have the shape the loop reads.
+
+    artefact-check [PATH ...] [--json]
+
+Each PATH is an intent directory (`intent/<slug>`), an artefact inside one, or a
+directory of intents. The default is `intent`. Each finding is one line,
+`<path> <check>: <what is wrong and how to fix it>`, or a JSON list with --json. Exit 0
+means clean, 1 means findings, and 2 means a path or an artefact could not be read.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import artefact as a  # noqa: E402
+
+
+def parser() -> argparse.ArgumentParser:
+    top = argparse.ArgumentParser(
+        prog="artefact-check",
+        description="Assert that intents, specs and plans have the shape the loop reads.",
+    )
+    top.add_argument("paths", nargs="*", type=Path, default=[Path("intent")])
+    top.add_argument("--json", action="store_true", help="print findings as JSON")
+    return top
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parser().parse_args(argv)
+    found: list[a.Finding] = []
+    try:
+        for path in args.paths:
+            found += a.load_findings(path)
+    except a.ArtefactError as error:
+        print("artefact-check: %s" % error, file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps([finding._asdict() for finding in found], indent=2))
+    elif found:
+        print(a.render(found))
+    else:
+        print("clean: %s" % ", ".join(str(path) for path in args.paths))
+    return 1 if found else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
