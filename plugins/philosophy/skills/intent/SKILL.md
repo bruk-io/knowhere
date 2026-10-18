@@ -3,7 +3,7 @@ description: Write a piece of work down as intent/<slug>/intent.md, in the reque
 argument-hint: <slug>
 arguments: [slug]
 disable-model-invocation: true
-allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b intent/*), Bash(git add intent/*), Bash(git commit *), Bash(git push origin intent/*), Bash(git push -u origin intent/*), Bash(gh pr create *)
+allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b intent/*), Bash(git add intent/*), Bash(git commit *), Bash(git push -u origin HEAD), Bash(gh pr create *)
 ---
 
 # Capture an intent
@@ -26,7 +26,7 @@ The slug is `$slug`. If that is empty, choose a short kebab-case slug from the t
    with the status `draft`.
 3. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" intent/<slug>` and fix
    what it reports.
-4. On a branch `intent/<slug>`, commit the file alone and open a PR that says merging
-   it accepts the intent.
+4. On a branch `intent/<slug>`, commit the file alone, push it with exactly
+   `git push -u origin HEAD`, and open a PR that says merging it accepts the intent.
 
 Stop there. The spec is the next play, and it starts when this merges.

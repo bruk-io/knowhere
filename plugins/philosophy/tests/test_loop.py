@@ -88,6 +88,11 @@ def test_delivery_order_reads_only_its_own_table():
     )
 
 
+def test_a_spec_without_the_delivery_order_heading_has_no_changes():
+    design = "# Spec\n\n## Design\n\n| Change | Delivers |\n|---|---|\n| 01 Decoy | R1 |\n"
+    assert loop.delivery_order(a.parse(design, "spec.md")) == ()
+
+
 def test_first_change_is_built_first():
     assert loop.next_change(ORDER, NONE, NONE) == loop.Next(loop.Step.BUILD, ORDER[0])
 
@@ -304,8 +309,21 @@ def test_run_check_stops_what_the_check_started(repo):
     assert result.returncode == 124 and "stopped after 1s" in result.stdout
 
 
+def test_run_check_reports_a_check_whose_output_is_not_utf8(repo):
+    (repo / ".claude").mkdir()
+    (repo / ".claude" / "checks.json").write_text(
+        json.dumps({"fast": "printf '\\377 ok\\n'; exit 1"})
+    )
+    result = command("run-check", "fast", cwd=repo)
+    assert result.returncode == 1 and "\ufffd ok" in result.stdout
+
+
 def test_run_check_refuses_negative_lines(repo):
     assert command("run-check", "fast", "--lines", "-5", cwd=repo).returncode == 2
+
+
+def test_run_check_refuses_a_zero_timeout(repo):
+    assert command("run-check", "fast", "--timeout", "0", cwd=repo).returncode == 2
 
 
 def test_run_check_refuses_a_checks_file_that_is_not_an_object(repo):
