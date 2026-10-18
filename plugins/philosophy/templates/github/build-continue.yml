@@ -54,7 +54,7 @@ jobs:
             philosophy@knowhere
           prompt: /philosophy:build ${{ steps.pr.outputs.slug }} auto-merge
           claude_args: |
-            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh pr create:*),Bash(gh pr edit:*),Bash(gh pr ready:*),Bash(gh pr checks:*),Bash(gh pr merge:*),Bash(python3:*),Bash(bash .github/scripts/check.sh:*),Bash(uv:*),Bash(uvx:*)"
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh pr create:*),Bash(gh pr edit:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr ready:*),Bash(gh pr checks:*),Bash(gh pr merge:*),Bash(python3:*),Bash(bash .github/scripts/check.sh:*),Bash(uv:*),Bash(uvx:*)"
 
       # The build's whole run: every tool call and every denied one. Kept a week, for
       # when a build stops without saying why.

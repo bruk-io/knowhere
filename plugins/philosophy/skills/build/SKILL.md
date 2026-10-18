@@ -11,11 +11,10 @@ allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" *), Bash
 One change per PR: its plan first, then its code, then the evidence. The scripts make
 the mechanical calls; the plan and the code are yours.
 
-If you are on a `build/$slug/NN` branch whose open PR holds only the plan, its owner
-has unblocked it: go to step 5.
-
 1. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" intent/$slug`. `done` or
    `taken` means stop and say so. `build NN <title> <R-numbers>` names the change.
+   `continue NN <title> <R-numbers>` means you are on that change's build branch and its
+   plan is committed: its owner has unblocked it, so go to step 5.
 2. From `main`, create the branch `build/$slug/NN`.
 3. Read the intent, the spec, and the code the change touches. Write
    `intent/$slug/plans/NN-<short-name>.md` from `${CLAUDE_PLUGIN_ROOT}/templates/plan.md`:

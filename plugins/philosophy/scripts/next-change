@@ -8,8 +8,10 @@ Reads the delivery order in `<intent-dir>/spec.md`. A change is done when its pl
 (origin by default), open or not: it reads branches, not PRs, so it needs no GitHub.
 Abandon a build by deleting its branch, or the intent waits on it. Prints one line:
 
-    build NN<TAB><title><TAB>R1, R2   the next change to build; exit 0
-    taken NN<TAB><title>              the next change is already being built; exit 1
+    build NN<TAB><title><TAB>R1, R2     the next change to build; exit 0
+    continue NN<TAB><title><TAB>R1, R2  this branch is change NN's build and its plan is
+                                        committed: carry on building it; exit 0
+    taken NN<TAB><title>                the next change is already being built; exit 1
     done                              every change has a plan; exit 1
 
 Exit 2 means the spec or the remote could not be read.
@@ -35,7 +37,8 @@ def main(argv: list[str] | None = None) -> int:
     remote.add_argument("--no-remote", action="store_true", help="count only local plans")
     args = top.parse_args(argv)
     try:
-        found = loop.find_next(args.intent, None if args.no_remote else args.remote)
+        branch = loop.current_branch(loop.repo_root(args.intent))
+        found = loop.find_next(args.intent, None if args.no_remote else args.remote, branch)
     except (loop.LoopError, a.ArtefactError) as error:
         print("next-change: %s" % error, file=sys.stderr)
         return 2
@@ -47,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         print("taken %s\t%s" % (change.number, change.title))
         return 1
     delivers = ", ".join("R%d" % number for number in change.delivers)
-    print("build %s\t%s\t%s" % (change.number, change.title, delivers))
+    print("%s %s\t%s\t%s" % (found.step.value, change.number, change.title, delivers))
     return 0
 
 
