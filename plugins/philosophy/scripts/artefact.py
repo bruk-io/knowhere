@@ -31,6 +31,7 @@ SPEC_SECTIONS = (
 PLAN_SECTIONS = ("Files that change", "Order of work", "Risks", "Proof")
 
 HEADING = re.compile(r"^## +(.+?)\s*$")
+FENCE = re.compile(r"^\s*(```|~~~)")
 CHECKBOX = re.compile(r"^[-*]\s+\[([ xX])\]\s*(.*)$")
 BULLET = re.compile(r"^[-*]\s+(.*)$")
 NUMBERED = re.compile(r"^\d+\.\s+(.*)$")
@@ -38,7 +39,7 @@ DEFINED = re.compile(r"^[-*]\s+\*\*R(\d+)\.\*\*")
 CITED = re.compile(r"\bR(\d+)\b")
 LISTED_PATH = re.compile(r"^[-*]\s+`([^`]+)`")
 PLAN_NAME = re.compile(r"^\d{2}-[a-z0-9][a-z0-9-]*\.md$")
-CARRIED = re.compile(r"carried forward:", re.I)
+CARRIED = re.compile(r"carried forward:\s*\S", re.I)  # with its reason
 OWNER = re.compile(r"\bOwner:\s*\S", re.I)
 APPLIED = re.compile(r"^Applied:\s*\S", re.M)
 
@@ -72,17 +73,21 @@ class ArtefactError(ValueError):
 
 def parse(text: str, path: str) -> Doc:
     """Split a markdown artefact into its title, the header before the first `##`, and
-    its `##` sections. A `###` heading stays inside its section."""
+    its `##` sections. A `###` heading stays inside its section, and a heading inside a
+    code fence is text, not a heading."""
     title = ""
     header: list[str] = []
     sections: list[tuple[str, list[str]]] = []
+    fenced = False
     for line in text.splitlines():
-        heading = HEADING.match(line)
+        if FENCE.match(line):
+            fenced = not fenced
+        heading = None if fenced else HEADING.match(line)
         if heading:
             sections.append((heading.group(1), []))
         elif sections:
             sections[-1][1].append(line)
-        elif not title and line.startswith("# "):
+        elif not title and not fenced and line.startswith("# "):
             title = line[2:].strip()
         else:
             header.append(line)
@@ -341,7 +346,8 @@ def read(path: Path) -> Optional[Doc]:
 
 def intent_dirs(path: Path) -> tuple[Path, ...]:
     """The intent directories a path names: the one a file belongs to, the directory
-    itself, or every intent directory under it.
+    itself, or every directory under it. Every directory under `intent/` is an intent,
+    so one with no `intent.md`, such as a stray notes folder, is reported as missing it.
 
     Raises:
         ArtefactError: the path does not exist.

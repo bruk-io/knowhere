@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -23,13 +24,45 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import artefact as a  # noqa: E402
 
 PLUGIN = "philosophy"
-ARTEFACT = re.compile(r"(?:^|/)intent/[^/]+/(?:intent\.md|spec\.md|plans/[^/]+\.md)$")
+ARTEFACT = re.compile(r"^intent/[^/]+/(?:intent\.md|spec\.md|plans/[^/]+\.md)$")
+
+
+def is_artefact(relative: str) -> bool:
+    """Whether a path, relative to its repository's root, is an intent, spec or plan."""
+    return bool(ARTEFACT.match(relative.replace("\\", "/")))
+
+
+def repo_root(folder: Path) -> Optional[Path]:
+    while not folder.is_dir() and folder != folder.parent:
+        folder = folder.parent
+    try:
+        done = subprocess.run(
+            ["git", "-C", str(folder), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return Path(done.stdout.strip()) if done.returncode == 0 else None
 
 
 def artefact_path(payload: dict) -> Optional[Path]:
-    """The artefact this tool call wrote, or None if it wrote something else."""
-    path = str((payload.get("tool_input") or {}).get("file_path") or "")
-    return Path(path) if ARTEFACT.search(path.replace("\\", "/")) else None
+    """The artefact this tool call wrote, or None if it wrote something else. The path
+    must be `intent/...` from the root of the repository the file is in, so a folder
+    named `intent` somewhere above the repository doesn't count."""
+    raw = str((payload.get("tool_input") or {}).get("file_path") or "")
+    if "intent/" not in raw.replace("\\", "/"):
+        return None
+    path = Path(raw)
+    root = repo_root(path.parent)
+    if root is None:
+        return None
+    try:
+        relative = path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return None
+    return path if is_artefact(relative) else None
 
 
 def context(findings: list[a.Finding], where: Path) -> str:
