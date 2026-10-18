@@ -93,7 +93,7 @@ def test_hook_skips_python_for_unrelated_calls(tmp_path: Path) -> None:
     (broken / "python3").write_text("#!/bin/sh\necho python started >&2\nexit 3\n")
     (broken / "python3").chmod(0o755)
     path = "%s:%s" % (broken, os.environ["PATH"])
-    for command in ("uv run pytest", "backlog task edit 5 -s Done"):
+    for command in ("uv run pytest", "git status"):
         result = subprocess.run(
             ["sh", str(ROOT / "hooks" / "guard.sh")],
             input=json.dumps(payload(command)),

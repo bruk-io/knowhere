@@ -131,7 +131,7 @@ def parse_rule(name: str, text: str) -> Rule:
 
 
 def command_words(command: str) -> tuple[str, ...]:
-    """Name the programs a shell command runs, such as `backlog` or `git`.
+    """Name the programs a shell command runs, such as `uv` or `git`.
 
     A command the shell lexer cannot read falls back to the first word after each
     separator.
