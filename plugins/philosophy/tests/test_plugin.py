@@ -14,7 +14,7 @@ TEXT = sorted(
     if p.suffix in (".md", ".json")
     and ".git" not in p.parts
     and "tests" not in p.parts
-    and "results" not in p.relative_to(ROOT).parts[:2]
+    and not {"evals", "results"} <= set(p.relative_to(ROOT).parts)
 )
 SKILLS = {p.parent.name for p in ROOT.glob("skills/*/SKILL.md")}
 AGENTS = {p.stem for p in ROOT.glob("agents/*.md")}

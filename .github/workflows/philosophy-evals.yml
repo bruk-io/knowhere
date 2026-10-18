@@ -32,7 +32,7 @@ jobs:
       # The eval runner refuses to give a case Bash without an OS sandbox, which on
       # Linux is bubblewrap with socat.
       - name: Install the sandbox
-        run: sudo apt-get install -y --no-install-recommends bubblewrap socat
+        run: sudo apt-get update -q && sudo apt-get install -y --no-install-recommends bubblewrap socat
 
       - name: Run the eval suite
         working-directory: plugins/philosophy
