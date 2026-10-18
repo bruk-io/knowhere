@@ -17,8 +17,9 @@ Spec: [spec.md](../spec.md), change 04. Delivers R13 and R14.
 ## Order of work
 
 1. The core in `guard.py`: from the branch name, the file's path in the repository, the
-   change's plan and which repro tests are committed, decide an Edit or Write (R13,
-   R14). On any branch but `build/<slug>/NN` it decides nothing.
+   change's plan and which repro tests are committed, decide an Edit, Write or
+   NotebookEdit, since R13 holds every edit and a notebook is edited too (R13, R14). On
+   any branch but `build/<slug>/NN` it decides nothing.
    - The change's own plan, `intent/<slug>/plans/NN-*.md`, is always editable.
    - With no plan yet, any other edit is denied: write the plan first. This is what
      makes the plan the branch's first commit.
@@ -29,17 +30,19 @@ Spec: [spec.md](../spec.md), change 04. Delivers R13 and R14.
      committed: the repro is written and committed first, then the code is fixed
      without touching it (R14).
 2. The shell reads the branch and repository root from git, finds and reads the plan,
-   and asks git whether a repro test is in `HEAD`. `guard.sh` passes Edit and Write
-   payloads to Python as well as `git init`.
+   and asks git whether a repro test is in `HEAD`. `hooks.json` adds `Edit`, `Write`
+   and `NotebookEdit` to the guard's matcher, and `guard.sh` passes their payloads to
+   Python as well as `git init`.
 3. Tests for each decision, and for the hook in a throwaway repository on a build
    branch.
-4. The `Repro:` line in the plan template, and a line in the build skill on how a bug
-   fix starts.
+4. A note in the plan template's Proof on the `Repro:` line a bug fix adds, kept in a
+   comment so other plans carry no placeholder, and a line in the build skill on how a
+   bug fix starts.
 5. README and changelog.
 
 ## Risks
 
-- The guard now starts Python and one git call on every Edit and Write. On any branch
+- The guard now starts Python and one git call on every Edit, Write and NotebookEdit. On any branch
   but a build branch it stops after that call.
 - A shell command can still write a file the plan doesn't list. The guard is a
   guardrail, not a boundary; the review's compliance pass compares the diff with the
