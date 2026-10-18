@@ -26,10 +26,10 @@ answered by anecdote.
 Once an intent is merged, the work moves through Anthropic's AI-native SDLC plays on its
 own: spec, plan, build with its feedback loop, PR review, merge. Each stage commits a
 file the next stage reads, and each handover is triggered by a git event, not by a model
-remembering. I am in the loop where the architecture is established (the spec) and where
-it is enforced (CLAUDE.md, rules, skills, hooks, boundary checks, review policy, evals,
-workflows). Work inside an approved architecture flows without me. When a metric breaches
-its control band, the loop writes a new intent.
+remembering. I am in the loop where the architecture is established (the spec) and
+where the gates that check the work are defined (CODEOWNERS, workflows, review policy,
+required checks, boundary configuration). Work that implements an approved spec flows
+without me. When a metric breaches its control band, the loop writes a new intent.
 
 ## Affected users and systems
 
@@ -58,8 +58,8 @@ its control band, the loop writes a new intent.
 - Triggers use the Claude GitHub integration on the subscription token, not an API key.
 - Claude never approves its own work, and a merge is the approval. A PR merges without
   me only when every required check is green, no Important review finding is open, and
-  it touches no architecture path. Claude's review can stop a merge but never approves
-  one. A change to the architecture or its enforcement always needs me.
+  it touches no gated path. Claude's review can stop a merge but never approves
+  one. A change to the architecture or to the gates always needs me.
 - One intent goes through end to end by hand before any handover is automated.
 - The existing policy rules and skills (Python, code design, test layers,
   `python-idioms`) keep working.

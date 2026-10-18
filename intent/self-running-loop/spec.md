@@ -41,7 +41,7 @@ The plays, as commands
   implements it, and runs the repository's fast check (declared in
   `.claude/checks.json`) until it passes. It opens a PR that names the R-numbers it
   delivers, links the plan, and holds the check's command, exit code and last lines of
-  output. If the plan's files include an architecture
+  output. If the plan's files include a gated
   path (R12), it stops after the plan commit, opens the PR, and asks me there; my
   `@claude` reply continues the build on the same branch, so the plan and its code
   still merge together.
@@ -67,10 +67,13 @@ Gates
   session's) and CODEOWNERS asks for no review from me. A merge the loop makes starts
   the next workflow, so it is never made with `GITHUB_TOKEN`. This gate is live from
   change 06; until then `main` requires a PR and nothing more.
-- **R12.** CODEOWNERS assigns `@brukhabtu` the architecture paths, and `main` requires
-  code-owner review. In every repository: `intent/*/spec.md`, `CLAUDE.md`, `REVIEW.md`,
-  `.claude/`, `.github/`, `evals/`, and LikeC4 models (`*.c4`). In knowhere, also
-  `plugins/`, because the plugins are where the architecture is enforced.
+- **R12.** CODEOWNERS assigns `@brukhabtu` what establishes the architecture and what
+  gates the work, and `main` requires code-owner review. I approve the architecture
+  once, in the spec, so a build that implements an approved spec needs no review from
+  me. The paths: `intent/*/spec.md`; the gates themselves, so a build can't loosen what
+  checks it (`.github/`, which holds the workflows and CODEOWNERS, `REVIEW.md`,
+  `.claude/settings.json`, `.claude/checks.json` and `bands.yaml`); and a repository's
+  architecture definitions (LikeC4 models and boundary configuration files).
 
 Hooks
 
@@ -122,7 +125,7 @@ Evals and metrics
 | `artefact-check`, `loop-metrics`, the band check | Scripts | Validation is code, not an instruction to a model |
 | Write-time artefact check, plan sync, repro guard, subagent constraints | Hooks | They must fire every time, with no judgement |
 | Triggers | GitHub workflows on `claude-code-action` | A git event, not a model's memory, starts each stage |
-| Architecture gate | CODEOWNERS plus required code-owner review | GitHub enforces it; no model decides it |
+| The gate on specs, gates and architecture definitions | CODEOWNERS plus required code-owner review | GitHub enforces it; no model decides it |
 
 No agent is authored. The review's separation of duties comes from the workflow's tool
 list and from branch protection, not from an agent definition.
@@ -134,8 +137,8 @@ list and from branch protection, not from an agent definition.
 2. The merge runs `/philosophy:spec` in CI. Its PR touches `intent/*/spec.md`, so it
    waits for me. I edit it and merge.
 3. The merge runs `/philosophy:build` for change 01: the plan is the first commit,
-   then the code, then a PR. The review runs. With green checks and no architecture
-   path, the PR merges on its own. With an architecture path, the build stops after
+   then the code, then a PR. The review runs. With green checks and no gated
+   path, the PR merges on its own. With a gated path, the build stops after
    the plan and asks me in the PR; I reply with `@claude` to continue, and the PR waits
    for my review before it merges.
 4. Each build merge runs the build for the next change, until the delivery order is
@@ -188,7 +191,7 @@ them before PR review and CI/CD.
 | Process is invoked, never discovered; a policy that must hold has a hook or check | R4, R13, R14, R15 |
 | Validation logic is a script | R2, R3, R18, R19 |
 | Triggers use the Claude GitHub integration on the subscription token | R8, R9, R10 |
-| Claude never approves its own work; a merge without me needs green checks, no open Important finding, no architecture path | R7, R10, R11, R12 |
+| Claude never approves its own work; a merge without me needs green checks, no open Important finding, no gated path | R7, R10, R11, R12 |
 | One intent goes through by hand before automation | Delivery order: this intent is built by hand, and the triggers land last |
 | The existing policy rules and skills keep working | R16 keeps them; R17 holds the merge if a change breaks them |
 
@@ -209,10 +212,11 @@ them before PR review and CI/CD.
 
 ## Areas of concern
 
-1. **In knowhere, nearly every PR waits for me.** The plugins are where the
-   architecture is enforced, so `plugins/` is an architecture path, and merging without
-   me will be rare here. That path pays off in product repositories. Owner: Bruk.
-   Proposed: accept it for knowhere.
+1. **A build can change policy without me.** Hooks, rules, skills and CLAUDE.md are
+   not gated, so a build that implements an approved spec can change them. A build that
+   goes beyond its spec is caught by the plan-sync hook (R13), the review's compliance
+   pass (R7, R10) and the evals (R17), not by me. Owner: Bruk. Proposed: accept it; if
+   a review ever finds a policy change outside its spec, add that path to CODEOWNERS.
 2. **CODEOWNERS works on whole files.** Boundary configuration inside `pyproject.toml`
    (such as `[tool.pypeeker]`) can't be singled out, and listing the whole file also
    gates dependency bumps. Owner: Bruk. Proposed: where a tool allows it, keep its
