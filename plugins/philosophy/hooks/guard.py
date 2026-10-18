@@ -110,13 +110,14 @@ def is_own_plan(path: str, build: Build) -> bool:
 
 
 def repro_tests(plan: a.Doc) -> frozenset[str]:
-    """The tests a plan's Proof names on a line starting `Repro:`."""
+    """The tests a plan's Proof names in a bullet starting `Repro:`, including a bullet
+    that wraps onto further lines."""
     proof = a.section(plan, "Proof") or ""
     return frozenset(
         path.strip().removeprefix("./")
-        for line in proof.splitlines()
-        if REPRO.match(line.strip())
-        for path in BACKTICKED.findall(line)
+        for bullet in a.items(proof, a.BULLET)
+        if REPRO.match(bullet)
+        for path in BACKTICKED.findall(bullet)
     )
 
 
@@ -220,12 +221,13 @@ def edit_decision(file_path: str, cwd: str) -> Optional[Decision]:
     found = sorted(Path(root, plan_dir(build)).glob("%s-*.md" % build.number))
     plans = tuple(p.relative_to(root).as_posix() for p in found)
     plan = a.read(found[0]) if len(found) == 1 else None
-    plan_committed = bool(plans) and git(root, "cat-file", "-e", "HEAD:%s" % plans[0]) is not None
-    committed_plan = git(root, "show", "HEAD:%s" % plans[0]) if plan_committed else None
+    # Two git calls for most edits: which repository and branch, and the plan as
+    # committed. A third only when the file is one of that plan's repro tests.
+    committed_plan = git(root, "show", "HEAD:%s" % plans[0]) if plans else None
+    plan_committed = committed_plan is not None
     frozen = repro_tests(a.parse(committed_plan, plans[0])) if committed_plan else frozenset()
-    committed = frozenset(
-        test for test in frozen if git(root, "cat-file", "-e", "HEAD:%s" % test) is not None
-    )
+    in_head = path in frozen and git(root, "cat-file", "-e", "HEAD:%s" % path) is not None
+    committed = frozenset({path}) if in_head and path else frozenset()
     return decide_edit(path, build, plans, plan, plan_committed, committed)
 
 
