@@ -108,6 +108,9 @@ specific interpreter, set `HOOK_PYTHON`.
 
 `claude plugin validate --strict .` checks the manifests and the hook config.
 
+`evals/` holds the eval suite, one case per behaviour the loop depends on; its README
+says how to run it. In knowhere it runs on every PR that changes the plugin.
+
 ## What it does not do
 
 - **Most of the Python standard is prose.** ruff, mypy, and pypeeker are named in
@@ -124,8 +127,8 @@ specific interpreter, set `HOOK_PYTHON`.
 ## Planned
 
 - **The rest of the self-running loop** (`intent/self-running-loop/spec.md` in
-  knowhere): an eval suite, CODEOWNERS and the required checks as gates, workflows that
-  run the plays on a merge, and metrics with control bands.
+  knowhere): CODEOWNERS and the required checks as gates, workflows that run the plays
+  on a merge, and metrics with control bands.
 - **Programmatic enforcement of the Python rules with pypeeker.** Then `rules/python.md`
   shrinks to the judgement lines and a pointer to `philosophy:python-idioms`, and the
   checkable lines become checks with their reasons in the messages.

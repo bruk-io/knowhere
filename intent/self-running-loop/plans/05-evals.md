@@ -18,6 +18,7 @@ Spec: [spec.md](../spec.md), change 05. Delivers R17.
 - `plugins/philosophy/evals/spec/spec-flags-policy-conflict/scaffold.sh`
 - `plugins/philosophy/evals/spec/spec-flags-policy-conflict/graders/spec-written.md`
 - `plugins/philosophy/evals/spec/spec-flags-policy-conflict/graders/conflict-flagged.md`
+- `plugins/philosophy/evals/spec/spec-flags-policy-conflict/graders/not-resolved-alone.md`
 - `plugins/philosophy/evals/review/review-checks-the-plan/prompt.md`
 - `plugins/philosophy/evals/review/review-checks-the-plan/case.yaml`
 - `plugins/philosophy/evals/review/review-checks-the-plan/scaffold.sh`
