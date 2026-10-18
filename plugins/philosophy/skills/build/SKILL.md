@@ -27,8 +27,7 @@ has unblocked it: go to step 5.
 4. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" <the plan>`. Exit 0 means
    nothing is gated: go on. Exit 2 means it couldn't read the plan: stop and say so.
    Exit 1 lists the gated paths: push, open the PR with the plan and those paths, ask
-   the owner there to reply
-   `@claude` to continue, and stop.
+   the owner there to reply `@claude continue` once they have read the plan, and stop.
 5. Implement in the plan's order. Edit only the files the plan lists; the guard denies
    the rest. If another file turns out to need changing, add it to the plan in the same
    commit and say why in the PR, and run `gated-paths` on the plan again: a file it
