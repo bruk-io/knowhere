@@ -1,6 +1,6 @@
 # Intent: a work loop that runs itself from intent
 
-Author: Bruk Habtu. Status: draft. Merging this file into `main` accepts it.
+Author: Bruk Habtu. Status: accepted in #10.
 
 ## Problem
 
@@ -26,10 +26,10 @@ answered by anecdote.
 Once an intent is merged, the work moves through Anthropic's AI-native SDLC plays on its
 own: spec, plan, build with its feedback loop, PR review, merge. Each stage commits a
 file the next stage reads, and each handover is triggered by a git event, not by a model
-remembering. I am in the loop where the architecture is established (the spec) and where
-it is enforced (CLAUDE.md, rules, skills, hooks, boundary checks, review policy, evals,
-workflows). Work inside an approved architecture flows without me. When a metric breaches
-its control band, the loop writes a new intent.
+remembering. I am in the loop where the architecture is established (the spec) and
+where the gates that check the work are defined (CODEOWNERS, workflows, review policy,
+required checks, boundary configuration). Work that implements an approved spec flows
+without me. When a metric breaches its control band, the loop writes a new intent.
 
 ## Affected users and systems
 
@@ -58,32 +58,29 @@ its control band, the loop writes a new intent.
 - Triggers use the Claude GitHub integration on the subscription token, not an API key.
 - Claude never approves its own work, and a merge is the approval. A PR merges without
   me only when every required check is green, no Important review finding is open, and
-  it touches no architecture path. Claude's review can stop a merge but never approves
-  one. A change to the architecture or its enforcement always needs me.
+  it touches no gated path. Claude's review can stop a merge but never approves
+  one. A change to the architecture or to the gates always needs me.
 - One intent goes through end to end by hand before any handover is automated.
 - The existing policy rules and skills (Python, code design, test layers,
   `python-idioms`) keep working.
 
 ## Open questions
 
+Each question is settled in [spec.md](spec.md), except chaining, which is carried
+forward.
+
 - [x] Which repository runs the first intent end to end? knowhere: the intent lives
       here, so this repository runs it.
-- [ ] Does CI draft the spec when an intent merges, for me to review, or do I write the
-      spec in a session with Claude?
-- [ ] Is `plan.md` its own PR, or the first commit of the build PR, given that I don't
-      need to approve plans inside an approved spec?
-- [ ] How is "touches the architecture" detected: CODEOWNERS paths with required
-      code-owner review, a check that labels the PR, or both? Which paths?
-- [ ] Which checks are required before a PR merges without me, and how does an open
-      Important finding hold the merge: the review job fails, or it sets a required
-      status?
-- [ ] Chaining: a PR opened by `claude[bot]` needs `allowed_bots` before the review
-      workflow runs on it, and a merge made with `GITHUB_TOKEN` starts no further
-      workflows. Verify both before relying on them.
-- [ ] What happens to the board-based pieces (`board.py`, `close-task`, `record-check`,
-      the reviewer agent, the step skills): rewritten for files, kept for repositories
-      that have a board, or removed?
-- [ ] Which metrics show this works? Candidates: time from intent merge to merged PR,
-      share of PRs merged without me, review findings citing a policy (should fall to
-      zero), spec changes after the first `plan.md` commit.
-- [ ] Which eval cases come first? The brig-seed incidents are candidates.
+- [x] Does CI draft the spec when an intent merges? Yes, and I review the PR (spec R8).
+- [x] Is `plan.md` its own PR? No: it is the first commit of the build PR (spec R6).
+- [x] How is "touches the architecture" detected? CODEOWNERS, with required code-owner
+      review (spec R12).
+- [x] Which checks hold a merge without me, and how does an Important finding hold it?
+      The artefact, review, eval and full checks; the review check fails on any
+      Important finding (spec R10, R11).
+- [ ] Chaining. Carried forward: `allowed_bots` and merges made with the Claude app's
+      token are required by spec R11, and verified before the triggers depend on them
+      (spec area of concern 3).
+- [x] What happens to the board-based pieces? They are removed (spec R16).
+- [x] Which metrics show this works? Spec R18.
+- [x] Which eval cases come first? Spec R17.
