@@ -8,7 +8,7 @@ or nearly did:
 |---|---|---|
 | `build/build-plans-first` | `/philosophy:build` makes `plan: 01` the first commit on its branch, and commits after it. The graders read git's reflog, `.git/logs/HEAD`, not the model's account | brig-seed: implementers dispatched by Workflow scripts never planned |
 | `spec/spec-flags-policy-conflict` | `/philosophy:spec` flags a conflict between the intent and CLAUDE.md as an area of concern with an owner, instead of settling it | The playbook's design play: policy conflicts are the owner's call |
-| `review/review-checks-the-plan` | `/philosophy:review` reports a file outside the plan as Important and doesn't approve | The review on knowhere#13 |
+| `review/review-checks-the-plan` | `/philosophy:review` reports a file outside the plan as Important, so its closing `important=N` line, which the review gate reads, holds the merge | The review on knowhere#13 |
 | `subagent/subagent-gets-constraints` | A subagent was given the constraints, which only the `SubagentStart` hook can do | brig-seed: subagents never saw the loop |
 
 Every case runs in a small repository that `_scaffold/demo-repo.sh` builds: git on
