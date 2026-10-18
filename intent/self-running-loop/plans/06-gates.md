@@ -12,6 +12,7 @@ Spec: [spec.md](../spec.md), change 06. Delivers R10, R11, R12 and R20.
 - `.github/workflows/claude.yml`
 - `.github/workflows/philosophy-evals.yml`
 - `.github/workflows/artefact-check.yml`
+- `.github/workflows/validate.yml`
 - `.claude/checks.json`
 - `.gitignore`
 - `plugins/philosophy/templates/CODEOWNERS`

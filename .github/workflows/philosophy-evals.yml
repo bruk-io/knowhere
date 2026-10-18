@@ -2,13 +2,12 @@ name: Philosophy Evals
 
 # Runs the philosophy plugin's eval suite on every PR that changes the plugin, so a
 # change to a play, a hook or a script that makes the loop behave worse holds the merge.
-# Each case runs once, on the subscription token, and every case must pass.
+# The job runs on every PR and skips its own work when the plugin didn't change, so it
+# can be a required check without blocking other PRs. Each case runs once, on the
+# subscription token, and every case must pass.
 
 on:
   pull_request:
-    paths:
-      - "plugins/philosophy/**"
-      - ".github/workflows/philosophy-evals.yml"
 
 permissions:
   contents: read
@@ -25,26 +24,43 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - id: changed
+        name: Did the plugin change?
+        run: |
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+              | grep -qE '^(plugins/philosophy/|\.github/workflows/philosophy-evals\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "The philosophy plugin didn't change; nothing to evaluate."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.changed.outputs.run == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: "22"
 
       # Pinned, so a new release can't reach the token or shift the results between runs.
-      - name: Install Claude Code
+      - if: steps.changed.outputs.run == 'true'
+        name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code@2.1.302
 
       # The eval runner refuses to give a case Bash without an OS sandbox, which on
       # Linux is bubblewrap with socat. Ubuntu 24.04 also stops unprivileged user
       # namespaces through AppArmor, which bubblewrap needs, so every sandboxed command
       # would fail; lift that on this throwaway runner.
-      - name: Install the sandbox
+      - if: steps.changed.outputs.run == 'true'
+        name: Install the sandbox
         run: |
           sudo apt-get update -q && sudo apt-get install -y --no-install-recommends bubblewrap socat
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           bwrap --ro-bind / / --dev /dev true && echo "bubblewrap works"
 
-      - name: Run the eval suite
+      - if: steps.changed.outputs.run == 'true'
+        name: Run the eval suite
         working-directory: plugins/philosophy
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -59,14 +75,14 @@ jobs:
       # Print why each failed case failed, from its graders and its trace, so a failure in
       # CI can be read from the log instead of guessed at.
       - name: What the failed cases' tools said
-        if: failure()
+        if: failure() && steps.changed.outputs.run == 'true'
         working-directory: plugins/philosophy
         run: |
           sudo chmod -R a+rX /tmp 2>/dev/null || true
           python3 ../../.github/scripts/eval-diagnostics.py eval-results.json
 
-      - name: Keep the report
-        if: always()
+      - if: always() && steps.changed.outputs.run == 'true'
+        name: Keep the report
         uses: actions/upload-artifact@v4
         with:
           name: philosophy-eval-report
