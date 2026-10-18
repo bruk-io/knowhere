@@ -24,7 +24,8 @@ dispatch endpoint's permission.
   finds slugs, a `dispatch` job (`needs: find`) fires the matching
   `repository_dispatch`, sending the same compact JSON array string `find` already
   produces (`jq -Rcs`) as `client_payload.slugs`, a string field rather than a nested
-  array, and the merge `find` saw as `client_payload.sha` (`github.sha`), so the job that
+  array, and the push `find` diffed as `client_payload.before` and
+  `client_payload.sha` (`github.event.before` and `github.sha`), so the job that
   invokes `claude-code-action` (`if: github.event_name == 'repository_dispatch'`)
   can read its matrix with `fromJSON(github.event.client_payload.slugs)`, the same
   call shape `needs.find.outputs.slugs` already used. Every run of the action now
@@ -57,15 +58,22 @@ dispatch endpoint's permission.
 - **R5.** The job that invokes `claude-code-action` runs only what a merge to `main`
   started, because anyone with a write-scoped token can send `repository_dispatch` by
   hand, with no merge and no review, and the job runs Claude with
-  `CLAUDE_CODE_OAUTH_TOKEN`. Before the action step, a step fails the run unless all
-  of these hold:
-  - `client_payload.sha` is a commit on `main`;
-  - that commit's diff against its first parent touches each slug's trigger path:
-    `intent/<slug>/intent.md` for `intent-spec`, and `intent/<slug>/spec.md` or a file
-    under `intent/<slug>/plans/` for `intent-build`;
+  `CLAUDE_CODE_OAUTH_TOKEN`. The job checks out `main` with its full history
+  (`fetch-depth: 0`), and before the action step, a step fails the run unless all of
+  these hold:
+  - `client_payload.sha` is a commit on `main`, and `client_payload.before` is one of
+    its ancestors;
+  - the diff over that range, `git diff --name-only before sha` with the same filter
+    `find` uses, touches each slug's trigger path: `intent/<slug>/intent.md` for
+    `intent-spec`, and `intent/<slug>/spec.md` or a file under `intent/<slug>/plans/`
+    for `intent-build`. It's the range `find` diffed, so a push of several commits,
+    from a rebase merge or with the intent's change in an earlier commit, passes as it
+    does in `find`;
   - each slug matches `^[a-z0-9][a-z0-9-]*$`;
-  - `main` still calls for the play: for `intent-spec`, the intent has no `spec.md`;
-    for `intent-build`, `next-change` says `build`, as it does today.
+  - `main` still calls for the play: for `intent-spec`, the intent has no `spec.md` on
+    `main` and no `spec/<slug>` branch on the remote, so a replayed dispatch or a
+    second push can't open a duplicate spec PR; for `intent-build`, `next-change` says
+    `build`, which already treats a `build/<slug>/NN` branch as taken.
 
   The slugs and the sha reach shell steps through `env:`, never as an inline `${{ }}`
   in `run:`, in both workflows and their template copies. A dispatch that names no
@@ -122,8 +130,9 @@ The cost of the relay is a second way in. `repository_dispatch` doesn't come onl
 `find`: any token with write access to the repository can send one, with whatever
 payload it likes, and today's workflows write `matrix.slug` into `run:` scripts and
 the prompt. So `find`'s dispatch carries the merge it saw, and the dispatched job
-re-checks, from `main`, that the merge is real, that it touched the intent, and that
-the play is still due (R5). The check is code, like the rest of the decision about
+re-checks, from `main`, that the push is real, that it touched the intent, and that
+the play is still due (R5), over the same range `find` diffed so the two never
+disagree. The check is code, like the rest of the decision about
 what runs, and it re-derives that decision rather than trusting the payload.
 
 ### What stays code, what the action now sees
