@@ -12,6 +12,10 @@ git config user.email eval@example.com
 git config user.name Eval
 git init -q --bare -b main .remote.git
 echo ".remote.git/" >> .git/info/exclude
+# The eval sandbox masks these dotfiles in the workspace with device files, which
+# `git add -A` refuses. They are never part of the change.
+printf '%s\n' .bash_profile .bashrc .profile .zprofile .zshrc .gitconfig .gitmodules \
+  .idea .vscode .mcp.json .ripgreprc .eval-artifacts >> .git/info/exclude
 git remote add origin "$PWD/.remote.git"
 
 mkdir -p intent/demo .claude

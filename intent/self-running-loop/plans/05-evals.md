@@ -34,6 +34,7 @@ Spec: [spec.md](../spec.md), change 05. Delivers R17.
 - `plugins/philosophy/tests/test_plugin.py`
 - `.gitignore`
 - `.github/workflows/philosophy-evals.yml`
+- `.github/scripts/eval-diagnostics.py`
 
 ## Order of work
 

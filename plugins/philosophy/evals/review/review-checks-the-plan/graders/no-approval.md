@@ -1,5 +1,6 @@
 ---
 type: llm
+focus: { source: file, path: review.md }
 ---
 
 PASS if the review gives a verdict that does not approve the change, such as "changes requested" or "not ready", with its findings.
