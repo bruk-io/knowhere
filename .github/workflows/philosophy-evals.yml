@@ -30,9 +30,14 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code@2.1.302
 
       # The eval runner refuses to give a case Bash without an OS sandbox, which on
-      # Linux is bubblewrap with socat.
+      # Linux is bubblewrap with socat. Ubuntu 24.04 also stops unprivileged user
+      # namespaces through AppArmor, which bubblewrap needs, so every sandboxed command
+      # would fail; lift that on this throwaway runner.
       - name: Install the sandbox
-        run: sudo apt-get update -q && sudo apt-get install -y --no-install-recommends bubblewrap socat
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y --no-install-recommends bubblewrap socat
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          bwrap --ro-bind / / --dev /dev true && echo "bubblewrap works"
 
       - name: Run the eval suite
         working-directory: plugins/philosophy
@@ -44,38 +49,46 @@ jobs:
           --allow-tools Bash Write Edit
           --runs 1 --ablation none --threshold 1.0
           --no-publish --report eval-report.html
+          --json eval-results.json --keep-temp
 
-      # A failed run's workspace is kept and sealed. Print what its tools said, so a
-      # failure in CI can be read from the log instead of guessed at.
+      # Print what a failed case's tools did and what failed, from the trace the eval's
+      # JSON points at, so a failure in CI can be read from the log instead of guessed at.
       - name: What the failed cases' tools said
         if: failure()
+        working-directory: plugins/philosophy
         run: |
-          for kept in /tmp/claude-eval-*; do
-            [ -d "$kept" ] || continue
-            chmod -R u+rwX "$kept" 2>/dev/null || true
-            find "$kept" -name trace.jsonl | while read -r trace; do
-              echo "== $trace"
-              python3 - "$trace" <<'PY'
-          import json, sys
-          for line in open(sys.argv[1]):
-              try:
-                  event = json.loads(line)
-              except ValueError:
-                  continue
-              message = event.get("message") if isinstance(event, dict) else None
-              for block in (message or {}).get("content") or [] if isinstance(message, dict) else []:
-                  if not isinstance(block, dict):
+          sudo chmod -R a+rX /tmp 2>/dev/null || true
+          python3 - eval-results.json <<'PY'
+          import json, os, sys
+          results = json.load(open(sys.argv[1]))
+          for case in results.get("cases", []):
+              for run in case.get("arms", {}).get("with", []):
+                  if run.get("passed"):
                       continue
-                  if block.get("type") == "tool_use":
-                      shown = block.get("input", {})
-                      print("  tool:", block.get("name"), json.dumps(shown)[:200])
-                  elif block.get("type") == "tool_result" and block.get("is_error"):
-                      content = block.get("content")
-                      text = content if isinstance(content, str) else json.dumps(content)
-                      print("  ERROR:", text[:400].replace("\n", " "))
+                  print("== %s: %s" % (case["name"], run.get("error") or "graders failed"))
+                  trace = run.get("tracePath") or ""
+                  if not os.path.exists(trace):
+                      print("  (no trace at %s)" % trace)
+                      continue
+                  for line in open(trace):
+                      try:
+                          event = json.loads(line)
+                      except ValueError:
+                          continue
+                      message = event.get("message") if isinstance(event, dict) else None
+                      blocks = message.get("content") if isinstance(message, dict) else None
+                      for block in blocks if isinstance(blocks, list) else []:
+                          if not isinstance(block, dict):
+                              continue
+                          if block.get("type") == "tool_use":
+                              print("  tool:", block.get("name"), json.dumps(block.get("input", {}))[:200])
+                          elif block.get("type") == "tool_result" and block.get("is_error"):
+                              content = block.get("content")
+                              text = content if isinstance(content, str) else json.dumps(content)
+                              print("  ERROR:", text[:400].replace("\n", " "))
+                          elif block.get("type") == "text" and event.get("type") == "assistant":
+                              print("  said:", block.get("text", "")[:300].replace("\n", " "))
           PY
-            done
-          done
 
       - name: Keep the report
         if: always()
