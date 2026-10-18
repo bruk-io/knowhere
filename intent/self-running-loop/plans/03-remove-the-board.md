@@ -31,6 +31,8 @@ Spec: [spec.md](../spec.md), change 03. Delivers R15 and R16.
 - `plugins/philosophy/hooks/hooks.json`
 - `plugins/philosophy/tests/test_guard.py`
 - `plugins/philosophy/tests/test_context.py`
+- `plugins/philosophy/tests/test_plugin.py`
+- `plugins/philosophy/templates/plan.md`
 - `plugins/philosophy/constraints.md`
 - `plugins/philosophy/README.md`
 - `plugins/philosophy/CHANGELOG.md`

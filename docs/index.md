@@ -12,7 +12,7 @@ knowhere is a plugin marketplace for [Claude Code](https://claude.com/claude-cod
 |--------|----------|-------------|
 | **authoring-kit** | development | Authoring Claude Code extensions: choosing the extension type, the judgement for each, a linter, a rule-delivering hook and an auditor agent |
 | **c4-architecture** | development | Orthodox C4 architecture diagrams in LikeC4: component extraction from a codebase, a C4 linter with an edit hook, and publishing the viewer |
-| **philosophy** | development | How Bruk builds software: standing constraints, code, Python and test rules, the work-loop skills, and the reviewer |
+| **philosophy** | development | How Bruk builds software: standing constraints, code, Python and test rules, and a self-running loop of intent, spec, build and review |
 
 ## Quick Links
 

@@ -1,7 +1,18 @@
 {
-  "description": "philosophy: constraints at session start; each rule the first time a matching file or command is touched; the close held to close-task and the reviewer; intents, specs and plans checked as they are written",
+  "description": "philosophy: constraints at session and subagent start; each rule the first time a matching file is touched; intents, specs and plans checked as they are written; git init held to main",
   "hooks": {
     "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/context.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
       {
         "hooks": [
           {
@@ -30,17 +41,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/context.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "if": "Bash(backlog *)",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/context.py\"",
             "timeout": 10
           }

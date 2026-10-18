@@ -5,6 +5,8 @@ Claude Code does not load a plugin's CLAUDE.md or rules/, so this hook does it:
 
 - SessionStart: prints the repository mode (owner or guest) and constraints.md. Stdout
   from a SessionStart hook becomes context.
+- SubagentStart: returns the same text as additionalContext, because SessionStart does
+  not fire for a subagent and the subagent never sees what it printed.
 - PostToolUse: the first time a session or subagent touches a file matching a rule's
   `paths`, or runs a command named in its `commands`, returns that rule as
   additionalContext.
@@ -295,6 +297,16 @@ def on_session_start(payload: dict, root: Path) -> None:
             marker.unlink()
 
 
+def on_subagent_start(payload: dict, root: Path) -> None:
+    cwd = str(payload.get("cwd") or os.getcwd())
+    remote = origin(cwd)
+    constraints = (root / "constraints.md").read_text()
+    text = session_text(repo_mode(remote, owners(root)), remote, constraints, str(root))
+    output = {"hookEventName": "SubagentStart", "additionalContext": text}
+    print(json.dumps({"hookSpecificOutput": output}))
+    sys.stdout.flush()
+
+
 def on_tool_use(payload: dict, root: Path) -> None:
     touch = touched(payload)
     if touch is None:
@@ -324,6 +336,8 @@ def main() -> int:
         root = plugin_root()
         if payload.get("hook_event_name") == "SessionStart":
             on_session_start(payload, root)
+        elif payload.get("hook_event_name") == "SubagentStart":
+            on_subagent_start(payload, root)
         elif payload.get("hook_event_name") == "PostToolUse":
             on_tool_use(payload, root)
     except Exception as error:  # noqa: BLE001 - a hook must never break the session
