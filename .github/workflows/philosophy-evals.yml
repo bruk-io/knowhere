@@ -1,0 +1,48 @@
+name: Philosophy Evals
+
+# Runs the philosophy plugin's eval suite on every PR that changes the plugin, so a
+# change to a play, a hook or a script that makes the loop behave worse holds the merge.
+# Each case runs once, on the subscription token, and every case must pass.
+
+on:
+  pull_request:
+    paths:
+      - "plugins/philosophy/**"
+      - ".github/workflows/philosophy-evals.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run the eval suite
+        working-directory: plugins/philosophy
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: >
+          claude plugin eval .
+          --scaffold --trust-plugin
+          --allow-tools Bash Write Edit
+          --runs 1 --ablation none --threshold 1.0
+          --no-publish --report eval-report.html
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: philosophy-eval-report
+          path: plugins/philosophy/eval-report.html
+          if-no-files-found: ignore
