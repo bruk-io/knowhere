@@ -80,6 +80,19 @@ in `.claude/checks.json` and prints the command, its output's tail and its exit 
 {"fast": "just test-changed", "full": "just check"}
 ```
 
+### The triggers
+
+Each handover is a git event, so no model has to remember the next step.
+`templates/github/` holds the workflows for another repository, and its README says what
+to set up:
+
+| Workflow | Runs | When |
+|---|---|---|
+| `intent-spec.yml` | `/philosophy:spec <slug>` | An intent merges and has no spec yet |
+| `intent-build.yml` | `/philosophy:build <slug> auto-merge` | A spec or a change merges, and `next-change` says build |
+| `build-continue.yml` | `/philosophy:build <slug>` on the PR's branch | The owner replies `@claude continue` on a build PR that stopped at a gated path |
+| `claude-review.yml` | `/philosophy:review <pr>` | Every PR |
+
 ### The gates
 
 A merge is the approval, so the gates are GitHub's. In knowhere:
@@ -142,7 +155,7 @@ says how to run it. In knowhere it runs on every PR that changes the plugin.
 ## Planned
 
 - **The rest of the self-running loop** (`intent/self-running-loop/spec.md` in
-  knowhere): workflows that run the plays on a merge, and metrics with control bands.
+  knowhere): metrics, and control bands that turn a breach into an intent.
 - **Programmatic enforcement of the Python rules with pypeeker.** Then `rules/python.md`
   shrinks to the judgement lines and a pointer to `philosophy:python-idioms`, and the
   checkable lines become checks with their reasons in the messages.
