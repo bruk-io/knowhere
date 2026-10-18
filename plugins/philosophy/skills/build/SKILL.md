@@ -3,7 +3,7 @@ description: Build the next change of an approved spec - commit its plan first, 
 argument-hint: <slug> [auto-merge]
 arguments: [slug, merge]
 disable-model-invocation: true
-allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b build/*), Bash(git add *), Bash(git commit *), Bash(git push -u origin HEAD), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr merge --auto *)
+allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b build/*), Bash(git add *), Bash(git commit *), Bash(git push -u origin HEAD), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr ready *), Bash(gh pr checks *), Bash(gh pr merge --auto *)
 ---
 
 # Build the next change
@@ -26,8 +26,9 @@ has unblocked it: go to step 5.
    plan alone as the branch's first commit, with the message `plan: NN <title>`.
 4. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" <the plan>`. Exit 0 means
    nothing is gated: go on. Exit 2 means it couldn't read the plan: stop and say so.
-   Exit 1 lists the gated paths: push, open the PR with the plan and those paths, ask
-   the owner there to reply `@claude continue` once they have read the plan, and stop.
+   Exit 1 lists the gated paths: push, open the PR as a draft (`gh pr create --draft`)
+   with the plan and those paths, ask the owner there to reply `@claude continue` once
+   they have read the plan, and stop.
 5. Implement in the plan's order. Edit only the files the plan lists; the guard denies
    the rest. If another file turns out to need changing, add it to the plan in the same
    commit and say why in the PR, and run `gated-paths` on the plan again: a file it
@@ -37,13 +38,19 @@ has unblocked it: go to step 5.
    `Repro:` line under Proof, confirm it fails for the expected reason, and commit it.
 6. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" fast` until it exits 0. Fix
    the code, never the check: a test the plan names as a repro stays as it is.
-7. Commit, push, and open the PR, or update it: the R-numbers it delivers, a link to
-   the plan, and the block `run-check` printed, exactly as printed. If `$merge` is
-   `auto-merge`, turn on auto-merge with `gh pr merge --auto --merge`.
+7. Commit, push, and open the PR as a draft (`gh pr create --draft`), or update it: the
+   R-numbers it delivers, a link to the plan, and the block `run-check` printed,
+   exactly as printed.
+8. Mark the PR ready with `gh pr ready`, which starts the review; if it is already
+   ready, run `gh pr ready --undo` first, so the review runs on the finished work. Wait
+   for its checks with `gh pr checks --watch`, so the review's comments are on the PR
+   before anything can merge. If `$merge` is `auto-merge`, turn on auto-merge with
+   `gh pr merge --auto --merge`.
 
 Push with exactly `git push -u origin HEAD`, so a push only ever updates this branch.
 
 Never approve the PR or merge it yourself. Turning on auto-merge is allowed: it asks
-GitHub to merge once the required checks pass and CODEOWNERS asks for no one, so the
-checks decide, and the owner where CODEOWNERS says so. In CI the workflow runs this with
+GitHub to merge once the required checks pass, every review conversation is resolved,
+and CODEOWNERS asks for no one, so the checks and the review decide, and the owner where
+CODEOWNERS says so. In CI the workflow runs this with
 the Claude app's token, so that merge starts the next workflow (spec R11).

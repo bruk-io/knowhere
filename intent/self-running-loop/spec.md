@@ -60,23 +60,26 @@ Triggers
   already open, nothing starts, so a later change never builds on a base without the
   earlier one. Builds for one intent also run one at a time (a concurrency group per
   slug), so two quick pushes never start the same change twice.
-- **R10.** Every PR is reviewed by `/philosophy:review`. The review check fails when the
-  Important count is above zero, and it is a required check on `main`.
+- **R10.** Every PR is reviewed by `/philosophy:review` once it is ready: opened as
+  ready, or moved from draft to ready. `main` requires every conversation to be
+  resolved, so each review finding, Important or nit, is answered and resolved before
+  merge. The review check fails when the Important count is above zero.
 
 Gates
 
 - **R11.** A PR merges without me only when every required check is green and
-  CODEOWNERS asks for no review from me. The required checks are the artefact check,
-  the review check, the eval run where the repository has evals (R17), and the
-  repository's full check from `.claude/checks.json`, all run by CI so the evidence is
-  the toolchain's, not the session's. The review workflow lists `claude[bot]` in
-  `allowed_bots`, so it reviews the PRs the loop opens. The build job turns on
-  auto-merge with the Claude app's token, so a merge the loop makes is made by
-  `claude[bot]` and starts the next workflow; it is never made with `GITHUB_TOKEN`.
+  CODEOWNERS asks for no review from me, with every review conversation resolved. The
+  required checks are the artefact check, the eval run where the repository has evals
+  (R17), and the repository's full check from `.claude/checks.json`, all run by CI so
+  the evidence is the toolchain's, not the session's. The review workflow lists
+  `claude[bot]` in `allowed_bots`, so it reviews the PRs the loop opens. The build job
+  turns on auto-merge with the Claude app's token, so a merge the loop makes is made
+  by `claude[bot]` and starts the next workflow; it is never made with `GITHUB_TOKEN`.
   Turning on auto-merge is not Claude approving its own work: GitHub merges only once
-  every required check passes and CODEOWNERS asks for no one, so the approval is the
-  spec I approved plus checks Claude can't loosen (R12). This gate is live from change
-  06; until then `main` requires a PR and nothing more.
+  every required check passes, every review conversation is resolved, and CODEOWNERS
+  asks for no one, so the approval is the spec I approved plus checks Claude can't
+  loosen (R12). This gate is live from change 06; until then `main` requires a PR and
+  nothing more.
 - **R12.** CODEOWNERS assigns `@brukhabtu` what starts work, what establishes the
   architecture and what gates the work, and `main` requires code-owner review. I accept
   each intent and approve the architecture once, in the spec, so a build that

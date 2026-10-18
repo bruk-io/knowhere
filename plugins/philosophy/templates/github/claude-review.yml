@@ -1,14 +1,16 @@
 name: Claude Review
 
-# Runs /philosophy:review on each PR when it opens and on every push. Claude comments
-# and never approves: the agent that wrote a change has no way to approve it. The job
-# fails when the review finds anything Important, so as a required check it holds the
-# merge until the finding is fixed (`@claude` on it starts the fix). PRs from forks get
-# no secrets, so they are skipped rather than failed.
+# Runs /philosophy:review once a PR is ready: when it opens as ready, or moves from
+# draft to ready. Pushes after that don't start it again; to review again, turn the PR
+# back to a draft and mark it ready. Claude comments and never approves: the agent that
+# wrote a change has no way to approve it. Its comments are the gate, because main
+# requires every conversation to be resolved, so each finding, Important or nit, is
+# answered and resolved before merge. The job also fails while the review finds
+# anything Important. PRs from forks get no secrets, so they are skipped, not failed.
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    types: [opened, ready_for_review]
 
 jobs:
   review:
@@ -55,9 +57,18 @@ jobs:
       - name: Hold the merge on Important findings
         env:
           COUNTS: ${{ steps.review.outputs.structured_output }}
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           important=$(printf '%s' "$COUNTS" | jq -r '.important // empty')
           if [ -z "$important" ]; then
+            # The action runs only a review workflow identical to main's, so a PR that
+            # changes this file can't be reviewed by it. Say so rather than fail red;
+            # .github/ waits for the owner through CODEOWNERS.
+            if gh pr diff "$PR" --repo "$GITHUB_REPOSITORY" --name-only | grep -qx '.github/workflows/claude-review.yml'; then
+              echo "::notice::Not reviewed: this PR changes claude-review.yml, and the action only runs the version on main. The owner reviews it (CODEOWNERS)."
+              exit 0
+            fi
             echo "The review returned no Important count, so it can't vouch for this PR."
             exit 1
           fi
