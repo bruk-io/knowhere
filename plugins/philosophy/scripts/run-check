@@ -23,18 +23,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import loop  # noqa: E402
 
 
-def non_negative(value: str) -> int:
-    number = int(value)
-    if number < 0:
-        raise argparse.ArgumentTypeError("must be 0 or more")
-    return number
+def at_least(least: int):
+    def parse(value: str) -> int:
+        number = int(value)
+        if number < least:
+            raise argparse.ArgumentTypeError("must be %d or more" % least)
+        return number
+
+    return parse
 
 
 def main(argv: list[str] | None = None) -> int:
     top = argparse.ArgumentParser(prog="run-check", description=__doc__.splitlines()[0])
     top.add_argument("tier", choices=loop.TIERS)
-    top.add_argument("--lines", type=non_negative, default=40, help="output lines to keep")
-    top.add_argument("--timeout", type=non_negative, default=1800, help="seconds to allow")
+    top.add_argument("--lines", type=at_least(0), default=40, help="output lines to keep")
+    top.add_argument("--timeout", type=at_least(1), default=1800, help="seconds to allow")
     top.add_argument("--root", type=Path, default=None, help="the repository root")
     args = top.parse_args(argv)
     root = args.root or loop.repo_root(Path.cwd())

@@ -3,7 +3,7 @@ description: Write intent/<slug>/spec.md from an accepted intent - numbered requ
 argument-hint: <slug>
 arguments: [slug]
 disable-model-invocation: true
-allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b spec/*), Bash(git add intent/*), Bash(git commit *), Bash(git push origin spec/*), Bash(git push -u origin spec/*), Bash(gh pr create *)
+allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b spec/*), Bash(git add intent/*), Bash(git commit *), Bash(git push -u origin HEAD), Bash(gh pr create *)
 ---
 
 # Write the spec
@@ -30,8 +30,9 @@ architecture, so its PR always waits for them.
      yourself; that is the owner's call.
 4. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" intent/$slug` and fix
    what it reports.
-5. On a branch `spec/$slug`, commit the spec alone and open a PR that says merging it
-   approves the spec and starts the build.
+5. On a branch `spec/$slug`, commit the spec alone, push it with exactly
+   `git push -u origin HEAD`, and open a PR that says merging it approves the spec and
+   starts the build.
 
 Never ask a question mid-run. Anything that needs a person goes in Open questions or
 Areas of concern.

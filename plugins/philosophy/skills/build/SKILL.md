@@ -3,7 +3,7 @@ description: Build the next change of an approved spec - commit its plan first, 
 argument-hint: <slug> [auto-merge]
 arguments: [slug, merge]
 disable-model-invocation: true
-allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b build/*), Bash(git add *), Bash(git commit *), Bash(git push origin build/*), Bash(git push -u origin build/*), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr merge --auto *)
+allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b build/*), Bash(git add *), Bash(git commit *), Bash(git push -u origin HEAD), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr merge --auto *)
 ---
 
 # Build the next change
@@ -31,12 +31,16 @@ has unblocked it: go to step 5.
    `@claude` to continue, and stop.
 5. Implement in the plan's order. Edit only the files the plan lists. If another file
    turns out to need changing, add it to the plan in the same commit and say why in the
-   PR. A drift bigger than that is a reason to stop and say so, not to push on.
+   PR, and run `gated-paths` on the plan again: a file it newly lists is gated, so
+   commit, push, name it on the PR, ask the owner to reply there, and stop, as in step
+   4. A drift bigger than that is a reason to stop and say so, not to push on.
 6. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" fast` until it exits 0. Fix
    the code, never the check: a test the plan names as a repro stays as it is.
 7. Commit, push, and open the PR, or update it: the R-numbers it delivers, a link to
    the plan, and the block `run-check` printed, exactly as printed. If `$merge` is
    `auto-merge`, turn on auto-merge with `gh pr merge --auto --merge`.
+
+Push with exactly `git push -u origin HEAD`, so a push only ever updates this branch.
 
 Never approve the PR or merge it yourself. Turning on auto-merge is allowed: it asks
 GitHub to merge once the required checks pass and CODEOWNERS asks for no one, so the

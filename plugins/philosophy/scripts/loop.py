@@ -62,7 +62,10 @@ def delivery_order(spec: a.Doc) -> tuple[Change, ...]:
     `NN <title>` and its second names the R-numbers it delivers."""
     design = a.section(spec, "Design") or ""
     _, found, rest = design.partition("### Delivery order")
-    body = rest.split("\n### ", 1)[0] if found else design
+    if not found:
+        # Not the whole Design section: its other tables would read as changes.
+        return ()
+    body = rest.split("\n### ", 1)[0]
     out = []
     for row in a.table_rows(body):
         cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
@@ -223,7 +226,10 @@ def find_next(folder: Path, remote: Optional[str]) -> Next:
         raise LoopError("%s has no spec.md" % folder)
     order = delivery_order(spec)
     if not order:
-        raise LoopError("%s has no delivery order" % spec.path)
+        raise LoopError(
+            "%s has no delivery order: add a `### Delivery order` table under `## Design`, "
+            "one change per row, `NN <title> | <R-numbers>`" % spec.path
+        )
     planned = frozenset(path.name[:2] for path in (folder / "plans").glob("[0-9][0-9]-*.md"))
     taken = remote_build_numbers(repo_root(folder), folder.name, remote) if remote else frozenset()
     return next_change(order, planned, taken)
@@ -259,13 +265,17 @@ def run_declared(root: Path, tier: str, lines: int, timeout: int) -> tuple[int, 
         cwd=root,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         start_new_session=True,
     )
     try:
         output, _ = child.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
-        os.killpg(child.pid, signal.SIGKILL)
+        try:
+            os.killpg(child.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass  # it finished between the timeout and the kill
         output, _ = child.communicate()
         output = (output or "") + "\nrun-check: stopped after %ds" % timeout
         return TIMED_OUT, evidence(command, TIMED_OUT, output, lines)
