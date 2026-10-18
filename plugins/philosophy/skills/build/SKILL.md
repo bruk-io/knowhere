@@ -3,7 +3,7 @@ description: Build the next change of an approved spec - commit its plan first, 
 argument-hint: <slug> [auto-merge]
 arguments: [slug, merge]
 disable-model-invocation: true
-allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *)
+allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b build/*), Bash(git add *), Bash(git commit *), Bash(git push *), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr merge --auto *)
 ---
 
 # Build the next change

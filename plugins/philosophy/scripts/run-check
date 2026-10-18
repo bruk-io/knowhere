@@ -6,7 +6,9 @@
 Runs the command `.claude/checks.json` declares for the tier, from the repository root,
 and prints a block to paste into a PR: the command, the last N lines of its output (40
 by default), and its exit code. Exits with the check's own exit code, so it works as
-the check. Exit 2 also means no command is declared for the tier.
+the check. When there is nothing to run (no command declared for the tier, or an
+unreadable `.claude/checks.json`) it exits 2 and prints a line starting `run-check:`
+instead of an evidence block, so that case can't be mistaken for a check exiting 2.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         code, block = loop.run_declared(root, args.tier, args.lines)
     except (loop.LoopError, OSError, ValueError) as error:
+        print("run-check: %s" % error)
         print("run-check: %s" % error, file=sys.stderr)
         return 2
     print(block)

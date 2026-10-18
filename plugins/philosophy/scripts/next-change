@@ -5,7 +5,8 @@
 
 Reads the delivery order in `<intent-dir>/spec.md`. A change is done when its plan is in
 `<intent-dir>/plans/`, and taken when a `build/<slug>/NN` branch exists on the remote
-(origin by default). Prints one line:
+(origin by default), open or not: it reads branches, not PRs, so it needs no GitHub.
+Abandon a build by deleting its branch, or the intent waits on it. Prints one line:
 
     build NN<TAB><title><TAB>R1, R2   the next change to build; exit 0
     taken NN<TAB><title>              the next change is already being built; exit 1
