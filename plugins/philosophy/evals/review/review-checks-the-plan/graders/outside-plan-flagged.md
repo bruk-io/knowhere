@@ -1,5 +1,6 @@
 ---
 type: llm
+focus: { source: file, path: review.md }
 ---
 
 PASS if the review reports that logger.py (or the logging it adds) is not in the plan's Files that change, and marks that finding Important.

@@ -51,44 +51,14 @@ jobs:
           --no-publish --report eval-report.html
           --json eval-results.json --keep-temp
 
-      # Print what a failed case's tools did and what failed, from the trace the eval's
-      # JSON points at, so a failure in CI can be read from the log instead of guessed at.
+      # Print why each failed case failed, from its graders and its trace, so a failure in
+      # CI can be read from the log instead of guessed at.
       - name: What the failed cases' tools said
         if: failure()
         working-directory: plugins/philosophy
         run: |
           sudo chmod -R a+rX /tmp 2>/dev/null || true
-          python3 - eval-results.json <<'PY'
-          import json, os, sys
-          results = json.load(open(sys.argv[1]))
-          for case in results.get("cases", []):
-              for run in case.get("arms", {}).get("with", []):
-                  if run.get("passed"):
-                      continue
-                  print("== %s: %s" % (case["name"], run.get("error") or "graders failed"))
-                  trace = run.get("tracePath") or ""
-                  if not os.path.exists(trace):
-                      print("  (no trace at %s)" % trace)
-                      continue
-                  for line in open(trace):
-                      try:
-                          event = json.loads(line)
-                      except ValueError:
-                          continue
-                      message = event.get("message") if isinstance(event, dict) else None
-                      blocks = message.get("content") if isinstance(message, dict) else None
-                      for block in blocks if isinstance(blocks, list) else []:
-                          if not isinstance(block, dict):
-                              continue
-                          if block.get("type") == "tool_use":
-                              print("  tool:", block.get("name"), json.dumps(block.get("input", {}))[:200])
-                          elif block.get("type") == "tool_result" and block.get("is_error"):
-                              content = block.get("content")
-                              text = content if isinstance(content, str) else json.dumps(content)
-                              print("  ERROR:", text[:400].replace("\n", " "))
-                          elif block.get("type") == "text" and event.get("type") == "assistant":
-                              print("  said:", block.get("text", "")[:300].replace("\n", " "))
-          PY
+          python3 ../../.github/scripts/eval-diagnostics.py eval-results.json
 
       - name: Keep the report
         if: always()
