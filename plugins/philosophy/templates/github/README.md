@@ -27,5 +27,5 @@ once the plugin has one you trust.
 Every action is pinned to a commit, with its release as a comment
 (`actions/checkout@<sha> # v4.4.0`), because these jobs hold the token and a tag can be
 moved. To move the pins to each major tag's latest release, run knowhere's
-`.github/scripts/pin-actions.py --bump` on the workflow files, or let Dependabot's
-`github-actions` updates do it; both keep the comment.
+`.github/scripts/pin-actions.py --bump` on the workflow files, or let Dependabot do it,
+as knowhere's `.github/dependabot.yml` does; both keep the comment.

@@ -1,0 +1,18 @@
+# Keeps the commit-pinned actions in .github/workflows current. Dependabot moves each
+# SHA and its `# vX.Y.Z` comment together. It reads only .github/workflows, so the
+# plugin's workflow templates are bumped with `.github/scripts/pin-actions.py --bump`.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # A release has a week to be pulled before it reaches jobs that hold the token.
+    cooldown:
+      default-days: 7
+    # One PR a week for every action, not one each.
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
