@@ -10,7 +10,9 @@ Python 3.9 and the standard library, like the hooks.
 from __future__ import annotations
 
 import json
+import os
 import re
+import signal
 import subprocess
 from enum import Enum
 from pathlib import Path
@@ -135,7 +137,14 @@ def owners_of(path: str, rules: tuple[Rule, ...]) -> tuple[str, ...]:
 
 
 def gated(paths: tuple[str, ...], rules: tuple[Rule, ...]) -> tuple[str, ...]:
+    """The paths that have an owner. Any owner gates: GitHub asks that owner for a review
+    before the merge, so a catch-all `* @team` line gates every path, as it should."""
     return tuple(path for path in paths if owners_of(path, rules))
+
+
+def exit_code(returncode: int) -> int:
+    """The exit code a shell would report: a check killed by signal N exits 128 + N."""
+    return 128 - returncode if returncode < 0 else returncode
 
 
 def declared(text: str, tier: str) -> Optional[str]:
@@ -243,19 +252,22 @@ def run_declared(root: Path, tier: str, lines: int, timeout: int) -> tuple[int, 
             'whole check>"} to %s, one command per tier that exits non-zero on failure'
             % (tier, path)
         )
+    # The check runs in its own process group, so a timeout stops everything it started,
+    # not only bash: a child still holding the pipe would otherwise keep run-check waiting.
+    child = subprocess.Popen(
+        ["bash", "-c", command],
+        cwd=root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        start_new_session=True,
+    )
     try:
-        done = subprocess.run(
-            ["bash", "-c", command],
-            cwd=root,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            check=False,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as error:
-        partial = error.stdout or ""
-        partial = partial.decode() if isinstance(partial, bytes) else partial
-        output = partial + "\nrun-check: stopped after %ds" % timeout
+        output, _ = child.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(child.pid, signal.SIGKILL)
+        output, _ = child.communicate()
+        output = (output or "") + "\nrun-check: stopped after %ds" % timeout
         return TIMED_OUT, evidence(command, TIMED_OUT, output, lines)
-    return done.returncode, evidence(command, done.returncode, done.stdout, lines)
+    code = exit_code(child.returncode)
+    return code, evidence(command, code, output, lines)

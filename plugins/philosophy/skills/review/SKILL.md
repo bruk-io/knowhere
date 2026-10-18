@@ -3,7 +3,7 @@ description: Review a pull request as someone who did not write it - bugs, secur
 argument-hint: <pr-number>
 arguments: [pr]
 disable-model-invocation: true
-allowed-tools: Bash(gh pr view *), Bash(gh pr diff *), Bash(gh pr comment *), mcp__github_inline_comment__create_inline_comment
+allowed-tools: Read, Grep, Glob, Bash(gh pr view *), Bash(gh pr diff *), Bash(gh pr comment *), mcp__github_inline_comment__create_inline_comment
 ---
 
 # Review a pull request
