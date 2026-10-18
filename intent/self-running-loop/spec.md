@@ -38,8 +38,10 @@ The plays, as commands
 - **R6.** `/philosophy:build` takes the next undelivered change, the first in the
   spec's delivery order with no plan on `main`, and works on the branch
   `build/<slug>/NN`. It commits the change's plan as the branch's first commit,
-  implements it, runs the repository's fast checks, and opens a PR that names the
-  R-numbers it delivers and links the plan. If the plan's files include an architecture
+  implements it, and runs the repository's fast check (declared in
+  `.claude/checks.json`) until it passes. It opens a PR that names the R-numbers it
+  delivers, links the plan, and holds the check's command, exit code and last lines of
+  output. If the plan's files include an architecture
   path (R12), it stops after the plan commit, opens the PR, and asks me there; my
   `@claude` reply continues the build on the same branch, so the plan and its code
   still merge together.
@@ -59,9 +61,12 @@ Triggers
 
 Gates
 
-- **R11.** A PR merges without me only when every required check is green and
-  CODEOWNERS asks for no review from me. A merge the loop makes starts the next
-  workflow, so it is never made with `GITHUB_TOKEN`.
+- **R11.** A PR merges without me only when every required check is green (the
+  artefact check, the review check, and the repository's full check from
+  `.claude/checks.json`, run by CI so the evidence is the toolchain's, not the
+  session's) and CODEOWNERS asks for no review from me. A merge the loop makes starts
+  the next workflow, so it is never made with `GITHUB_TOKEN`. This gate is live from
+  change 06; until then `main` requires a PR and nothing more.
 - **R12.** CODEOWNERS assigns `@brukhabtu` the architecture paths, and `main` requires
   code-owner review. In every repository: `intent/*/spec.md`, `CLAUDE.md`, `REVIEW.md`,
   `.claude/`, `.github/`, `evals/`, and LikeC4 models (`*.c4`). In knowhere, also
@@ -162,10 +167,10 @@ session and lands as its own PR. The automation it delivers runs future intents.
 
 | Change | Delivers |
 |---|---|
-| 01 Remove the board pieces; rewrite "Doing the work" | R16 |
-| 02 Templates and `artefact-check`, with its PR check and write hook | R1, R2, R3 |
+| 01 Remove the board pieces; rewrite "Doing the work"; subagents get the constraints | R15, R16 |
+| 02 Templates and `artefact-check`, with its PR check and write hook; confirm a plugin command runs from the action's `prompt` (concern 4) | R1, R2, R3 |
 | 03 The four plays as commands | R4, R5, R6, R7 |
-| 04 Plan sync, repro guard, subagent constraints | R13, R14, R15 |
+| 04 Plan sync and the repro guard | R13, R14 |
 | 05 The eval suite | R17 |
 | 06 CODEOWNERS, required checks, the review gate | R10, R11, R12 |
 | 07 Triggers for spec and build | R8, R9 |
@@ -219,8 +224,9 @@ them before PR review and CI/CD.
    intent through by hand and watch each handover.
 4. **Plugin commands in CI are unverified.** It isn't confirmed that
    `claude-code-action`'s `prompt` runs `/philosophy:spec <slug>` the same way typing it
-   does. Owner: Bruk. Proposed: check it in change 03; if it doesn't, the prompt tells
-   Claude to run the command by name.
+   does, and R8 and R9 depend on it. Owner: Bruk. Proposed: check it in change 02 with
+   a manually dispatched job; if it doesn't, the prompt tells Claude to run the command
+   by name.
 5. **One subscription carries every CI run.** A long build chain can hit the
    subscription's limits partway through an intent. Owner: Bruk. Proposed: builds run
    one change at a time, as designed, and `loop-metrics` reports usage per intent.
