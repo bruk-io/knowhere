@@ -21,7 +21,7 @@ gone. Built from `intent/self-running-loop/` in knowhere; changes 01 to 04 of it
 - **Subagents get the constraints.** `SessionStart` never fires for a subagent, so the
   context hook answers `SubagentStart` with the same text.
 - **The guard holds a build to its plan.** On a `build/<slug>/NN` branch, nothing but
-  the plan can be written until it exists, a file the plan doesn't list is denied, and
+  the plan can be written until it is committed, a file the plan doesn't list is denied, and
   a committed repro test named on a `Repro:` line of the plan's Proof can't be edited.
 
 ### Removed

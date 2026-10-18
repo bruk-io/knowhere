@@ -3,9 +3,9 @@
 
 - `git init` without `-b main` is denied unless git already defaults to `main`.
 - On a `build/<slug>/NN` branch, an Edit or Write is held to the change's plan,
-  `intent/<slug>/plans/NN-*.md`. Until the plan exists, only the plan can be written.
-  After that, a file the plan's Files that change doesn't list is denied, and so is a
-  repro test the plan's Proof names, once it is committed.
+  `intent/<slug>/plans/NN-*.md`. Until the plan is committed, only the plan can be
+  written. After that, a file the plan's Files that change doesn't list is denied, and
+  so is a repro test the plan's Proof names, once it is committed.
 
 guard.sh runs first and skips Python for payloads that cannot matter. This is a
 guardrail, not a security boundary: it fails open, so a command it cannot read, a shell
@@ -99,8 +99,14 @@ def plan_dir(build: Build) -> str:
 
 
 def is_own_plan(path: str, build: Build) -> bool:
-    folder = plan_dir(build)
-    return path.startswith(folder) and Path(path).name.startswith(build.number + "-")
+    """Whether a path is this change's plan: directly in the plans folder, named
+    `NN-<change>.md`."""
+    found = Path(path)
+    return (
+        found.parent.as_posix() + "/" == plan_dir(build)
+        and found.name.startswith(build.number + "-")
+        and found.suffix == ".md"
+    )
 
 
 def repro_tests(plan: a.Doc) -> frozenset[str]:
@@ -115,16 +121,35 @@ def repro_tests(plan: a.Doc) -> frozenset[str]:
 
 
 def decide_edit(
-    path: Optional[str], build: Optional[Build], plan: Optional[a.Doc], committed: frozenset[str]
+    path: Optional[str],
+    build: Optional[Build],
+    plans: tuple[str, ...],
+    plan: Optional[a.Doc],
+    plan_committed: bool,
+    committed: frozenset[str],
 ) -> Optional[Decision]:
     """Hold an Edit or Write on a build branch to the change's plan.
 
     `path` is the file's path in the repository, or None when it is outside it.
-    `plan` is the change's plan, or None if there is none yet. `committed` is the
-    plan's repro tests that are already in HEAD.
+    `plans` are the paths of this change's plans; `plan` is the one plan, read from the
+    working tree so an edit can add a file to it, or None if there is none.
+    `plan_committed` says whether that plan is in HEAD. `committed` is the plan's repro
+    tests that are already in HEAD.
     """
     if build is None or path is None or is_own_plan(path, build):
         return None
+    if len(plans) > 1:
+        return Decision(
+            "deny",
+            "Change %s of %s has more than one plan (%s). Keep one, then build from it."
+            % (build.number, build.slug, ", ".join(plans)),
+        )
+    if plan is not None and not plan_committed:
+        return Decision(
+            "deny",
+            "Commit the plan, %s, alone as the branch's first commit before changing "
+            "anything else: the plan comes first in the history, not only on disk." % plan.path,
+        )
     if plan is None:
         return Decision(
             "deny",
@@ -188,14 +213,16 @@ def edit_decision(file_path: str) -> Optional[Decision]:
         path: Optional[str] = target.resolve().relative_to(Path(root).resolve()).as_posix()
     except ValueError:
         path = None
-    plans = sorted(Path(root, plan_dir(build)).glob("%s-*.md" % build.number))
-    plan = a.read(plans[0]) if plans else None
+    found = sorted(Path(root, plan_dir(build)).glob("%s-*.md" % build.number))
+    plans = tuple(p.relative_to(root).as_posix() for p in found)
+    plan = a.read(found[0]) if len(found) == 1 else None
+    plan_committed = bool(plans) and git(root, "cat-file", "-e", "HEAD:%s" % plans[0]) is not None
     committed = frozenset(
         test
         for test in (repro_tests(plan) if plan else frozenset())
         if git(root, "cat-file", "-e", "HEAD:%s" % test) is not None
     )
-    return decide_edit(path, build, plan, committed)
+    return decide_edit(path, build, plans, plan, plan_committed, committed)
 
 
 def decide(tool: str, tool_input: dict, cwd: str) -> Optional[Decision]:
