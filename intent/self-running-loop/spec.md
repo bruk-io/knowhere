@@ -92,7 +92,9 @@ Gates
 
 - **R20.** Each workflow declares the minimal `permissions` its job needs. The
   `@claude` reply that continues a gated build (R6) acts only on a comment from
-  `@brukhabtu`. `claude[bot]` is never a bypass actor on `main`.
+  `@brukhabtu`. `claude[bot]` is never a bypass actor on `main`. A workflow that runs a
+  PR's content triggers on `pull_request`, never `pull_request_target`, so a fork's PR
+  gets no token or secrets.
 
 Hooks
 
@@ -124,8 +126,11 @@ Evals and metrics
   touches `plugins/philosophy/`, and a drop in pass rate holds the merge.
 - **R18.** `loop-metrics` reports, from git and PR history: the time from intent merge
   to spec PR, and from spec merge to the last build merge; the share of PRs merged
-  without me; Important findings per PR and the policy each cites; and spec commits
-  made after the first plan commit.
+  without me; Important findings per PR and the policy each cites; spec commits made
+  after the first plan commit; and any intent that has stalled, because its next
+  change is held by a build branch with no open PR, or by a PR open more than three
+  days. The daily bands run reports stalled intents, so a closed or stuck build is
+  never silent.
 - **R19.** A scheduled workflow runs a deterministic control-band check (a rolling mean
   and σ, the Western Electric rules, thresholds in `bands.yaml`) over the CI failure
   rate and PR cycle time. At 2σ Claude diagnoses, read-only. At 3σ it opens a PR with a
@@ -234,11 +239,13 @@ won't.
 
 ## Areas of concern
 
-1. **A build can change policy without me.** Rules, skills and CLAUDE.md are not
-   gated, so a build that implements an approved spec can change them. The checking
-   code is gated (R12), so a build can't weaken what catches it, and a build that goes
-   beyond its spec is caught by the plan-sync hook (R13), the review's compliance pass
-   (R7, R10) and the evals (R17). Owner: Bruk. Proposed: accept it; if a review ever
+1. **A build can change policy without me.** Rules, CLAUDE.md, and the intent, spec
+   and build plays are not gated, so a build that implements an approved spec can
+   change them. The checks are gated (R12), the review play among them, because it is
+   one: a build can't weaken what catches it. A build play rewritten to skip its plan
+   or its check is still caught, by the guard (R13, R14), the review's compliance pass
+   (R7, R10) and the evals (R17), all gated. A build that goes beyond its spec is
+   caught the same way. Owner: Bruk. Proposed: accept it; if a review ever
    finds a policy change outside its spec, add that path to CODEOWNERS.
 2. **CODEOWNERS works on whole files.** Boundary configuration inside `pyproject.toml`
    (such as `[tool.pypeeker]`) can't be singled out, and listing the whole file also
