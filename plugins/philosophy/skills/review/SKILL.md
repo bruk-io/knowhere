@@ -11,11 +11,11 @@ allowed-tools: Read, Grep, Glob, Bash(gh pr view *), Bash(gh pr diff *), Bash(gh
 You did not write this change and you do not approve it. Your findings inform the
 merge, and an Important one holds it.
 
-1. If `$pr` is all digits, it is a PR number: read it with `gh pr view "$pr"` and
-   `gh pr diff "$pr"`. Otherwise it names a branch; if it starts with `-`, stop and say
-   it isn't one. Read `git log "main..$pr"` and `git diff "main...$pr"`, using
-   `origin/main` where there is no local `main`, as in a CI checkout. Find its intent: a
-   branch named
+1. If `$pr` is all digits, it is a PR number: read it with `gh pr view $pr` and
+   `gh pr diff $pr`. Otherwise it must be a branch name made only of letters, digits,
+   `.`, `_`, `/` and `-`, not starting with `-`; if it isn't, stop and say so. Read
+   `git log main..$pr` and `git diff main...$pr`, with `origin/main` in place of `main`
+   where there is no local `main`, as in a CI checkout. Find its intent: a branch named
    `build/<slug>/NN`, or files under `intent/<slug>/`. Read that intent, its spec, and
    this change's plan when there is one.
 2. If `REVIEW.md` exists at the repository root, run its passes with its severity

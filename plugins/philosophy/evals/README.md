@@ -6,7 +6,7 @@ or nearly did:
 
 | Case | What it checks | Where it came from |
 |---|---|---|
-| `build/build-plans-first` | `/philosophy:build` commits its plan first, as `plan: 01`, before any code (read from git's reflog; the guard keeps code out of the plan commit) | brig-seed: implementers dispatched by Workflow scripts never planned |
+| `build/build-plans-first` | `/philosophy:build` commits its plan alone, as `plan: 01`, before any code. A git hook the scaffold installs writes down each commit's files, and the grader reads that | brig-seed: implementers dispatched by Workflow scripts never planned |
 | `spec/spec-flags-policy-conflict` | `/philosophy:spec` flags a conflict between the intent and CLAUDE.md as an area of concern with an owner, instead of settling it | The playbook's design play: policy conflicts are the owner's call |
 | `review/review-checks-the-plan` | `/philosophy:review` reports a file outside the plan as Important and doesn't approve | The review on knowhere#13 |
 | `subagent/subagent-gets-constraints` | A subagent was given the constraints, which only the `SubagentStart` hook can do | brig-seed: subagents never saw the loop |
