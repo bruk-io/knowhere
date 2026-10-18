@@ -55,25 +55,39 @@ Triggers
 - **R8.** A push to `main` that adds `intent/*/intent.md` runs `/philosophy:spec` in CI,
   which opens a spec PR for me.
 - **R9.** A push to `main` that adds `intent/*/spec.md` or `intent/*/plans/*.md` runs
-  `/philosophy:build` for the next change, until the delivery order is done.
+  `/philosophy:build` for the next change, until the delivery order is done. Builds for
+  one intent run one at a time (a concurrency group per slug), and a change with an
+  open `build/<slug>/NN` PR counts as taken, so two quick pushes never start the same
+  change twice.
 - **R10.** Every PR is reviewed by `/philosophy:review`. The review check fails when the
   Important count is above zero, and it is a required check on `main`.
 
 Gates
 
-- **R11.** A PR merges without me only when every required check is green (the
-  artefact check, the review check, and the repository's full check from
-  `.claude/checks.json`, run by CI so the evidence is the toolchain's, not the
-  session's) and CODEOWNERS asks for no review from me. A merge the loop makes starts
-  the next workflow, so it is never made with `GITHUB_TOKEN`. This gate is live from
-  change 06; until then `main` requires a PR and nothing more.
-- **R12.** CODEOWNERS assigns `@brukhabtu` what establishes the architecture and what
-  gates the work, and `main` requires code-owner review. I approve the architecture
-  once, in the spec, so a build that implements an approved spec needs no review from
-  me. The paths: `intent/*/spec.md`; the gates themselves, so a build can't loosen what
-  checks it (`.github/`, which holds the workflows and CODEOWNERS, `REVIEW.md`,
-  `.claude/settings.json`, `.claude/checks.json` and `bands.yaml`); and a repository's
-  architecture definitions (LikeC4 models and boundary configuration files).
+- **R11.** A PR merges without me only when every required check is green and
+  CODEOWNERS asks for no review from me. The required checks are the artefact check,
+  the review check, the eval run where the repository has evals (R17), and the
+  repository's full check from `.claude/checks.json`, all run by CI so the evidence is
+  the toolchain's, not the session's. The review workflow lists `claude[bot]` in
+  `allowed_bots`, so it reviews the PRs the loop opens. The build job turns on
+  auto-merge with the Claude app's token, so a merge the loop makes is made by
+  `claude[bot]` and starts the next workflow; it is never made with `GITHUB_TOKEN`. This
+  gate is live from change 06; until then `main` requires a PR and nothing more.
+- **R12.** CODEOWNERS assigns `@brukhabtu` what starts work, what establishes the
+  architecture and what gates the work, and `main` requires code-owner review. I accept
+  each intent and approve the architecture once, in the spec, so a build that
+  implements an approved spec needs no review from me. The paths: `intent/*/intent.md`
+  and `intent/*/spec.md`; the gates themselves, so a build can't loosen what checks it
+  (`.github/`, which holds the workflows and CODEOWNERS, `REVIEW.md`,
+  `.claude/settings.json`, `.claude/checks.json`, `bands.yaml`, and in knowhere the
+  code that does the checking: `plugins/*/hooks/`, `plugins/*/scripts/` and
+  `plugins/*/evals/`); and a repository's architecture definitions (LikeC4 models and
+  boundary configuration files). GitHub doesn't let me approve my own PRs, so mine
+  merge through admin bypass, as `main`'s protection allows today.
+
+- **R20.** Each workflow declares the minimal `permissions` its job needs. The
+  `@claude` reply that continues a gated build (R6) acts only on a comment from
+  `@brukhabtu`. `claude[bot]` is never a bypass actor on `main`.
 
 Hooks
 
@@ -170,17 +184,20 @@ session and lands as its own PR. The automation it delivers runs future intents.
 
 | Change | Delivers |
 |---|---|
-| 01 Remove the board pieces; rewrite "Doing the work"; subagents get the constraints | R15, R16 |
-| 02 Templates and `artefact-check`, with its PR check and write hook; confirm a plugin command runs from the action's `prompt` (concern 4) | R1, R2, R3 |
-| 03 The four plays as commands | R4, R5, R6, R7 |
+| 01 Templates and `artefact-check`, with its PR check and write hook; confirm a plugin command runs from the action's `prompt` (concern 4) | R1, R2, R3 |
+| 02 The four plays as commands | R4, R5, R6, R7 |
+| 03 Remove the board pieces; rewrite "Doing the work"; subagents get the constraints | R15, R16 |
 | 04 Plan sync and the repro guard | R13, R14 |
 | 05 The eval suite | R17 |
-| 06 CODEOWNERS, required checks, the review gate | R10, R11, R12 |
+| 06 CODEOWNERS, required checks, the review gate, workflow permissions | R10, R11, R12, R20 |
 | 07 Triggers for spec and build | R8, R9 |
 | 08 Metrics and control bands | R18, R19 |
 
-Evals come before the gates and the triggers, as the playbook's dependency graph puts
-them before PR review and CI/CD.
+The plays land before the board pieces go, so no change is built without a play to
+build it. Evals come before the gates and the triggers, as the playbook's dependency
+graph puts them before PR review and CI/CD. Most of this intent's changes touch gated
+paths, because it builds the gates, so most of them wait for me; later intents mostly
+won't.
 
 ## Constraint mapping
 
@@ -191,7 +208,7 @@ them before PR review and CI/CD.
 | Process is invoked, never discovered; a policy that must hold has a hook or check | R4, R13, R14, R15 |
 | Validation logic is a script | R2, R3, R18, R19 |
 | Triggers use the Claude GitHub integration on the subscription token | R8, R9, R10 |
-| Claude never approves its own work; a merge without me needs green checks, no open Important finding, no gated path | R7, R10, R11, R12 |
+| Claude never approves its own work; a merge without me needs green checks, no open Important finding, no gated path | R7, R10, R11, R12, R20 |
 | One intent goes through by hand before automation | Delivery order: this intent is built by hand, and the triggers land last |
 | The existing policy rules and skills keep working | R16 keeps them; R17 holds the merge if a change breaks them |
 
@@ -212,11 +229,12 @@ them before PR review and CI/CD.
 
 ## Areas of concern
 
-1. **A build can change policy without me.** Hooks, rules, skills and CLAUDE.md are
-   not gated, so a build that implements an approved spec can change them. A build that
-   goes beyond its spec is caught by the plan-sync hook (R13), the review's compliance
-   pass (R7, R10) and the evals (R17), not by me. Owner: Bruk. Proposed: accept it; if
-   a review ever finds a policy change outside its spec, add that path to CODEOWNERS.
+1. **A build can change policy without me.** Rules, skills and CLAUDE.md are not
+   gated, so a build that implements an approved spec can change them. The checking
+   code is gated (R12), so a build can't weaken what catches it, and a build that goes
+   beyond its spec is caught by the plan-sync hook (R13), the review's compliance pass
+   (R7, R10) and the evals (R17). Owner: Bruk. Proposed: accept it; if a review ever
+   finds a policy change outside its spec, add that path to CODEOWNERS.
 2. **CODEOWNERS works on whole files.** Boundary configuration inside `pyproject.toml`
    (such as `[tool.pypeeker]`) can't be singled out, and listing the whole file also
    gates dependency bumps. Owner: Bruk. Proposed: where a tool allows it, keep its
@@ -228,7 +246,7 @@ them before PR review and CI/CD.
    intent through by hand and watch each handover.
 4. **Plugin commands in CI are unverified.** It isn't confirmed that
    `claude-code-action`'s `prompt` runs `/philosophy:spec <slug>` the same way typing it
-   does, and R8 and R9 depend on it. Owner: Bruk. Proposed: check it in change 02 with
+   does, and R8 and R9 depend on it. Owner: Bruk. Proposed: check it in change 01 with
    a manually dispatched job; if it doesn't, the prompt tells Claude to run the command
    by name.
 5. **One subscription carries every CI run.** A long build chain can hit the
