@@ -139,6 +139,14 @@ def test_the_repro_is_read_from_the_proof() -> None:
     assert guard.repro_tests(PLAN) == frozenset({"tests/test_core.py"})
 
 
+def test_a_repro_bullet_that_wraps_still_names_its_test() -> None:
+    wrapped = a.parse(
+        "# Plan: x\n\n## Proof\n\n- Repro: the test that fails first,\n  `tests/test_wrapped.py`.\n",
+        "plan.md",
+    )
+    assert guard.repro_tests(wrapped) == frozenset({"tests/test_wrapped.py"})
+
+
 def test_a_committed_repro_is_frozen() -> None:
     committed = frozenset({"tests/test_core.py"})
     denied = edit("tests/test_core.py", repros=committed)
