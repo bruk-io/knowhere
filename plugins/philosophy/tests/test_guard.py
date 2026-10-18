@@ -290,6 +290,25 @@ def test_hook_holds_edits_to_the_plan(tmp_path: Path, build_repo: Path) -> None:
     assert hook_verdict(tmp_path, edit_payload(build_repo, "src/other.py")) == "deny"
 
 
+def test_hook_denies_edits_while_a_change_has_two_plans(tmp_path: Path, build_repo: Path) -> None:
+    write_plan(build_repo)
+    second = build_repo / "intent" / "thing" / "plans" / "01-other.md"
+    second.write_text((build_repo / "intent" / "thing" / "plans" / "01-core.md").read_text())
+    git(build_repo, "add", ".")
+    git(build_repo, "commit", "-q", "-m", "plan: 01 x")
+    result = run(tmp_path, edit_payload(build_repo, "src/core.py"))
+    reason = json.loads(result.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "more than one plan" in reason and "01-other.md" in reason
+    assert hook_verdict(tmp_path, edit_payload(build_repo, "intent/thing/plans/01-other.md")) == (
+        "none"
+    )
+
+
+def test_the_plan_template_names_no_repro() -> None:
+    template = (Path(__file__).resolve().parent.parent / "templates" / "plan.md").read_text()
+    assert guard.repro_tests(guard.a.parse(template, "plan.md")) == frozenset()
+
+
 def test_hook_freezes_the_repro_once_committed(tmp_path: Path, build_repo: Path) -> None:
     write_plan(build_repo)
     git(build_repo, "add", ".")
