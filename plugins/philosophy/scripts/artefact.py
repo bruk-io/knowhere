@@ -32,6 +32,7 @@ PLAN_SECTIONS = ("Files that change", "Order of work", "Risks", "Proof")
 
 HEADING = re.compile(r"^## +(.+?)\s*$")
 FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+SEPARATOR = re.compile(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$")
 CHECKBOX = re.compile(r"^[-*]\s+\[([ xX])\]\s*(.*)$")
 BULLET = re.compile(r"^[-*]\s+(.*)$")
 NUMBERED = re.compile(r"^\d+\.\s+(.*)$")
@@ -83,7 +84,12 @@ def parse(text: str, path: str) -> Doc:
         marker = FENCE.match(line)
         if marker and not fence:
             fence = marker.group(1)
-        elif marker and marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence):
+        elif (
+            marker
+            and line.strip() == marker.group(1)  # a closer carries no info string
+            and marker.group(1)[0] == fence[0]
+            and len(marker.group(1)) >= len(fence)
+        ):
             fence = ""
         fenced = bool(fence) or bool(marker)
         heading = None if fenced else HEADING.match(line)
@@ -139,9 +145,13 @@ def settled(question: Item) -> bool:
 
 
 def table_rows(body: str) -> tuple[str, ...]:
-    """A table's data rows: every `|` line but the header and its separator."""
+    """A table's data rows: every `|` line but the header, and the separator under it
+    when there is one."""
     rows = [line for line in body.splitlines() if line.strip().startswith("|")]
-    return tuple(rows[2:]) if len(rows) >= 2 else ()
+    if not rows:
+        return ()
+    has_separator = len(rows) > 1 and bool(SEPARATOR.match(rows[1].strip()))
+    return tuple(rows[2:] if has_separator else rows[1:])
 
 
 def defined(spec: Doc) -> tuple[int, ...]:
@@ -238,7 +248,8 @@ def check_requirements(spec: Doc) -> list[Finding]:
 def check_mapping(spec: Doc, intent: Optional[Doc]) -> list[Finding]:
     if intent is None:
         return []
-    constraints = items(section(intent, "Constraints") or "", BULLET)
+    body = section(intent, "Constraints") or ""
+    constraints = items(body, BULLET) + items(body, NUMBERED)
     rows = table_rows(section(spec, "Constraint mapping") or "")
     firsts = [row.strip().strip("|").split("|")[0].strip().lower() for row in rows]
     repeated = sorted({cell for cell in firsts if cell and firsts.count(cell) > 1})
