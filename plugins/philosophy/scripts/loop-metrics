@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+"""loop-metrics: report how the work loop is doing, from git and PR history.
+
+    loop-metrics [--owner LOGIN] [--reviewer LOGIN] [--root DIR]
+
+For each intent under `intent/`: hours from the intent's merge to its spec PR opening,
+and from the spec's merge to the last change's merge; how many times the spec changed
+after the first plan landed; and whether it has stalled, held by a build branch with
+no open PR or by a PR open more than three days. Across the repository: the share of merged PRs
+that merged without the owner, and the Important findings the reviewer left on recent
+PRs. Merge times come from `main`'s first-parent history. Prints JSON. Exit 2 means git
+or `gh` failed.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import loop  # noqa: E402
+import metrics  # noqa: E402
+
+
+class CommandError(RuntimeError):
+    """git or gh failed."""
+
+
+def run(root: Path, *command: str) -> str:
+    """Run a command in the repository and return its output.
+
+    Raises:
+        CommandError: the command exited non-zero.
+    """
+    done = subprocess.run(command, cwd=root, capture_output=True, text=True, check=False)
+    if done.returncode != 0:
+        raise CommandError("%s failed: %s" % (" ".join(command[:3]), done.stderr.strip()))
+    return done.stdout
+
+
+def landed(root: Path, *paths: str) -> list[str]:
+    """When each first-parent commit on main that added one of the paths landed, oldest
+    first."""
+    out = run(
+        root,
+        "git",
+        "log",
+        "main",
+        "--first-parent",
+        "--diff-merges=first-parent",
+        "--no-patch",
+        "--diff-filter=A",
+        "--format=%cI",
+        "--reverse",
+        "--",
+        *paths,
+    )
+    return [line for line in out.splitlines() if line]
+
+
+def changed(root: Path, path: str) -> list[str]:
+    out = run(
+        root,
+        "git",
+        "log",
+        "main",
+        "--first-parent",
+        "--diff-merges=first-parent",
+        "--no-patch",
+        "--format=%cI",
+        "--",
+        path,
+    )
+    return [line for line in out.splitlines() if line]
+
+
+def first(stamps: list[str]) -> Optional[str]:
+    return stamps[0] if stamps else None
+
+
+def stall(root: Path, slug: str) -> Optional[str]:
+    """Why this intent has stalled, or None: its next change is held by a build branch
+    with no open PR, or by a PR open too long."""
+    try:
+        found = loop.find_next(root / "intent" / slug, "origin")
+    except (loop.LoopError, OSError, ValueError):
+        return None
+    if found.step is not loop.Step.TAKEN or found.change is None:
+        return None
+    number = found.change.number
+    prs = json.loads(
+        run(
+            root,
+            "gh",
+            "pr",
+            "list",
+            "--state",
+            "all",
+            "--head",
+            "build/%s/%s" % (slug, number),
+            "--json",
+            "state,createdAt",
+        )
+    )
+    now = datetime.now(timezone.utc).isoformat()
+    return metrics.stalled(number, prs, now)
+
+
+def intent_row(root: Path, slug: str) -> dict:
+    prs = json.loads(
+        run(
+            root,
+            "gh",
+            "pr",
+            "list",
+            "--state",
+            "all",
+            "--head",
+            "spec/%s" % slug,
+            "--json",
+            "createdAt",
+        )
+    )
+    plans = landed(root, "intent/%s/plans/*.md" % slug)
+    stages = metrics.Handovers(
+        slug,
+        first(landed(root, "intent/%s/intent.md" % slug)),
+        min((pr["createdAt"] for pr in prs), default=None),
+        first(landed(root, "intent/%s/spec.md" % slug)),
+        plans[-1] if plans else None,
+    )
+    row = metrics.report_row(stages)
+    row["changes_merged"] = len(plans)
+    row["stalled"] = stall(root, slug)
+    row["spec_changes_after_first_plan"] = metrics.spec_rework(
+        changed(root, "intent/%s/spec.md" % slug), first(plans)
+    )
+    return row
+
+
+def main(argv: list[str] | None = None) -> int:
+    top = argparse.ArgumentParser(prog="loop-metrics", description=__doc__.splitlines()[0])
+    top.add_argument("--owner", default="brukhabtu", help="whose merge or approval counts")
+    top.add_argument("--reviewer", default="claude[bot]", help="who leaves the reviews")
+    top.add_argument("--root", type=Path, default=Path.cwd())
+    top.add_argument("--recent", type=int, default=30, help="merged PRs to read findings from")
+    args = top.parse_args(argv)
+    try:
+        slugs = sorted(p.name for p in (args.root / "intent").iterdir() if p.is_dir())
+        merged = json.loads(
+            run(
+                args.root,
+                "gh",
+                "pr",
+                "list",
+                "--state",
+                "merged",
+                "--limit",
+                "200",
+                "--json",
+                "number,mergedAt,mergedBy,reviews",
+            )
+        )
+        findings = {}
+        for pr in sorted(merged, key=lambda p: p["mergedAt"], reverse=True)[: args.recent]:
+            comments = json.loads(
+                run(args.root, "gh", "api", "repos/{owner}/{repo}/pulls/%d/comments" % pr["number"])
+            )
+            findings[pr["number"]] = metrics.important_findings(comments, args.reviewer)
+        report = {
+            "intents": [intent_row(args.root, slug) for slug in slugs],
+            "merged_without_owner": metrics.merged_without(merged, args.owner),
+            "important_findings_by_pr": findings,
+        }
+    except (CommandError, OSError, ValueError) as error:
+        print("loop-metrics: %s" % error, file=sys.stderr)
+        return 2
+    print(json.dumps(report, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

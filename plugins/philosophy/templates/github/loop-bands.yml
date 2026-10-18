@@ -1,0 +1,123 @@
+name: Loop Bands
+
+# Watches the loop's own metrics against control bands (the philosophy plugin's
+# loop). Detection is a script, not a model. At 1 sigma it only logs. At 2 sigma Claude
+# diagnoses, read-only, into the run's summary. At 3 sigma it writes what it found as a
+# new intent, which arrives as a PR the owner triages, as any intent does.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      tier: ${{ steps.worst.outputs.tier }}
+      evidence: ${{ steps.worst.outputs.evidence }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Fetch the plugin's scripts
+        run: git clone -q --depth 1 https://github.com/bruk-io/knowhere.git "$RUNNER_TEMP/knowhere"
+
+      - name: Readings and tiers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          days=$(yq '.baseline_days' bands.yaml)
+          : > verdicts.jsonl
+          for metric in $(yq '.metrics[].name' bands.yaml); do
+            python3 "$RUNNER_TEMP/knowhere/plugins/philosophy/scripts/loop-readings" "$metric" --days "$days" > "$metric.json"
+            if verdict=$(python3 "$RUNNER_TEMP/knowhere/plugins/philosophy/scripts/band-check" --metric "$metric" < "$metric.json"); then
+              echo "$verdict" | tee -a verdicts.jsonl
+            else
+              echo "$metric: not enough readings yet"
+            fi
+          done
+
+      - name: Stalled intents
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch -q origin '+refs/heads/build/*:refs/remotes/origin/build/*' || true
+          python3 "$RUNNER_TEMP/knowhere/plugins/philosophy/scripts/loop-metrics" --recent 0 > metrics.json
+          jq -r '.intents[] | select(.stalled) | "\(.intent): \(.stalled)"' metrics.json > stalled.txt
+          while read -r line; do echo "::warning title=Stalled intent::$line"; done < stalled.txt
+          { echo "## Stalled intents"; echo; if [ -s stalled.txt ]; then sed 's/^/- /' stalled.txt; else echo "None."; fi; echo; } >> "$GITHUB_STEP_SUMMARY"
+
+      - id: worst
+        name: The worst tier, and what the bands say it means
+        run: |
+          worst=$(jq -rs 'map(.tier) | if index("3sigma") then "3sigma" elif index("2sigma") then "2sigma" elif index("1sigma") then "1sigma" else "none" end' verdicts.jsonl)
+          echo "tier=$worst" >> "$GITHUB_OUTPUT"
+          {
+            echo "evidence<<EOF"
+            jq -c 'select(.tier != "none")' verdicts.jsonl
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          { echo "## Loop bands"; echo; echo '```'; cat verdicts.jsonl; echo '```'; echo; echo "Worst tier: $worst ($(yq ".tiers.\"$worst\" // \"nothing\"" bands.yaml))"; } >> "$GITHUB_STEP_SUMMARY"
+
+  diagnose:
+    needs: watch
+    if: needs.watch.outputs.tier == '2sigma'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - id: claude
+        uses: anthropics/claude-code-action@f27be6b65a4652f08a2ba3cff79114829b588967 # v1.0.252
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            A control band on this repository's own delivery loop was breached:
+            ${{ needs.watch.outputs.evidence }}
+            Diagnose the likely cause from the recent CI runs and PRs. Read only: change
+            nothing. Answer in five lines or fewer.
+          claude_args: |
+            --allowedTools "Read,Glob,Grep,Bash(gh run view:*),Bash(gh run list:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(git log:*)"
+            --json-schema '{"type":"object","properties":{"diagnosis":{"type":"string"}},"required":["diagnosis"]}'
+      - name: Put the diagnosis in the summary
+        env:
+          RESULT: ${{ steps.claude.outputs.structured_output }}
+        run: printf '## Diagnosis\n\n%s\n' "$(printf '%s' "$RESULT" | jq -r .diagnosis)" >> "$GITHUB_STEP_SUMMARY"
+
+  propose:
+    needs: watch
+    if: needs.watch.outputs.tier == '3sigma'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: anthropics/claude-code-action@f27be6b65a4652f08a2ba3cff79114829b588967 # v1.0.252
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: |
+            https://github.com/bruk-io/knowhere.git
+          plugins: |
+            philosophy@knowhere
+          prompt: |
+            /philosophy:intent loop-band-${{ github.run_id }}
+            There is no person here. A control band on this repository's own delivery loop
+            was breached, at 3 sigma: ${{ needs.watch.outputs.evidence }}
+            Investigate with the recent CI runs and PRs, then write the intent from the
+            evidence and open its PR.
+          claude_args: |
+            --allowedTools "Read,Write,Glob,Grep,Bash(git:*),Bash(gh pr create:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(python3:*)"

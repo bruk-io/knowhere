@@ -93,6 +93,24 @@ to set up:
 | `build-continue.yml` | `/philosophy:build <slug>` on the PR's branch | The owner replies `@claude continue` on a build PR that stopped at a gated path |
 | `claude-review.yml` | `/philosophy:review <pr>` | Every PR |
 
+### Watching the loop
+
+The loop measures itself, and the measurement is code:
+
+```sh
+python3 scripts/loop-metrics                       # per intent: handover hours, spec rework, stalled;
+                                                   # merged without the owner; Important findings
+python3 scripts/loop-readings ci_failure_rate | python3 scripts/band-check --metric ci_failure_rate
+```
+
+`band-check` is the playbook's detection: mean and sigma over the earlier days, then 1, 2
+and 3 sigma and two Western Electric drift rules. `loop-bands.yml` runs it daily on the
+metrics in `bands.yaml`. 1 sigma logs; 2 sigma has Claude diagnose, read-only, into the
+run's summary; 3 sigma has `/philosophy:intent` write the breach up as an intent, which
+the owner triages like any other. Readings are daily, and a verdict needs seven earlier
+days. The same run warns about any stalled intent: one whose next change is held by a
+build branch with no open PR, or by a PR open more than three days.
+
 ### The gates
 
 A merge is the approval, so the gates are GitHub's. In knowhere:
@@ -144,9 +162,10 @@ says how to run it. In knowhere it runs on every PR that changes the plugin.
 - **Most of the Python standard is prose.** ruff, mypy, and pypeeker are named in
   `rules/python.md`, but nothing here runs them. The uv guard, ruff and ast-grep on
   edit live in the `bruk` and `idiom` plugins.
-- **The loop is new.** The plays and scripts are written and tested, and the intent
-  that built them is the first to go through. The workflows that run the plays on a
-  merge, the gates, the evals and the metrics are still being built.
+- **The loop is new.** The plays, scripts, hooks, evals, gates, triggers and metrics are
+  written and tested, and the intent that built them is the first to go through. The
+  chain of triggers hasn't run end to end yet: a throwaway intent through every
+  handover is the test.
 - **It does not cover authoring Claude Code extensions.** How to write a good skill,
   rule, agent or hook is the `authoring-kit` plugin's job, so install both.
 - **It overlaps the `bruk` and `idiom` plugins.** With those enabled as well, the same
@@ -154,8 +173,6 @@ says how to run it. In knowhere it runs on every PR that changes the plugin.
 
 ## Planned
 
-- **The rest of the self-running loop** (`intent/self-running-loop/spec.md` in
-  knowhere): metrics, and control bands that turn a breach into an intent.
 - **Programmatic enforcement of the Python rules with pypeeker.** Then `rules/python.md`
   shrinks to the judgement lines and a pointer to `philosophy:python-idioms`, and the
   checkable lines become checks with their reasons in the messages.
