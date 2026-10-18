@@ -60,7 +60,7 @@ a workflow invokes it. The judgement is the model's; the mechanical steps are sc
 
 ```sh
 python3 scripts/artefact-check intent               # every intent's shape
-python3 scripts/next-change intent/<slug>           # build NN, taken NN, or done
+python3 scripts/next-change intent/<slug>           # build NN, continue NN, taken NN, or done
 python3 scripts/gated-paths intent/<slug>/plans/01-x.md   # plan files CODEOWNERS gates
 python3 scripts/run-check fast                      # the declared check, as evidence
 python3 scripts/branch-diff build/<slug>/01         # a branch's commits and diff, for a review
