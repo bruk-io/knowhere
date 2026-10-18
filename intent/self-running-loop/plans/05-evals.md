@@ -23,7 +23,7 @@ Spec: [spec.md](../spec.md), change 05. Delivers R17.
 - `plugins/philosophy/evals/review/review-checks-the-plan/case.yaml`
 - `plugins/philosophy/evals/review/review-checks-the-plan/scaffold.sh`
 - `plugins/philosophy/evals/review/review-checks-the-plan/graders/outside-plan-flagged.md`
-- `plugins/philosophy/evals/review/review-checks-the-plan/graders/no-approval.md`
+- `plugins/philosophy/evals/review/review-checks-the-plan/graders/holds-the-merge.md`
 - `plugins/philosophy/evals/subagent/subagent-gets-constraints/prompt.md`
 - `plugins/philosophy/evals/subagent/subagent-gets-constraints/graders/mode-line-quoted.md`
 - `plugins/philosophy/skills/review/SKILL.md`
@@ -49,8 +49,8 @@ Spec: [spec.md](../spec.md), change 05. Delivers R17.
      intent pull in opposite directions; the spec flags it as an area of concern with
      an owner instead of choosing a side.
    - `review-checks-the-plan`: `/philosophy:review` on a branch whose diff touches a
-     file the plan doesn't list; the review reports it as Important and doesn't
-     approve. From this intent's own review findings.
+     file the plan doesn't list; the review reports it as Important, so its counts
+     line holds the merge. From this intent's own review findings.
    - `subagent-gets-constraints`: a subagent quotes the mode line it was given, which
      only the `SubagentStart` hook can have put there. The original brig-seed bug.
 3. Let the review skill take a branch as well as a PR number, so it runs by hand and
@@ -75,6 +75,9 @@ Spec: [spec.md](../spec.md), change 05. Delivers R17.
   A git hook recording each commit's files was tried, and hooks don't run in CI's eval
   sandbox. The guard holds Edit and Write to the plan until it is committed; a shell
   command can still put another file in that commit.
+- An LLM judge asked whether a review approved failed reviews whose verdict was "hold"
+  in two CI runs of four, with the same text passing elsewhere. Whether the review holds
+  the merge is read from its `important=N` line instead, the line the review gate reads.
 - `claude plugin eval` runs scaffolds only with `--scaffold`, and the workflow has to
   pass it, with `--trust-plugin`, since the cases are this repository's own.
 
