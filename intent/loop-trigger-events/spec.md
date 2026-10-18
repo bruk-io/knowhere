@@ -17,13 +17,14 @@ dispatch endpoint's permission.
 ## Requirements
 
 - **R1.** `intent-spec.yml` and `intent-build.yml`, and their copies in
-  `plugins/philosophy/templates/github/`, each split into two jobs under one `on:`
-  that lists both `push` (unchanged paths filter) and `repository_dispatch` (one
+  `plugins/philosophy/templates/github/`, each run as three jobs under one `on:` that
+  lists both `push` (unchanged paths filter) and `repository_dispatch` (one
   `event_type` per workflow: `intent-spec`, `intent-build`). The `find` job
-  (`if: github.event_name == 'push'`) keeps its existing diff logic unchanged and,
-  when it finds slugs, fires the matching `repository_dispatch`, sending the same
-  compact JSON array string `find` already produces (`jq -Rcs`) as
-  `client_payload.slugs`, a string field rather than a nested array, so the job that
+  (`if: github.event_name == 'push'`) keeps its existing diff logic unchanged. When it
+  finds slugs, a `dispatch` job (`needs: find`) fires the matching
+  `repository_dispatch`, sending the same compact JSON array string `find` already
+  produces (`jq -Rcs`) as `client_payload.slugs`, a string field rather than a nested
+  array, and the merge `find` saw as `client_payload.sha` (`github.sha`), so the job that
   invokes `claude-code-action` (`if: github.event_name == 'repository_dispatch'`)
   can read its matrix with `fromJSON(github.event.client_payload.slugs)`, the same
   call shape `needs.find.outputs.slugs` already used. Every run of the action now
@@ -33,11 +34,13 @@ dispatch endpoint's permission.
   updated to say it runs in two hops (`find` on the merge, the action on `find`'s
   dispatch), so a repository that copies these templates doesn't read the old
   single-hop description as current.
-- **R2.** The `find` job's permissions grow from `contents: read` to `contents:
-  write`, which GitHub's permissions table lists as what installation tokens, the
-  `GITHUB_TOKEN` among them, need for `POST /repos/{owner}/{repo}/dispatches`. No
-  workflow gains a new secret, a PAT, or a wider permission than some job in these
-  two files already carries today.
+- **R2.** The `dispatch` job has `contents: write`, which GitHub's permissions table
+  lists as what installation tokens, the `GITHUB_TOKEN` among them, need for
+  `POST /repos/{owner}/{repo}/dispatches`, and runs nothing but that call. `find`
+  keeps `contents: read`, so the step that reads the diff can't write. No job gains a
+  new secret, a PAT, or a permission wider than the action job in the same workflow
+  already carries: `contents: write`, `pull-requests: write` and `id-token: write`, in
+  both `intent-spec.yml` and `intent-build.yml`.
 - **R3.** The job that invokes `claude-code-action` sets
   `allowed_bots: "github-actions[bot]"`. `prepareAgentMode` always calls
   `checkHumanActor` before running a prompt, and that check rejects any actor whose
@@ -51,15 +54,23 @@ dispatch endpoint's permission.
   `/philosophy:spec` (or `/philosophy:build`) in CI"), and R11's chaining sentence
   (the merge still starts `find` on `push`; `find`, not the merge, is what starts the
   action).
-- **R5.** The job that invokes `claude-code-action` runs only on slugs it has checked,
-  because anyone with a write-scoped token can send `repository_dispatch` by hand,
-  with no merge and no review, and the job runs Claude with `CLAUDE_CODE_OAUTH_TOKEN`.
-  Before the action step, a step fails the run unless every slug matches
-  `^[a-z0-9][a-z0-9-]*$` and has an `intent/<slug>/intent.md` on `main`. Slugs reach
-  shell steps through `env:`, never as an inline `${{ }}` in `run:`, in both
-  workflows and their template copies. Before this change, slugs came only from
-  paths merged to `main`; after it, a dispatched slug that names no merged intent
-  starts nothing.
+- **R5.** The job that invokes `claude-code-action` runs only what a merge to `main`
+  started, because anyone with a write-scoped token can send `repository_dispatch` by
+  hand, with no merge and no review, and the job runs Claude with
+  `CLAUDE_CODE_OAUTH_TOKEN`. Before the action step, a step fails the run unless all
+  of these hold:
+  - `client_payload.sha` is a commit on `main`;
+  - that commit's diff against its first parent touches each slug's trigger path:
+    `intent/<slug>/intent.md` for `intent-spec`, and `intent/<slug>/spec.md` or a file
+    under `intent/<slug>/plans/` for `intent-build`;
+  - each slug matches `^[a-z0-9][a-z0-9-]*$`;
+  - `main` still calls for the play: for `intent-spec`, the intent has no `spec.md`;
+    for `intent-build`, `next-change` says `build`, as it does today.
+
+  The slugs and the sha reach shell steps through `env:`, never as an inline `${{ }}`
+  in `run:`, in both workflows and their template copies. A dispatch that names no
+  merge, a merge that didn't touch the intent, or an intent whose next play is done
+  starts nothing. What it can't rule out is in Areas of concern 3.
 
 ## Design
 
@@ -102,16 +113,18 @@ the intent's own candidates, so this spec picks it.
 The decisive advantage of relaying through a second, code-fired event, rather than
 switching the whole workflow's trigger to an entity event (`pull_request` closed), is
 that it decouples the action's human-actor check from the merge actor entirely.
-`find`'s `GITHUB_TOKEN` fires the dispatch, so the dispatch's actor is GitHub
+The `dispatch` job's `GITHUB_TOKEN` fires it, so the dispatch's actor is GitHub
 Actions' own, the same whoever or whatever merged the PR that started `find`. One
 allow-list entry (R3) covers every future merge, by hand or by the Claude app's token
 completing auto-merge, with nothing to learn about the Claude app's own bot identity.
 
 The cost of the relay is a second way in. `repository_dispatch` doesn't come only from
 `find`: any token with write access to the repository can send one, with whatever
-payload it likes. Today's workflows also write `matrix.slug` into `run:` scripts and
-the prompt. So the dispatched job checks its slugs against `main` before it does
-anything (R5), and the check is code, like the rest of the decision about what runs.
+payload it likes, and today's workflows write `matrix.slug` into `run:` scripts and
+the prompt. So `find`'s dispatch carries the merge it saw, and the dispatched job
+re-checks, from `main`, that the merge is real, that it touched the intent, and that
+the play is still due (R5). The check is code, like the rest of the decision about
+what runs, and it re-derives that decision rather than trusting the payload.
 
 ### What stays code, what the action now sees
 
@@ -119,8 +132,8 @@ anything (R5), and the check is code, like the rest of the decision about what r
 the same `git diff --diff-filter` logic, under the same `push` trigger, with the same
 paths filter. Nothing about *which* intent or change runs moves into the action's
 judgement: `next-change` still picks the one change `/philosophy:build` builds, as
-today. The dispatch step is a transport hop, not a decision, and R5 makes sure a hop
-nobody merged can't stand in for one.
+today. The dispatch is a transport hop, not a decision, and R5 ties each hop to the
+merge that caused it.
 
 Once the second job runs under `repository_dispatch`, `src/modes/detector.ts`
 resolves `agent` mode unconditionally for it: `repository_dispatch` isn't an entity
@@ -137,7 +150,7 @@ source, not inferred.
 
 | Change | Delivers |
 |---|---|
-| 01 Relay `intent-spec.yml` and `intent-build.yml` (and their `plugins/philosophy/templates/github/` copies, README included) through `repository_dispatch`, with the dispatched job checking its slugs; reword `self-running-loop/spec.md`'s trigger wording to match | R1, R2, R3, R4, R5 |
+| 01 Relay `intent-spec.yml` and `intent-build.yml` (and their `plugins/philosophy/templates/github/` copies, README included) through `repository_dispatch`, with the dispatched job checking each run against the merge that caused it; reword `self-running-loop/spec.md`'s trigger wording to match | R1, R2, R3, R4, R5 |
 
 One change: the workflow fix, the slug check that makes the new event safe, and the
 spec wording they make true are the same edit in practice. All of it lands under
@@ -158,18 +171,18 @@ waits for the owner's `@claude continue` on its PR. That continuation does work 
 
 | Intent constraint | Met by |
 |---|---|
-| Which intents and changes to run stays code (`find`, `next-change`), not a model's choice | R1 and R5: `find`'s diff logic and `next-change` are unchanged, the dispatch step only relays what `find` decided, and the dispatched job runs nothing that isn't a merged intent |
+| Which intents and changes to run stays code (`find`, `next-change`), not a model's choice | R1 and R5: `find`'s diff logic and `next-change` are unchanged, the dispatch only relays what `find` decided, and the dispatched job re-checks it against the merge and `main` before anything runs |
 | A merge made with the Claude app's token must still start the next workflow, which `GITHUB_TOKEN` events don't | Unchanged by this spec: R1 keeps `push` as `find`'s trigger. This already holds by construction (`self-running-loop/spec.md` R11): the Claude app's token is its own installation token, not the job's `GITHUB_TOKEN`, so GitHub's recursion guard, which only suppresses `GITHUB_TOKEN`-caused events, doesn't apply to it. `repository_dispatch` is one of the events a `GITHUB_TOKEN` may still trigger, so `find`'s dispatch starts the second job. Run 39160088692 shows `push` firing `find` for a human merge (PR #25, merged by `brukhabtu`); it isn't evidence for the bot-merge case, which this repository hasn't yet exercised live |
 | Workflows run PR content only on `pull_request` (self-running-loop spec R20) | Not affected: R1 introduces no `pull_request_target` use anywhere |
-| No wider token than now | R2: the same `GITHUB_TOKEN`, no new secret, no PAT; the added `contents: write` is no wider than what `intent-build.yml`'s existing job already carries. R5 keeps the new event from becoming a way to run the action without a merge |
+| No wider token than now | R2: the same `GITHUB_TOKEN`, no new secret, no PAT; `find` stays read-only, and the `dispatch` job's `contents: write` is no wider than the action job's in both workflows. R5 binds every run of the action to a merge on `main`; what remains is Areas of concern 3 |
 | This intent's own spec can't come from the loop until the fix lands, so the owner runs `/philosophy:spec` for it by hand | Met by this run itself; change 01's build is run by hand the same way (Delivery order) |
 | A handover the next smoke test finds broken becomes its own intent | Procedural: the verification step below follows this; a broken handover it finds is scoped as its own intent, not folded into change 01's build |
 
 ## Open questions
 
-- [x] Which event to use. Settled above: `repository_dispatch`, fired by the `find`
-      job once it has computed slugs, carrying them as `client_payload`, and checked
-      against `main` by the job it starts.
+- [x] Which event to use. Settled above: `repository_dispatch`, fired by a
+      `dispatch` job once `find` has computed slugs, carrying them and the merge's sha
+      as `client_payload`, and checked against `main` by the job it starts.
 - [ ] Carried forward: whether the action's automation mode, given this event, runs
       the plugin's slash command from its prompt. Reading the source settles the
       mechanical half: `detectMode` resolves `agent` mode unconditionally for
@@ -178,7 +191,7 @@ waits for the owner's `@claude continue` on its PR. That continuation does work 
       can't be settled by reading code is whether `checkHumanActor`'s actor match
       (R3) and the rest of the live run hold up in practice. Change 01's build should
       verify this with a throwaway smoke-test intent, the same way `loop-smoke-test`
-      verified the handovers before it: push the intent, watch `find` dispatch, and
+      verified the handovers before it: push the intent, watch `find` and `dispatch` run, and
       confirm the second job's action step reaches Claude's run rather than failing
       at `Unsupported event type` or at `checkHumanActor`. A failure at
       `checkHumanActor` is informative, not a design error: it will name the actual
@@ -200,3 +213,11 @@ waits for the owner's `@claude continue` on its PR. That continuation does work 
    `checkHumanActor` naming the actual actor, and the fix is a one-line edit to
    `allowed_bots`. Owner: Bruk Habtu, flagged so that failure reads as expected on the
    first live run, not as a new bug.
+3. **A dispatch can replay a real merge.** R5 rules out a dispatch with no merge
+   behind it, but anyone with a write-scoped token can send one naming a genuine past
+   merge, and if `main` still calls for that play, it runs without a fresh merge. The
+   work is what the loop would do anyway (the spec an unspecced intent is due, or the
+   change `next-change` names), and it runs under the same review and gates. Ruling
+   this out too would need a secret the dispatch carries, or a protected environment
+   that asks for an approval, which brings back a human step the loop removes.
+   Owner: Bruk Habtu, to accept this or ask for one of those.
