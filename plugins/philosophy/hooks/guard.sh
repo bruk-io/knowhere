@@ -1,15 +1,16 @@
 #!/bin/sh
-# PreToolUse (Bash) hook: the shell in front of guard.py.
+# PreToolUse (Bash|Edit|Write) hook: the shell in front of guard.py.
 #
-# This runs before every Bash call, so for most of them it must cost no
-# more than a shell start. guard.py only acts on `git ... init` today, so anything else
-# exits here before Python starts. What is denied, and why, is decided in guard.py.
+# This runs before every Bash call and every edit, so for most of them it must cost no
+# more than a shell start. guard.py acts only on `git ... init` and on Edit and Write,
+# which it holds to the plan on a build branch, so any other Bash call exits here before
+# Python starts. What is denied, and why, is decided in guard.py.
 #
 # Fails open: with no plugin root, no guard.py or no python3, nothing is blocked.
 
 payload=$(cat)
 case $payload in
-  *'git '*init*) ;;
+  *'git '*init*|*'"tool_name"'*'"Edit"'*|*'"tool_name"'*'"Write"'*) ;;
   *) exit 0 ;;
 esac
 

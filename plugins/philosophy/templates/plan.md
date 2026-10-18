@@ -17,3 +17,5 @@ Spec: `../spec.md`, change <NN>. Delivers <R-numbers>.
 ## Proof
 
 - <a check that shows the change works: the command and what it must show>
+- Repro: `<the test that reproduces the bug>` fails before the fix. (For a bug fix only:
+  commit it first, and the guard keeps it as it is.)
