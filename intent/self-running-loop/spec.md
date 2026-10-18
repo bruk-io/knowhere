@@ -98,9 +98,10 @@ Gates
 
 Hooks
 
-- **R13.** On a `build/<slug>/NN` branch, an edit to a file that is not in the plan's
-  Files that change is denied. The reason names the fix: add the file to the plan in
-  the same commit.
+- **R13.** On a `build/<slug>/NN` branch, nothing but the change's plan may be edited
+  until the plan is committed, and more than one plan for a change is an error. After
+  that, an edit to a file that is not in the plan's Files that change is denied. The
+  reason names the fix: add the file to the plan in the same commit.
 - **R14.** On a build branch whose plan names a repro test under Proof, an edit to that
   test is denied.
 - **R15.** A subagent receives the standing constraints through `SubagentStart`, the
