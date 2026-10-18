@@ -79,8 +79,12 @@ in `.claude/checks.json` and prints the command, its output's tail and its exit 
 {"fast": "just test-changed", "full": "just check"}
 ```
 
-`hooks/guard.py` denies `git init` without `-b main` unless git already defaults to
-`main`. It is a guardrail, not a security boundary: it fails open.
+`hooks/guard.py` holds a build to its plan. On a `build/<slug>/NN` branch, only the
+change's plan can be written until it is committed; after that, an Edit, Write or notebook edit to a
+file the plan doesn't list is denied with the fix in the reason, and so is a repro test the
+plan's Proof names once it is committed. It also denies `git init` without `-b main`
+unless git already defaults to `main`. It is a guardrail, not a security boundary: it
+fails open, and a shell command can still write a file.
 
 ## Owner mode and guest mode
 
@@ -120,9 +124,8 @@ specific interpreter, set `HOOK_PYTHON`.
 ## Planned
 
 - **The rest of the self-running loop** (`intent/self-running-loop/spec.md` in
-  knowhere): plan sync and the repro guard as hooks, an eval suite, CODEOWNERS and the
-  required checks as gates, workflows that run the plays on a merge, and metrics with
-  control bands.
+  knowhere): an eval suite, CODEOWNERS and the required checks as gates, workflows that
+  run the plays on a merge, and metrics with control bands.
 - **Programmatic enforcement of the Python rules with pypeeker.** Then `rules/python.md`
   shrinks to the judgement lines and a pointer to `philosophy:python-idioms`, and the
   checkable lines become checks with their reasons in the messages.
