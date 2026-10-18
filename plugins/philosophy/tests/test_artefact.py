@@ -134,6 +134,20 @@ def test_carried_forward_question_is_settled():
     assert [a.settled(question) for question in questions] == [True, True]
 
 
+def test_carried_forward_needs_a_reason():
+    bare = a.checkboxes("- [ ] Later? Carried forward:\n")
+    assert [a.settled(question) for question in bare] == [False]
+
+
+def test_a_heading_inside_a_code_fence_is_not_a_section():
+    text = INTENT.replace(
+        "It is broken.\n", "It is broken.\n\n```markdown\n## Not a section\n# Nor a title\n```\n"
+    )
+    parsed = doc(text)
+    assert [name for name, _ in parsed.sections] == list(a.INTENT_SECTIONS)
+    assert "## Not a section" in (a.section(parsed, "Problem") or "")
+
+
 def test_table_rows_skip_header_and_separator():
     rows = a.table_rows(a.section(doc(SPEC), "Constraint mapping") or "")
     assert len(rows) == 2
@@ -251,6 +265,7 @@ def run_check(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def broken_copy(tmp_path: Path) -> Path:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     copy = tmp_path / "intent" / "self-running-loop"
     shutil.copytree(OWN_INTENT, copy)
     spec = copy / "spec.md"
@@ -306,6 +321,21 @@ def test_hook_is_silent_outside_intent(tmp_path):
             "hook_event_name": "PostToolUse",
             "tool_name": "Write",
             "tool_input": {"file_path": str(tmp_path / "src" / "thing.py")},
+        }
+    )
+    assert (result.returncode, result.stdout) == (0, "")
+
+
+def test_hook_is_silent_for_a_folder_named_intent_above_the_repository(tmp_path):
+    repo = tmp_path / "intent" / "project"
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    spec = repo / "spec.md"
+    spec.write_text("not an artefact")
+    result = run_hook(
+        {
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": str(spec)},
         }
     )
     assert (result.returncode, result.stdout) == (0, "")
