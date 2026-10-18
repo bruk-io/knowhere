@@ -25,8 +25,14 @@ jobs:
         with:
           node-version: "22"
 
+      # Pinned, so a new release can't reach the token or shift the results between runs.
       - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g @anthropic-ai/claude-code@2.1.302
+
+      # The eval runner refuses to give a case Bash without an OS sandbox, which on
+      # Linux is bubblewrap with socat.
+      - name: Install the sandbox
+        run: sudo apt-get install -y --no-install-recommends bubblewrap socat
 
       - name: Run the eval suite
         working-directory: plugins/philosophy
