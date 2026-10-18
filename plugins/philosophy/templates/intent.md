@@ -20,5 +20,5 @@ Author: <the person with the problem>. Status: draft.
 
 ## Open questions
 
-- [ ] <what nobody knows yet; tick it when settled, or say "Carried forward:" and why
-      it can wait>
+- [ ] <what nobody knows yet. Tick it when it is settled, or add "Carried forward",
+      a colon, and why it can wait>

@@ -27,8 +27,8 @@ Applied: <each policy rule and skill in force while this was written>
 
 ## Open questions
 
-- [ ] <carried from the intent or raised here; tick it when settled, or say "Carried
-      forward:" and why it can wait>
+- [ ] <carried from the intent or raised here. Tick it when it is settled, or add
+      "Carried forward", a colon, and why it can wait>
 
 ## Areas of concern
 

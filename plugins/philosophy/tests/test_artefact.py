@@ -134,6 +134,18 @@ def test_carried_forward_question_is_settled():
     assert [a.settled(question) for question in questions] == [True, True]
 
 
+def test_the_templates_placeholder_question_is_not_settled():
+    for template in ("intent.md", "spec.md"):
+        body = (ROOT / "templates" / template).read_text()
+        questions = a.checkboxes(a.section(a.parse(body, template), "Open questions") or "")
+        assert questions and not any(a.settled(q) for q in questions), template
+
+
+def test_quoting_carried_forward_mid_sentence_does_not_settle_a_question():
+    quoted = a.checkboxes('- [ ] Later? Tick it, or say "Carried forward:" and why.\n')
+    assert [a.settled(question) for question in quoted] == [False]
+
+
 def test_carried_forward_needs_a_reason():
     bare = a.checkboxes("- [ ] Later? Carried forward:\n")
     assert [a.settled(question) for question in bare] == [False]
@@ -206,6 +218,12 @@ def test_intent_with_an_open_question_is_found():
 def test_intent_with_no_status_is_found():
     broken = INTENT.replace(" Status: draft.", "")
     assert checks(a.check_intent(doc(broken))) == ["header"]
+
+
+def test_intent_with_an_empty_or_embedded_author_is_found():
+    for header in ("Author: . Status: draft.", "CoAuthor: Someone. Status: draft."):
+        broken = INTENT.replace("Author: Someone. Status: draft.", header)
+        assert checks(a.check_intent(doc(broken))) == ["header"], header
 
 
 def test_intent_with_the_wrong_title_is_found():
