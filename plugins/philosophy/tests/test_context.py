@@ -143,7 +143,6 @@ def test_every_shipped_rule_loads_strictly() -> None:
     names = sorted(p.stem for p in (ROOT / "rules").glob("*.md"))
     rules = tuple(context.parse_rule(n, (ROOT / "rules" / (n + ".md")).read_text()) for n in names)
     assert [r.name for r in rules] == [
-        "board",
         "code-design",
         "python",
         "python-tests",
@@ -256,6 +255,29 @@ def test_session_start_in_guest_repo(tmp_path: Path, guest: Path) -> None:
     assert "# Standing constraints" in result.stdout
 
 
+def test_subagent_start_gets_the_constraints(tmp_path: Path, owned: Path) -> None:
+    payload = {
+        "hook_event_name": "SubagentStart",
+        "session_id": "s1",
+        "cwd": str(owned),
+        "agent_id": "worker-1",
+        "agent_type": "general-purpose",
+    }
+    result = run_hook(tmp_path, payload)
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)["hookSpecificOutput"]
+    assert output["hookEventName"] == "SubagentStart"
+    assert output["additionalContext"].startswith("[philosophy] Repository mode: owner.")
+    assert "# Standing constraints" in output["additionalContext"]
+    assert "{plugin_root}" not in output["additionalContext"]
+
+
+def test_subagent_start_in_guest_repo_says_so(tmp_path: Path, guest: Path) -> None:
+    payload = {"hook_event_name": "SubagentStart", "session_id": "s1", "cwd": str(guest)}
+    output = json.loads(run_hook(tmp_path, payload).stdout)["hookSpecificOutput"]
+    assert "Repository mode: guest" in output["additionalContext"]
+
+
 def test_session_start_outside_git_is_owner(tmp_path: Path) -> None:
     plain = tmp_path / "plain"
     plain.mkdir()
@@ -363,19 +385,8 @@ def test_rule_is_delivered_even_when_markers_cannot_be_written(tmp_path: Path, o
     assert "rule python" in injected(run_hook(tmp_path, touch(owned, "a.py")))
 
 
-def test_backlog_command_delivers_the_board_rule_once(tmp_path: Path, owned: Path) -> None:
-    text = injected(run_hook(tmp_path, bash(owned, "backlog task list --plain")))
-    assert "[philosophy] rule board" in text
-    assert "{plugin_root}" not in text and str(ROOT / "scripts" / "board-check") in text
-    assert injected(run_hook(tmp_path, touch(owned, "backlog/tasks/task-1 - X.md"))) == ""
-
-
 def test_other_commands_deliver_nothing(tmp_path: Path, owned: Path) -> None:
     assert injected(run_hook(tmp_path, bash(owned, "git status && echo backlog"))) == ""
-
-
-def test_board_file_delivers_the_board_rule_in_a_guest_repo(tmp_path: Path, guest: Path) -> None:
-    assert "rule board" in injected(run_hook(tmp_path, touch(guest, "backlog/tasks/task-1 - X.md")))
 
 
 def test_unrelated_file_injects_nothing(tmp_path: Path, owned: Path) -> None:
