@@ -16,6 +16,8 @@ bands.yaml @brukhabtu
 /plugins/*/hooks/ @brukhabtu
 /plugins/*/scripts/ @brukhabtu
 /plugins/*/evals/ @brukhabtu
+# The review play is part of the review gate: a build mustn't be able to soften it.
+/plugins/*/skills/review/ @brukhabtu
 
 # Architecture definitions.
 *.c4 @brukhabtu

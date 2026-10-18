@@ -85,7 +85,8 @@ in `.claude/checks.json` and prints the command, its output's tail and its exit 
 A merge is the approval, so the gates are GitHub's. In knowhere:
 
 - **CODEOWNERS** (`templates/CODEOWNERS` for another repository) holds intents, specs,
-  the gates themselves, and architecture definitions for the owner. Anything else merges
+  the gates themselves (including the review play, which the review gate runs), and
+  architecture definitions for the owner. Anything else merges
   on its checks, because the architecture it implements was approved in its spec.
 - **Required checks:** the full check from `.claude/checks.json`, run by CI; the review,
   which fails while it has an Important finding; and the evals, which skip themselves
