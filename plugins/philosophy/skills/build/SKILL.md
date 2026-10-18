@@ -29,11 +29,13 @@ has unblocked it: go to step 5.
    Exit 1 lists the gated paths: push, open the PR with the plan and those paths, ask
    the owner there to reply
    `@claude` to continue, and stop.
-5. Implement in the plan's order. Edit only the files the plan lists. If another file
-   turns out to need changing, add it to the plan in the same commit and say why in the
-   PR, and run `gated-paths` on the plan again: a file it newly lists is gated, so
-   commit, push, name it on the PR, ask the owner to reply there, and stop, as in step
-   4. A drift bigger than that is a reason to stop and say so, not to push on.
+5. Implement in the plan's order. Edit only the files the plan lists; the guard denies
+   the rest. If another file turns out to need changing, add it to the plan in the same
+   commit and say why in the PR, and run `gated-paths` on the plan again: a file it
+   newly lists is gated, so commit, push, name it on the PR, ask the owner to reply
+   there, and stop, as in step 4. A drift bigger than that is a reason to stop and say
+   so, not to push on. For a bug, first write the test that reproduces it, name it on a
+   `Repro:` line under Proof, confirm it fails for the expected reason, and commit it.
 6. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" fast` until it exits 0. Fix
    the code, never the check: a test the plan names as a repro stays as it is.
 7. Commit, push, and open the PR, or update it: the R-numbers it delivers, a link to
