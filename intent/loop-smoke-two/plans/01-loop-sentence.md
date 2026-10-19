@@ -23,4 +23,4 @@ Spec: `../spec.md`, change 01. Delivers R1, R2, R3, R4.
 
 - `git diff --name-only main` lists only `docs/index.md` and this plan.
 - `grep -n "self-running-loop" docs/index.md` shows the sentence directly after the table.
-- `python3 "/home/runner/.claude/plugins/cache/knowhere/philosophy/0.5.0/scripts/run-check" fast` exits 0.
+- `bash .github/scripts/check.sh fast`, the repository's declared fast check, exits 0.
