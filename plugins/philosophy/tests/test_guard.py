@@ -18,6 +18,7 @@ import guard  # noqa: E402
 HOOK_PYTHON = os.environ.get("HOOK_PYTHON", sys.executable)
 REVIEWER = "philosophy:reviewer"
 TASK = "/repo/backlog/tasks/task-5 - Endpoint.md"
+INTENT = "/repo/backlog/intents/nux-ep2.md"
 
 
 def bash(command: str, agent: str = "") -> guard.Decision | None:
@@ -244,6 +245,14 @@ def test_editing_a_task_to_done_is_denied(old: str, new: str) -> None:
     assert decision is not None and decision.verdict == "deny"
     elsewhere = dict(edit, file_path="/repo/docs/status.md")
     assert guard.decide("Edit", elsewhere, "", BEFORE, "/plugin") is None
+
+
+def test_editing_an_intent_file_to_done_is_denied() -> None:
+    before = "---\ntitle: Claims\nstatus: To Do\n---\n\n## Problem\nX.\n"
+    edit = {"file_path": INTENT, "old_string": "status: To Do", "new_string": "status: Done"}
+    decision = guard.decide("Edit", edit, "", before, "/plugin")
+    assert decision is not None and decision.verdict == "deny"
+    assert 'python3 "/plugin/scripts/close-task" <id>' in decision.reason
 
 
 def test_other_task_edits_go_ahead() -> None:

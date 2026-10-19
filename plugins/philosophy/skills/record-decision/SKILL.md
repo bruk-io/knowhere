@@ -12,9 +12,10 @@ will build it. It is a task like any other, and what it delivers is the decision
 
 ## The task
 
-Create a design task under the intent (`type: design`) with the question as its title
-and "Decision recorded" as an acceptance criterion. It goes through the same loop as any
-other task.
+Create a design task in the work (`type: design`) with the question as its title and
+"Decision recorded" as an acceptance criterion. It carries the work's name as a label and
+the `slice-n` label of the slice it unblocks (`philosophy:write-plan`). It goes through
+the same loop as any other task.
 
 ## The decision
 
@@ -27,5 +28,5 @@ other task.
 
 ## Back on the intent
 
-A decision answers open questions on the intent. Tick each one it answers, and note any
-it leaves open.
+A decision answers open questions in `backlog/intents/<name>.md`. Tick each one it
+answers in the file, and note any it leaves open.

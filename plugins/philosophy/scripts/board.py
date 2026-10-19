@@ -30,6 +30,13 @@ SPEC_SECTIONS = (
 )
 DELIVERS_REQUIREMENTS = ("task", "bug")
 TASK_DIRS = ("tasks", "drafts", "completed")
+INTENT_DIR = "backlog/intents/"
+INTENT_STATUSES = ("Draft", "To Do", "In Progress", "Done")
+NAME = re.compile(r"^(?!(?:task|draft|doc|decision|size|slice)-)[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+SLICE_LABEL = re.compile(r"^slice-(\d+)$", re.I)
+SLICE_ITEM = re.compile(r"^(\d+)[.)][ \t]+(.*)$")
+TESTER_SEES = re.compile(r"tester sees:[ \t]*(\S.*)", re.I)
+DEPENDS_ON = re.compile(r"depends on:[ \t]*(.*)", re.I)
 CITATION = re.compile(r"\bR(\d+)\b")
 REQUIREMENT = re.compile(r"^\s*(?:[-*]|\d+[.)])?\s*(?:\*\*|__)?R(\d+)\b", re.M)
 BLOCK_SCALAR = re.compile(r"[>|][+-]?")
@@ -86,18 +93,32 @@ class Task(NamedTuple):
 
 
 class Doc(NamedTuple):
+    """A doc under `backlog/docs/`, or (with `name`) a spec or plan paired by file name."""
+
     id: str
     title: str
     type: str
     body: str
     path: str
+    name: str = ""
 
 
 class Board(NamedTuple):
+    """Intents are in `tasks` too: an intent file is read as a task whose id is its name."""
+
     tasks: tuple[Task, ...]
     docs: tuple[Doc, ...]
     types: tuple[str, ...]
     prefix: str
+    specs: tuple[Doc, ...] = ()
+    plans: tuple[Doc, ...] = ()
+
+
+class Slice(NamedTuple):
+    """An item under a plan's `## Slices`: its number and its text."""
+
+    number: int
+    text: str
 
 
 class Finding(NamedTuple):
@@ -247,6 +268,58 @@ def parse_doc(text: str, path: str) -> Doc:
     return Doc(scalar(data, "id"), scalar(data, "title"), scalar(data, "type"), body, path)
 
 
+def parse_intent(text: str, path: str) -> Task:
+    """Read `backlog/intents/<name>.md` as a task: the name is its id.
+
+    The file is plain markdown with the frontmatter the board needs (title, status,
+    assignee, labels). Backlog.md does not manage the folder, so it never rewrites it.
+    """
+    data, body = parse_frontmatter(text)
+    name = Path(path).stem
+    done = subsection(body, "Done when", 2)
+    if done is None:
+        done = subsection(body, "Acceptance Criteria", 2) or ""
+    return Task(
+        id=name,
+        title=scalar(data, "title") or name,
+        status=scalar(data, "status"),
+        type="intent",
+        labels=strings(data, "labels"),
+        parent="",
+        documentation=(),
+        modified_files=(),
+        description=body,
+        criteria=checkboxes(done),
+        plan="",
+        path=path,
+        notes=subsection(body, "Notes", 2) or "",
+    )
+
+
+def parse_named(text: str, path: str) -> Doc:
+    """Read `backlog/specs/<name>.md` or `backlog/plans/<name>.md`: the name pairs it."""
+    data, body = parse_frontmatter(text)
+    name = Path(path).stem
+    return Doc(name, scalar(data, "title") or name, "", body, path, name)
+
+
+def parse_any(text: str, path: str) -> Task:
+    return parse_intent(text, path) if path.startswith(INTENT_DIR) else parse_task(text, path)
+
+
+def slices(plan: Doc) -> tuple[Slice, ...]:
+    """The numbered items under `## Slices`, with their continuation lines."""
+    section = subsection(plan.body, "Slices", 2)
+    found: list[list] = []
+    for line in (section or "").splitlines():
+        item = SLICE_ITEM.match(line.strip())
+        if item and not line.startswith((" ", "\t")):
+            found.append([int(item.group(1)), item.group(2)])
+        elif found and line.strip():
+            found[-1][1] += "\n" + line.strip()
+    return tuple(Slice(number, text) for number, text in found)
+
+
 # --- what the board says: data in, data out ------------------------------------------
 
 
@@ -282,11 +355,15 @@ def find_task(board: Board, raw: str) -> Optional[Task]:
 
 
 def find_doc(board: Board, raw: str) -> Optional[Doc]:
+    """The spec `raw` names: a work name such as `nux-ep2`, a doc id, or a path."""
     wanted = "doc-%s" % raw.strip() if raw.strip().isdigit() else raw
+    named = next((d for d in board.specs if same_id(d.name, raw)), None)
+    if named is not None:
+        return named
     return next(
         (
             d
-            for d in board.docs
+            for d in (*board.docs, *board.specs)
             if same_id(d.id, wanted) or d.path == raw or Path(d.path).name == raw
         ),
         None,
@@ -301,14 +378,12 @@ def is_done(task: Task) -> bool:
     return same_id(task.status, "Done")
 
 
-def children(board: Board, task: Task) -> tuple[Task, ...]:
-    """The accepted tasks directly under this one. Drafts under it are not yet work."""
-    return tuple(
-        t for t in board.tasks if same_id(t.parent, task.id) and not is_draft(t) and t != task
-    )
+def is_intent_file(task: Task) -> bool:
+    return task.path.startswith(INTENT_DIR)
 
 
-def ancestors(board: Board, task: Task) -> tuple[Task, ...]:
+def parents(board: Board, task: Task) -> tuple[Task, ...]:
+    """The chain of `parent_task_id`, nearest first."""
     found: list[Task] = []
     current = task
     while current.parent:
@@ -318,6 +393,42 @@ def ancestors(board: Board, task: Task) -> tuple[Task, ...]:
         found.append(parent)
         current = parent
     return tuple(found)
+
+
+def intent_of(board: Board, task: Task) -> Optional[Task]:
+    """The intent file whose name is a label on this task or on one of its parents."""
+    for member in (task, *parents(board, task)):
+        for label in member.labels:
+            hit = next((t for t in board.tasks if is_intent_file(t) and same_id(t.id, label)), None)
+            if hit is not None:
+                return hit
+    return None
+
+
+def in_work(board: Board, task: Task, intent: Task) -> bool:
+    found = intent_of(board, task)
+    return found is not None and same_id(found.id, intent.id)
+
+
+def children(board: Board, task: Task) -> tuple[Task, ...]:
+    """The accepted tasks directly under this one. Drafts under it are not yet work.
+
+    Under an intent file that is every task in the work: labelled with its name, or under
+    a task that is.
+    """
+    if is_intent_file(task):
+        return tuple(
+            t for t in board.tasks if not is_draft(t) and t != task and in_work(board, t, task)
+        )
+    return tuple(
+        t for t in board.tasks if same_id(t.parent, task.id) and not is_draft(t) and t != task
+    )
+
+
+def ancestors(board: Board, task: Task) -> tuple[Task, ...]:
+    chain = parents(board, task)
+    intent = intent_of(board, task) if not is_intent_file(task) else None
+    return (*chain, intent) if intent is not None else chain
 
 
 def descendants(board: Board, task: Task) -> tuple[Task, ...]:
@@ -342,6 +453,13 @@ def cited(task: Task) -> frozenset[str]:
 def requirements(doc: Doc) -> tuple[str, ...]:
     section = subsection(doc.body, "Requirements", 2)
     return tuple(REQUIREMENT.findall(section)) if section is not None else ()
+
+
+def spec_of(board: Board, task: Task) -> Optional[str]:
+    """What names the spec this task's work is held to: a spec file, or a linked doc."""
+    if is_intent_file(task):
+        return next((d.path for d in board.specs if same_id(d.name, task.id)), None)
+    return task.documentation[0] if task.documentation else None
 
 
 def links(doc: Doc, entry: str) -> bool:
@@ -401,11 +519,16 @@ def check_ready(board: Board, task: Task) -> list[Finding]:
     """Whether a draft is understood well enough to accept."""
     out: list[Finding] = []
     if not task.criteria:
+        how = (
+            "add a '## Done when' checklist to %s" % task.path
+            if is_intent_file(task)
+            else "add what is true when it is done with --ac"
+        )
         out.append(
             Finding(
                 task.id,
                 "ready",
-                "has no acceptance criteria: add what is true when it is done with --ac",
+                "has no acceptance criteria, so nobody can tell when it is done: " + how,
             )
         )
     if task.type not in TYPES:
@@ -431,7 +554,12 @@ def check_ready(board: Board, task: Task) -> list[Finding]:
 
 
 def check_plan(board: Board, task: Task) -> list[Finding]:
-    """Whether a leaf's plan has the shape someone else could implement from."""
+    """Whether a leaf's plan has the shape someone else could implement from.
+
+    For an intent, the plan is `backlog/plans/<name>.md`: its slices.
+    """
+    if is_intent_file(task):
+        return check_slices(board, task)
     if not task.plan.strip():
         return [
             Finding(
@@ -454,7 +582,7 @@ def check_plan(board: Board, task: Task) -> list[Finding]:
                 task.id, "plan", "lists no files: add each file that changes with --modified-file"
             )
         )
-    holder = next((a for a in ancestors(board, task) if a.documentation), None)
+    holder = next((a for a in ancestors(board, task) if spec_of(board, a)), None)
     if holder is not None and task.type in DELIVERS_REQUIREMENTS and not cited(task):
         out.append(
             Finding(
@@ -467,31 +595,51 @@ def check_plan(board: Board, task: Task) -> list[Finding]:
 
 
 def check_spec(board: Board, doc: Doc, coverage: bool) -> list[Finding]:
-    """Whether a spec is linked, complete, numbered, and (with coverage) fully split."""
+    """Whether a spec is paired, complete, numbered, and (with coverage) fully split."""
     out: list[Finding] = []
-    if doc.type != "specification":
-        out.append(
-            Finding(doc.id, "spec", "has type %r: a spec is a doc of type specification" % doc.type)
+    intent: Optional[Task]
+    if doc.name:
+        intent = next(
+            (t for t in board.tasks if is_intent_file(t) and same_id(t.id, doc.name)), None
         )
-    named = re.search(r"^Intent:[ \t]*(\S+)", doc.body, re.M)
-    intent = find_task(board, named.group(1)) if named else None
-    if named is None:
-        out.append(Finding(doc.id, "spec", "has no 'Intent: <id>' line"))
-    elif intent is None:
-        out.append(
-            Finding(
-                doc.id, "spec", "names %s as its intent, which is not on the board" % named.group(1)
+        if intent is None:
+            out.append(
+                Finding(
+                    doc.id,
+                    "spec",
+                    "has no %s%s.md: a spec is paired with its intent by file name, and a spec "
+                    "with no intent has no problem to solve. Rename it to match its intent, or "
+                    "write the intent" % (INTENT_DIR, doc.name),
+                )
             )
-        )
-    elif not any(links(doc, entry) for entry in intent.documentation):
-        out.append(
-            Finding(
-                doc.id,
-                "spec",
-                '%s does not link it: backlog task edit %s --doc "%s"'
-                % (intent.id, intent.id, doc.path),
+    else:
+        if doc.type != "specification":
+            out.append(
+                Finding(
+                    doc.id, "spec", "has type %r: a spec is a doc of type specification" % doc.type
+                )
             )
-        )
+        named = re.search(r"^Intent:[ \t]*(\S+)", doc.body, re.M)
+        intent = find_task(board, named.group(1)) if named else None
+        if named is None:
+            out.append(Finding(doc.id, "spec", "has no 'Intent: <id>' line"))
+        elif intent is None:
+            out.append(
+                Finding(
+                    doc.id,
+                    "spec",
+                    "names %s as its intent, which is not on the board" % named.group(1),
+                )
+            )
+        elif not any(links(doc, entry) for entry in intent.documentation):
+            out.append(
+                Finding(
+                    doc.id,
+                    "spec",
+                    '%s does not link it: backlog task edit %s --doc "%s"'
+                    % (intent.id, intent.id, doc.path),
+                )
+            )
     for section in SPEC_SECTIONS:
         if subsection(doc.body, section, 2) is None:
             out.append(Finding(doc.id, "spec", "has no '## %s' section" % section))
@@ -521,6 +669,147 @@ def check_spec(board: Board, doc: Doc, coverage: bool) -> list[Finding]:
             Finding(doc.id, "spec", "R%s is not cited by any task under %s" % (number, intent.id))
             for number in dict.fromkeys(numbers)
             if number not in delivered
+        ]
+    return out
+
+
+def slice_numbers(task: Task) -> tuple[int, ...]:
+    return tuple(int(m.group(1)) for m in map(SLICE_LABEL.match, task.labels) if m)
+
+
+def check_slices(board: Board, intent: Task) -> list[Finding]:
+    """Whether the intent's plan sequences the work and every task comes from a slice.
+
+    The plan is written before the split and the tasks are derived from it, so a task
+    names its slice and a slice with no task is work nobody planned to do.
+    """
+    name = intent.id
+    plan_path = "backlog/plans/%s.md" % name
+    plan = next((d for d in board.plans if same_id(d.name, name)), None)
+    work = children(board, intent)
+    out: list[Finding] = []
+    if plan is None:
+        if work:
+            out.append(
+                Finding(
+                    name,
+                    "plan",
+                    "has %d tasks but no %s: the plan puts the slices in order and the tasks are "
+                    "derived from it, so write it before splitting" % (len(work), plan_path),
+                )
+            )
+        return out
+    found = slices(plan)
+    if not found:
+        return [
+            Finding(
+                name,
+                "plan",
+                "%s has no numbered slices under '## Slices': the slices are the order the work "
+                "lands in, and the tasks come from them" % plan_path,
+            )
+        ]
+    if [s.number for s in found] != list(range(1, len(found) + 1)):
+        out.append(
+            Finding(
+                name,
+                "plan",
+                "slices are numbered %s: number them 1, 2, 3, ... in the order they land, so "
+                "slice-n labels mean one thing" % ", ".join(str(s.number) for s in found),
+            )
+        )
+    for item in found:
+        if TESTER_SEES.search(item.text) is None:
+            out.append(
+                Finding(
+                    name,
+                    "plan",
+                    "slice %d names nothing a tester can see: add 'Tester sees: <what>', since a "
+                    "slice nobody can observe can't be accepted" % item.number,
+                )
+            )
+        depends = DEPENDS_ON.search(item.text)
+        for number in (int(n) for n in re.findall(r"\d+", depends.group(1))) if depends else ():
+            if number >= item.number:
+                out.append(
+                    Finding(
+                        name,
+                        "plan",
+                        "slice %d depends on slice %d: a slice depends only on an earlier one, "
+                        "or the order is wrong" % (item.number, number),
+                    )
+                )
+    known = {s.number for s in found}
+    for task in work:
+        named = slice_numbers(task)
+        if not named:
+            out.append(
+                Finding(
+                    task.id,
+                    "plan",
+                    "names no slice of %s: add a slice-n label for the slice in %s it comes "
+                    "from, so the plan and the tasks stay traceable" % (name, plan_path),
+                )
+            )
+        out += [
+            Finding(task.id, "plan", "names slice-%d, which %s does not have" % (n, plan_path))
+            for n in named
+            if n not in known
+        ]
+    if work:
+        covered = {
+            n
+            for t in board.tasks
+            if t != intent and in_work(board, t, intent)
+            for n in slice_numbers(t)
+        }
+        out += [
+            Finding(
+                name,
+                "plan",
+                "slice %d has no task: derive one from it, or take the slice out of %s"
+                % (n, plan_path),
+            )
+            for n in sorted(known - covered)
+        ]
+    return out
+
+
+def check_pairing(board: Board) -> list[Finding]:
+    """Whether intents, specs and plans pair by file name, and the names are usable."""
+    out: list[Finding] = []
+    intents = [t for t in board.tasks if is_intent_file(t)]
+    names = {t.id.lower() for t in intents}
+    for intent in intents:
+        if not NAME.match(intent.id):
+            out.append(
+                Finding(
+                    intent.id,
+                    "layout",
+                    "is not a usable name: use lowercase words joined by hyphens, not starting "
+                    "like an id or a size or slice label, because the name is the label on every "
+                    "task in the work",
+                )
+            )
+        if intent.status not in INTENT_STATUSES:
+            out.append(
+                Finding(
+                    intent.id,
+                    "layout",
+                    "has status %r: set one of %s in its frontmatter, since no CLI manages the "
+                    "file" % (intent.status, ", ".join(INTENT_STATUSES)),
+                )
+            )
+    for kind, docs in (("plan", board.plans),):
+        out += [
+            Finding(
+                d.id,
+                kind,
+                "has no %s%s.md: a %s is paired with its intent by file name. Rename it to match "
+                "its intent, or write the intent" % (INTENT_DIR, d.name, kind),
+            )
+            for d in docs
+            if d.name.lower() not in names
         ]
     return out
 
@@ -748,8 +1037,10 @@ def check_board(board: Board, accepted: dict[str, tuple[str, tuple[Item, ...]]])
 
     `accepted` maps a task id to the commit that accepted it and its criteria then.
     """
-    out = check_config(board) + check_sizes(board)
+    out = check_config(board) + check_sizes(board) + check_pairing(board)
     for task in board.tasks:
+        if is_intent_file(task):
+            out += check_slices(board, task)
         if task.id in accepted:
             commit, criteria = accepted[task.id]
             out += check_moved(task, criteria, commit)
@@ -769,7 +1060,79 @@ def check_board(board: Board, accepted: dict[str, tuple[str, tuple[Item, ...]]])
             out += check_spec(
                 board, doc, coverage=intent is not None and bool(children(board, intent))
             )
+    for doc in board.specs:
+        intent = next(
+            (t for t in board.tasks if is_intent_file(t) and same_id(t.id, doc.name)), None
+        )
+        out += check_spec(board, doc, coverage=intent is not None and bool(children(board, intent)))
     return out
+
+
+def ticked_intent_text(text: str, numbers: tuple[int, ...]) -> str:
+    """The intent file with the nth `## Done when` boxes ticked, counting from 1.
+
+    Only ticks: a criterion's wording is the finish line, and it is not changed here.
+
+    Raises:
+        LookupError: a number names no criterion.
+    """
+    text = text.replace("\r\n", "\n")
+    found = re.search(
+        r"^## (?:Done when|Acceptance Criteria)[ \t]*$\n?(.*?)(?=^## |\Z)", text, re.M | re.S | re.I
+    )
+    seen = 0
+    start = found.start(1) if found else 0
+    section = found.group(1) if found else ""
+    wanted = set(numbers)
+
+    def tick(match: re.Match) -> str:
+        nonlocal seen
+        seen += 1
+        return match.group(0).replace("[ ]", "[x]", 1) if seen in wanted else match.group(0)
+
+    ticked = CHECKBOX.sub(tick, section)
+    missing = sorted(n for n in wanted if n > seen or n < 1)
+    if missing:
+        raise LookupError(
+            "no criterion %s: the intent has %d under '## Done when'"
+            % (", ".join("#%d" % n for n in missing), seen)
+        )
+    return text[:start] + ticked + text[start + len(section) :]
+
+
+def closed_intent_text(text: str, notes: str) -> str:
+    """The intent file as it reads once closed: `status: Done` and the notes appended.
+
+    The notes go under `## Notes`, added at the end if the file has none, because no CLI
+    edits an intent file.
+    """
+    text = text.lstrip("\ufeff").replace("\r\n", "\n")
+    found = FRONTMATTER.match(text)
+    if not found:
+        raise ValueError("no frontmatter to set the status in")
+    head = re.sub(r"^status:.*$", "status: Done", found.group(1), count=1, flags=re.M)
+    if "status: Done" not in head:
+        head += "\nstatus: Done"
+    body = found.group(2).rstrip("\n")
+    if subsection(body, "Notes", 2) is None:
+        body += "\n\n## Notes\n"
+    return "---\n%s\n---\n%s\n" % (
+        head,
+        append_to_section(body, "Notes", notes.strip()).rstrip("\n"),
+    )
+
+
+def append_to_section(body: str, heading: str, addition: str) -> str:
+    """Add text to the end of a level-2 section, which must exist."""
+    found = re.search(
+        r"^## %s[ \t]*$\n?(.*?)(?=^## |\Z)" % re.escape(heading), body, re.M | re.S | re.I
+    )
+    if found is None:
+        raise ValueError("no '## %s' section" % heading)
+    kept = found.group(1).rstrip("\n")
+    joined = (kept + "\n\n" if kept else "\n") + addition + "\n"
+    tail = body[found.end() :]
+    return body[: found.start(1)] + joined + ("\n" + tail if tail else "")
 
 
 def render(findings: list[Finding], as_json: bool, clean: str) -> str:
@@ -800,13 +1163,32 @@ def load_board(root: Path) -> Board:
         for path in sorted((base / folder).glob("*.md"))
         if path.is_file()
     )
+    intents = tuple(
+        parse_intent(path.read_text(encoding="utf-8"), path.relative_to(root).as_posix())
+        for path in sorted((base / "intents").glob("*.md"))
+        if path.is_file()
+    )
     docs = tuple(
         parse_doc(path.read_text(encoding="utf-8"), path.relative_to(root).as_posix())
         for path in sorted((base / "docs").rglob("*.md"))
         if path.is_file()
     )
+    named = tuple(
+        tuple(
+            parse_named(path.read_text(encoding="utf-8"), path.relative_to(root).as_posix())
+            for path in sorted((base / folder).glob("*.md"))
+            if path.is_file()
+        )
+        for folder in ("specs", "plans")
+    )
     config = parse_yaml((base / "config.yml").read_text(encoding="utf-8"))
-    return Board(tasks, docs, strings(config, "types"), scalar(config, "task_prefix") or "task")
+    return Board(
+        (*tasks, *intents),
+        docs,
+        strings(config, "types"),
+        scalar(config, "task_prefix") or "task",
+        *named,
+    )
 
 
 def git(root: Path, *args: str) -> Optional[str]:
@@ -852,10 +1234,28 @@ def accepted_version(root: Path, task: Task) -> Optional[tuple[str, tuple[Item, 
     return (commit, parse_task(text, path).criteria) if text is not None and path else None
 
 
+def accepted_intent(root: Path, task: Task) -> Optional[tuple[str, tuple[Item, ...]]]:
+    """The first commit in which the intent file is no longer a draft, and its criteria."""
+    log = git(
+        root, "log", "--reverse", "--no-renames", "--relative", "--format=%H", "--", task.path
+    )
+    for commit in (log or "").split():
+        text = git(root, "show", "%s:./%s" % (commit, task.path))
+        if text is not None:
+            then = parse_intent(text, task.path)
+            if then.status and not same_id(then.status, "Draft"):
+                return commit, then.criteria
+    return None
+
+
+def accepted_version_of(root: Path, task: Task) -> Optional[tuple[str, tuple[Item, ...]]]:
+    return accepted_intent(root, task) if is_intent_file(task) else accepted_version(root, task)
+
+
 def committed_version(root: Path, task: Task) -> Optional[Task]:
     """The task as of the last commit, or None if its file was never committed."""
     text = git(root, "show", "HEAD:./%s" % task.path)
-    return parse_task(text, task.path) if text is not None else None
+    return parse_any(text, task.path) if text is not None else None
 
 
 def closing_findings(root: Path, board: Board, task: Task) -> list[Finding]:
@@ -880,7 +1280,7 @@ def closing_findings(root: Path, board: Board, task: Task) -> list[Finding]:
         return found
     found += check_uncommitted(task, committed)
     found += check_repro(task, edited_repro_tests(root, task))
-    version = accepted_version(root, task)
+    version = accepted_version_of(root, task)
     if version is not None:
         commit, criteria = version
         found += check_moved(committed, criteria, commit)
@@ -923,7 +1323,7 @@ def accepted_versions(root: Path, board: Board) -> dict[str, tuple[str, tuple[It
     out = {}
     for task in board.tasks:
         if not is_draft(task):
-            version = accepted_version(root, task)
+            version = accepted_version_of(root, task)
             if version is not None:
                 out[task.id] = version
     return out

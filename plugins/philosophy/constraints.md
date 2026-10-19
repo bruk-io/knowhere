@@ -63,6 +63,7 @@ The first line of this message says which mode this repository is in.
   | Work out how predictable it is; split or spike | `philosophy:size-work` |
   | Decide it is ready to start | `philosophy:accept-work` |
   | Write the requirements for large work | `philosophy:write-spec` |
+  | Order the work into slices and derive its tasks | `philosophy:write-plan` |
   | Answer a design question | `philosophy:record-decision` |
   | Plan one change | `philosophy:plan-change` |
   | Hand work to other agents or sessions | `philosophy:delegate-work` |

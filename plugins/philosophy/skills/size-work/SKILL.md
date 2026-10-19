@@ -14,7 +14,8 @@ written down.
 
 ## The scale
 
-Sizes are 1, 2, 3, 5, and 8, set as one `size-n` label.
+Sizes are 1, 2, 3, 5, and 8, set as one `size-n` label. On a task that is a label on the
+task. On an intent, which is a file, it is in the `labels` of the file's frontmatter.
 
 - The value of a size is how predictable the work is, so the spread of outcomes matters
   more than the average.
@@ -29,11 +30,12 @@ scale.
 
 ## Splitting
 
-Each child gets its own finish line and re-enters the loop. Record the order between
-children with `--dep`, and the reason in the notes. A blocking question becomes a spike
-(`type: spike`) or a design task (`philosophy:record-decision`). Large or cross-team
-work gets its requirements written down first (`philosophy:write-spec`), and the split
-follows them.
+An intent is split by its plan, not task by task. Large or cross-team work gets its
+requirements written down first (`philosophy:write-spec`), then the plan puts the slices
+in order (`philosophy:write-plan`), and the tasks are derived from the slices. Each task
+gets its own finish line and re-enters the loop. Record the order between tasks with
+`--dep`, and the reason in the notes. A blocking question becomes a spike (`type: spike`)
+or a design task (`philosophy:record-decision`) under the slice it unblocks.
 
 `references/story-points.md` is the full reasoning, from Bruk's "How We (should) Use
 Story Points". Read it when someone pushes back on sizing or asks for time estimates.

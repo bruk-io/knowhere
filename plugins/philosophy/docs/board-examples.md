@@ -1,91 +1,85 @@
 # Board examples
 
-Files from a scratch board on Backlog.md 1.53.0, as the tool wrote them. They show one
-intent with its spec, a design task, and a leaf under it. The plugin's tests run
-`board-check` against these files, so they stay in step with it.
+One piece of work, `claims-status`, as it sits on a board. Its intent, spec and plan are
+files named alike in three folders, and its tasks are Backlog.md tasks labelled with the
+same name. The tasks are as Backlog.md 1.53.0 wrote them. The intent, spec and plan are
+plain markdown: Backlog.md does not manage `intents/`, `specs/` or `plans/`, so they get
+no ids and no CLI, and it never rewrites them. The plugin's tests run `board-check`
+against these files, so they stay in step with it.
 
-The draft is not ready to accept: `board-check ready` reports its open question until it
-is ticked, or carried forward with a reason as the spec does.
+```
+backlog/
+  intents/claims-status.md     the problem and when it is done
+  specs/claims-status.md       the requirements, numbered
+  plans/claims-status.md       the slices, in the order they land
+  tasks/                       task-1 ... labelled claims-status and slice-n
+  decisions/                   decision-1
+```
+
+The draft is not ready to accept: `board-check ready claims-status` reports its open
+question until it is ticked, or carried forward with a reason as the spec does.
 
 ## An intent, before anyone has accepted it
 
-In `backlog/drafts/`.
+`backlog/intents/claims-status.md`. The frontmatter is the only structured part: the
+status, the size label and the assignee are read from it, because the intent has no task
+to hold them.
 
 ```markdown
 ---
-id: DRAFT-1
 title: Claims status self-service
 status: Draft
 assignee:
   - '@j.ortiz'
-created_date: '2026-10-09 20:55'
 labels:
   - size-5
-dependencies: []
-type: intent
 ---
 
-## Description
-
-<!-- SECTION:DESCRIPTION:BEGIN -->
 ## Problem
 Customers phone the contact centre to ask where their claim is. Handlers spend roughly a third of call time on status-only queries.
 
 ## Affected users and systems
 Customers, claims handlers, the portal team, the claims-core API.
 
+## Done when
+- [ ] Customers see claim status, next step and expected date in the portal
+- [ ] No new PII in the portal session
+- [ ] Existing authentication only
+
 ## Open questions
 - [ ] Do third-party loss adjusters need access too?
-<!-- SECTION:DESCRIPTION:END -->
-
-## Acceptance Criteria
-<!-- AC:BEGIN -->
-- [ ] #1 Customers see claim status, next step and expected date in the portal
-- [ ] #2 No new PII in the portal session
-- [ ] #3 Existing authentication only
-<!-- AC:END -->
 ```
 
-## The same intent once accepted and linked to its spec
+## The same intent once accepted
 
-Frontmatter only; the body is unchanged.
+Frontmatter only; the body is unchanged. Accepting is a commit that changes `status`
+from `Draft` to `To Do`.
 
 ```markdown
 ---
-id: TASK-1
 title: Claims status self-service
 status: To Do
 assignee:
   - '@j.ortiz'
-created_date: '2026-10-09 20:55'
-updated_date: '2026-10-14 15:00'
 labels:
   - size-5
-dependencies: []
-documentation:
-  - backlog/docs/specs/doc-1 - Spec-Claims-status-self-service.md
-type: intent
 ---
 ```
 
 ## The spec
 
-In `backlog/docs/specs/`.
+`backlog/specs/claims-status.md`. The name pairs it with the intent. There is no `Intent:`
+line and no link from the intent.
 
 ```markdown
 ---
-id: doc-1
 title: 'Spec: Claims status self-service'
-type: specification
-created_date: '2026-10-14 15:00'
-updated_date: '2026-10-14 15:00'
 ---
-Intent: TASK-1
 
 ## Requirements
 
 - R1. A signed-in customer sees each open claim's status, its next step, and the expected date of that step.
-- R2. The status shown is no more than 15 minutes old.
+- R2. The customer can list all of their open claims at once.
 - R3. The portal session holds no PII beyond what it holds today.
 
 ## Policies applied
@@ -102,28 +96,53 @@ Intent: TASK-1
 
 ## Design questions
 
-- How the portal stays under the claims-core rate limit: TASK-1.1.
+- How the portal stays under the claims-core rate limit: TASK-1.
 
 ## Out of scope
 
 - Notifying customers when a status changes.
 ```
 
-## A design task under the intent, pointing at its decision
+## The plan
+
+`backlog/plans/claims-status.md`. The slices, in the order they land, and what each depends
+on. The tasks are derived from it, and each names its slice with a `slice-n` label.
 
 ```markdown
 ---
-id: TASK-1.1
+title: 'Plan: Claims status self-service'
+---
+
+## Slices
+
+1. **One claim.** A customer opens a claim and sees its status, next step and expected date.
+   Tester sees: the three fields for a claim in each of its four states.
+   Depends on: none.
+2. **All open claims.** A customer lists every open claim.
+   Tester sees: a customer with three open claims sees all three, newest first.
+   Depends on: slice 1.
+```
+
+## A design task in the work
+
+`backlog/tasks/`. The `claims-status` label puts it in the work, `slice-1` names the slice
+it comes from, and `references` points at the decision and, for a reader, at the intent.
+
+```markdown
+---
+id: TASK-1
 title: Decide how the portal stays under the claims-core rate limit
 status: To Do
 assignee: []
 created_date: '2026-10-09 20:55'
 labels:
   - size-2
+  - claims-status
+  - slice-1
 dependencies: []
 references:
+  - backlog/intents/claims-status.md
   - backlog/decisions/decision-1 - Cache-claim-status-in-the-portal.md
-parent_task_id: TASK-1
 type: design
 ---
 
@@ -137,7 +156,7 @@ type: design
 
 ```markdown
 ---
-id: TASK-1.2
+id: TASK-2
 title: Status endpoint behind existing auth
 status: To Do
 assignee: []
@@ -145,18 +164,21 @@ created_date: '2026-10-09 20:55'
 updated_date: '2026-10-09 20:55'
 labels:
   - size-3
+  - claims-status
+  - slice-1
 dependencies:
-  - TASK-1.1
+  - TASK-1
+references:
+  - backlog/intents/claims-status.md
 modified_files:
   - claims-api/routes/status.py
   - claims-api/tests/test_status.py
-parent_task_id: TASK-1
 type: task
 ---
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 test_status.py covers the four claim states (R1)
+- [ ] #1 test_status.py covers the four claim states (R1, R3)
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -172,6 +194,32 @@ The claims-core API rate-limits at 50 rps.
 ### Proof
 test_status.py covers the four claim states.
 <!-- SECTION:PLAN:END -->
+```
+
+## A leaf for the second slice
+
+```markdown
+---
+id: TASK-3
+title: List a customer's open claims
+status: To Do
+assignee: []
+created_date: '2026-10-09 20:55'
+labels:
+  - size-2
+  - claims-status
+  - slice-2
+dependencies:
+  - TASK-2
+references:
+  - backlog/intents/claims-status.md
+type: task
+---
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 A customer with three open claims sees all three (R2)
+<!-- AC:END -->
 ```
 
 ## The decision the design task delivers

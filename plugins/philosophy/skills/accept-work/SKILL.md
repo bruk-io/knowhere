@@ -16,7 +16,8 @@ because changing course here is editing a sentence.
 ## Check, then judge
 
 `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/board-check" ready <id>` asserts the mechanical
-part, and each finding says how to fix it. Fix or report each one.
+part, and each finding says how to fix it. Fix or report each one. For an intent, which
+is the file `backlog/intents/<name>.md`, pass its name: `ready <name>`.
 
 What the check can't judge is decided here:
 
@@ -24,6 +25,9 @@ What the check can't judge is decided here:
 - Each carried question can wait, for the reason its note gives.
 - The size holds up (`philosophy:size-work`), and large or cross-team work has its spec
   (`philosophy:write-spec`).
+- For a task in a piece of work, it carries the work's name and the `slice-n` label of
+  the slice it comes from, and that slice is in `backlog/plans/<name>.md`
+  (`philosophy:write-plan`).
 
 A follow-up filed from a review is accepted like anything else. Its finish line names
 the outcome rather than the mechanism the reviewer suggested, and it is sized when
@@ -39,4 +43,6 @@ what is ready and what is not, name who should decide, and stop.
 
 ## Promoting
 
-`backlog draft promote <id>`. The commit is the record of who accepted it and when.
+A task: `backlog draft promote <id>`. An intent: change `status` from `Draft` to `To Do` in
+its frontmatter, since no CLI manages the file. The commit is the record of who accepted
+it and when.

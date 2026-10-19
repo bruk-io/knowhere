@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.7.0
+
+- **A piece of work keeps its intent, spec and plan as named files, grouped by type.**
+  `backlog/intents/<name>.md`, `backlog/specs/<name>.md` and `backlog/plans/<name>.md`
+  share `<name>` (for example `nux-ep2`), and the shared name is what pairs them: no
+  `Intent:` line in a spec and no `documentation:` key on anything. Tasks, drafts,
+  decisions and completed items stay where Backlog.md puts them. Backlog.md does not
+  manage the three new folders, so the files have no ids and no CLI, and it never
+  rewrites them.
+- **An intent is a file, not a task.** Its frontmatter holds `title`, `status`
+  (`Draft`, `To Do`, `In Progress`, `Done`), `assignee` and the `size-n` label. Every
+  task in the work carries the work's name as a label (and a `references` link to the
+  intent), which Backlog.md keeps through edits, and a task created under one with `-p`
+  is in the work through its parent. `board-check`, `route` and `close-task` take the
+  name where they took an id, and an intent still routes to the orchestrator and stays
+  open while any task in the work is. `board-check spec <name>` also works.
+- **The plan sequences the work, and the tasks are derived from it.** `plans/<name>.md`
+  has a `## Slices` list in the order the slices land, each saying `Tester sees:` what
+  a tester can observe and optionally `Depends on:` an earlier slice. New checks: the
+  plan exists before the intent is split, the slices are numbered in order and each names
+  what a tester sees, every task in the work carries a `slice-n` label for a slice the
+  plan has, and every slice has a task. A leaf's own `## Implementation Plan` is
+  unchanged. The new `write-plan` skill writes the plan and derives the tasks.
+- **New pairing checks.** A spec or plan with no intent of the same name is reported,
+  and so is an intent with an unusable name (the name is a label, so it cannot look like
+  an id or a `size-` or `slice-` label) or status.
+- **Skills and rule describe the new layout.** `capture-intent` writes the intent file,
+  `write-spec` writes `specs/<name>.md` with no doc type, `Intent:` line or `--doc`
+  link, and `size-work`, `accept-work`, `plan-change`, `close-work` and `record-decision`
+  read the intent from its file. `rules/board.md` describes the layout. `docs/board-examples.md`
+  is rewritten around one piece of work in the new layout.
+- **`tick-intent` and the guard.** A reviewer has no Edit tool and an intent has no CLI,
+  so `scripts/tick-intent <name> <n>...` ticks `## Done when` boxes and changes nothing
+  else. The guard that holds `Done` to `close-task` now covers intent files.
+- **Migrating.** `scripts/migrate-layout <board-root> --name <name> [--dry-run]` moves an
+  intent task's content to `intents/<name>.md` and removes the task, moves its spec doc
+  to `specs/<name>.md` and the plan doc under `docs/plans/` to `plans/<name>.md`, and
+  labels each child task with the name, removing its `parent_task_id` (which would point at
+  a task that no longer exists). It prints what it cannot do as `by hand:`: the `slice-n`
+  label on each task, and a plan with no numbered `## Slices`, which `board-check` reports
+  until fixed. The old layout still checks, so a board can move one piece of work at a
+  time. Moving resets what "accepted" means for the intent's finish line to the commit
+  that adds the intent file, so commit the migration, then change nothing in `## Done when`
+  without `finish-moved`.
+
 ## 0.6.0
 
 - **The Backlog.md board version is back, and the self-running intent loop is gone.**
