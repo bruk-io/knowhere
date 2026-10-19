@@ -4,7 +4,8 @@ name: Philosophy Evals
 # change to a play, a hook or a script that makes the loop behave worse holds the merge.
 # The job runs on every PR and skips its own work when the plugin didn't change, so it
 # can be a required check without blocking other PRs. Each case runs once, on the
-# subscription token, and every case must pass.
+# subscription token. Every case tagged `gate` must pass; a case tagged `advisory` reports
+# a failure as a warning and never holds the merge.
 
 on:
   # ready_for_review as well: a build's own pushes are made as github-actions[bot], and
@@ -96,11 +97,15 @@ jobs:
           --no-publish --report eval-advisory.html
           --json eval-advisory.json --keep-temp
 
+      # Reporting must not hold the merge either, even if the advisory run died before
+      # writing its results.
       - name: Report the advisory cases
         if: steps.advisory.outcome == 'failure'
+        continue-on-error: true
         working-directory: plugins/philosophy
         run: |
           echo "::warning title=Advisory eval::An advisory case failed. It doesn't hold the merge; the diagnostics follow."
+          [ -f eval-advisory.json ] || { echo "The advisory run wrote no results; its step's log says why."; exit 0; }
           python3 ../../.github/scripts/eval-diagnostics.py eval-advisory.json
 
       # Print why each failed case failed, from its graders and its trace, so a failure in
