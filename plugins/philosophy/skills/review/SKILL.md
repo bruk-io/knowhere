@@ -24,8 +24,10 @@ merge, and an Important one holds it.
    - Compliance: the diff against its plan (files outside it, steps skipped), the plan
      against the spec's requirements, and the PR's evidence against the plan's proof.
 3. Mark each finding Important (it breaks behaviour, leaks data, breaches policy, or
-   leaves a requirement unmet) or Nit. Keep at most five nits and give the rest as a
-   count. Skip what CI already checks.
+   leaves a requirement unmet) or Nit. A file changed outside the plan's Files that
+   change, or a plan step skipped, is Important and never a Nit: the plan is what the
+   owner read before the build, so a change beyond it was not read. Keep at most five
+   nits and give the rest as a count. Skip what CI already checks.
 4. Post each finding on its line as an inline comment with
    `mcp__github_inline_comment__create_inline_comment`, passing `confirmed: true`; where
    that tool is deferred, load it with ToolSearch first. Then post one top-level comment
