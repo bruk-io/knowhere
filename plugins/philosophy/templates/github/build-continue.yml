@@ -40,9 +40,6 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ steps.pr.outputs.head }}
-          # No persisted GITHUB_TOKEN: the action then pushes with the Claude app's token,
-          # so the push's own pull_request runs aren't held for approval.
-          persist-credentials: false
 
       - if: steps.pr.outputs.slug != ''
         uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0

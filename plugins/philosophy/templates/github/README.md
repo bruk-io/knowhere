@@ -26,6 +26,14 @@ Before they work:
   start can wait for approval; the build marks its PR ready as the Claude app after its
   last push, so the checks run on its final commit.
 
+These templates keep `actions/checkout`'s credential, because `dispatch-check` and
+`next-change` read the remote's branches before the action runs, and a private
+repository needs that read authenticated: a failed read would count as no branch and
+let a second spec or build start. The cost is that a build's own pushes are made as
+`github-actions[bot]`, and their `pull_request` runs wait for approval; the
+`ready_for_review` runs above are the ones that count. knowhere is public, so its own
+workflows check out without the credential and push as the Claude app.
+
 A build whose plan touches `.github/workflows/` can't be built in CI: the Claude app's
 token has no `workflows` permission, so its push is refused, and the owner runs that
 build by hand instead.
