@@ -14,6 +14,13 @@ or nearly did:
 Every case has a deterministic grader (`regex`, `file_exists`) that can fail it, and no
 case fails on one LLM grade.
 
+A case tagged `gate` holds the merge in CI: its verdict comes from files and git. A case
+tagged `advisory` is run and reported as a warning, but doesn't hold anything: its
+verdict still rests on what a model chooses to say. `subagent-gets-constraints` is
+advisory because the `SubagentStart` hook's injection isn't in the parent's trace, so
+the case can only read what the subagent repeats, and no prompt has made that reliable
+(about 4 runs in 5).
+
 Every case runs in a small repository that `_scaffold/demo-repo.sh` builds: git on
 `main`, a bare remote as `origin`, and one intent, `demo`, taken as far as the case
 needs. There is no GitHub, so a play pushes to `origin` and stops short of a PR.
