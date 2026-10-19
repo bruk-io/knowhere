@@ -164,6 +164,15 @@ def test_spec_is_not_due_while_a_spec_branch_is_open(repo: Path) -> None:
     assert (result.returncode, result.stdout) == (1, "spec/thing is already on the remote\n")
 
 
+def test_a_branch_merely_ending_in_spec_slug_does_not_count(repo: Path) -> None:
+    before = rev(repo, "main")
+    add_intent(repo, "thing")
+    sha = commit_on_main(repo, "add thing's intent")
+    git(repo, "push", "-q", "origin", "main:refs/heads/x/spec/thing")
+    result = dispatch_check("spec", "thing", "--before", before, "--sha", sha, cwd=repo)
+    assert (result.returncode, result.stdout) == (0, "due\n")
+
+
 # --- build: no due-ness check here, that's next-change's job --------------------------
 
 

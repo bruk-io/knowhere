@@ -137,7 +137,8 @@ def path_exists_at(root: Path, ref: str, path: str) -> bool:
 
 
 def remote_branch_exists(root: Path, remote: str, branch: str) -> bool:
-    return bool(_git(root, "ls-remote", "--heads", remote, branch).stdout.strip())
+    # The full ref: a bare `spec/<slug>` would also match `refs/heads/x/spec/<slug>`.
+    return bool(_git(root, "ls-remote", remote, "refs/heads/%s" % branch).stdout.strip())
 
 
 def gather_facts(root: Path, remote: str, play: Play, slug: str, before: str, sha: str) -> Facts:

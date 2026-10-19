@@ -22,7 +22,7 @@ import glob
 import re
 from pathlib import Path
 
-RUN_KEY = re.compile(r"^(?P<indent>\s*)run:\s*(?P<rest>.*?)\s*$")
+RUN_KEY = re.compile(r"^(?P<indent>\s*(?:-\s+)?)run:\s*(?P<rest>.*?)\s*$")  # `run:` or `- run:`
 BLOCK_SCALAR = re.compile(r"^[|>][+-]?\d*$")
 PATTERNS = (
     ".github/workflows/intent-*.yml",
@@ -64,9 +64,7 @@ def offenses(text: str) -> list[tuple[int, str]]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    top = argparse.ArgumentParser(
-        prog="inline-expressions.py", description=__doc__.splitlines()[0]
-    )
+    top = argparse.ArgumentParser(prog="inline-expressions.py", description=__doc__.splitlines()[0])
     top.add_argument("--root", type=Path, default=Path.cwd())
     args = top.parse_args(argv)
 
