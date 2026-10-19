@@ -3,7 +3,7 @@ description: Build the next change of an approved spec - commit its plan first, 
 argument-hint: <slug> [auto-merge]
 arguments: [slug, merge]
 disable-model-invocation: true
-allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(git checkout -b build/*), Bash(git add *), Bash(git commit *), Bash(git push -u origin HEAD), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr ready *), Bash(gh pr checks *), Bash(gh pr merge --auto *)
+allowed-tools: Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-change" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" *), Bash(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/commit-change" *), Bash(git fetch origin main), Bash(git checkout -b build/*), Bash(git push -u origin HEAD), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr ready *), Bash(gh pr checks *), Bash(gh pr merge --auto *)
 ---
 
 # Build the next change
@@ -17,14 +17,17 @@ the mechanical calls; the plan and the code are yours.
    plan is committed. A build comes back to its branch only when its owner has
    unblocked it, by replying `@claude continue` on its PR, which runs this in CI, or by
    running it by hand, so go to step 5.
-2. From `main`, create the branch `build/$slug/NN`.
+2. Run `git fetch origin main`, then create the branch with
+   `git checkout -b build/$slug/NN origin/main`, so the build starts from the merged
+   main and not from wherever HEAD is.
 3. Read the intent, the spec, and the code the change touches. Write
    `intent/$slug/plans/NN-<short-name>.md` from `${CLAUDE_PLUGIN_ROOT}/templates/plan.md`:
    every file that changes, one backticked path per bullet; the order of work, each
    step naming its requirement; the risks; and the proof, the checks that will show it
    works. Someone who never saw this session must be able to implement from it. Run
    `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/artefact-check" intent/$slug`, then commit the
-   plan alone as the branch's first commit, with the message `plan: NN <title>`.
+   plan alone as the branch's first commit:
+   `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/commit-change" <the plan> --plan-only -m "plan: NN <title>"`.
 4. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gated-paths" <the plan>`. Exit 0 means
    nothing is gated: go on. Exit 2 means it couldn't read the plan: stop and say so.
    Exit 1 lists the gated paths: push, open the PR as a draft (`gh pr create --draft`)
@@ -37,9 +40,13 @@ the mechanical calls; the plan and the code are yours.
    there, and stop, as in step 4. A drift bigger than that is a reason to stop and say
    so, not to push on. For a bug, first write the test that reproduces it, name it on a
    `Repro:` line under Proof, confirm it fails for the expected reason, and commit it.
+   Every commit after the plan's is `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/commit-change" <the plan> -m "<message>"`:
+   it stages the plan and the paths the plan lists and nothing else, refuses ignored or
+   compiled files, and never amends. A file the plan does not list is not committed, so
+   add it to the plan first.
 6. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/run-check" fast` until it exits 0. Fix
    the code, never the check: a test the plan names as a repro stays as it is.
-7. Commit, push, and open the PR as a draft (`gh pr create --draft`), or update it: the
+7. Commit with `commit-change`, push, and open the PR as a draft (`gh pr create --draft`), or update it: the
    R-numbers it delivers, a link to the plan, and the block `run-check` printed,
    exactly as printed.
 8. Mark the PR ready with `gh pr ready`, which starts the review; if it is already
