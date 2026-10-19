@@ -1,19 +1,15 @@
 # Copy to .github/CODEOWNERS and replace @OWNER with the person who owns the
 # architecture. A PR that touches one of these paths waits for them; anything else
-# merges once its required checks pass, because the architecture it implements was
-# approved in its spec. Turn on "Require review from Code Owners" for main.
+# merges once its required checks pass and every review conversation is resolved,
+# because the architecture it implements was approved in its spec. Turn on "Require
+# review from Code Owners" and "Require conversation resolution" for main.
 
 # Work starts, and the architecture is set, here.
 /intent/*/intent.md @OWNER
 /intent/*/spec.md @OWNER
 
-# The gates themselves, so a build can't loosen what checks it.
-/.github/ @OWNER
-/REVIEW.md @OWNER
-/.claude/settings.json @OWNER
-/.claude/checks.json @OWNER
-bands.yaml @OWNER
-
-# Architecture definitions: LikeC4 models, and each boundary configuration file
-# (for example the file that holds an import-boundary tool's rules).
-*.c4 @OWNER
+# The workflows and the scripts they run, so a build can't change what CI runs, and
+# this file, so a build can't change what waits for the owner.
+/.github/workflows/ @OWNER
+/.github/scripts/ @OWNER
+/.github/CODEOWNERS @OWNER

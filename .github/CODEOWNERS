@@ -1,23 +1,14 @@
-# What starts work, what sets the architecture, and the gates that check the work
+# What starts work and sets the architecture, and what runs the loop in CI
 # (intent/self-running-loop/spec.md, R12). A PR that touches one of these waits for
-# @brukhabtu. Anything else merges once its required checks pass, because the
-# architecture it implements was approved in its spec.
+# @brukhabtu. Anything else, the plugin's code included, merges once its required
+# checks pass and every review conversation is resolved.
 
 # Work starts, and the architecture is set, here.
 /intent/*/intent.md @brukhabtu
 /intent/*/spec.md @brukhabtu
 
-# The gates themselves, so a build can't loosen what checks it.
-/.github/ @brukhabtu
-/REVIEW.md @brukhabtu
-/.claude/settings.json @brukhabtu
-/.claude/checks.json @brukhabtu
-bands.yaml @brukhabtu
-/plugins/*/hooks/ @brukhabtu
-/plugins/*/scripts/ @brukhabtu
-/plugins/*/evals/ @brukhabtu
-# The review play is part of the review gate: a build mustn't be able to soften it.
-/plugins/*/skills/review/ @brukhabtu
-
-# Architecture definitions.
-*.c4 @brukhabtu
+# The workflows and the scripts they run, so a build can't change what CI runs, and
+# this file, so a build can't change what waits for the owner.
+/.github/workflows/ @brukhabtu
+/.github/scripts/ @brukhabtu
+/.github/CODEOWNERS @brukhabtu
