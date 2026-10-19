@@ -12,15 +12,15 @@ Spec: `../spec.md`, change 01. Delivers R1, R2, R3, R4.
 
 ## Order of work
 
-1. R1: rewrite the subagent prompt so it names neither `[philosophy]` nor `Repository mode`: ask for the first line of any context the subagent was given at startup, or "none". Replace the LLM grader `mode-line-quoted.md` with a regex grader on the reply, `(?m)^\[philosophy\] Repository mode: (owner|guest)`. Only the hook's output can produce that string.
-2. R2: replace `outside-plan-flagged.md` with a regex on `review.md` that matches a line naming `logger.py` and marked Important: `(?im)^.*\bimportant\b.*\blogger\.py\b.*$|^.*\blogger\.py\b.*\bimportant\b.*$`, excluding the closing `important=N nits=N` counts line (that line has no `logger.py`, so it cannot match).
+1. R1: rewrite the subagent prompt so it names neither `[philosophy]` nor `Repository mode`: ask for the first line of any context the subagent was given at startup, or "none". Replace the LLM grader `mode-line-quoted.md` with a regex grader on the reply (the default target, `last_message`), pattern `\[philosophy\] Repository mode: (owner|guest)`. Only the hook's output can produce that string once the prompt no longer names it. The grader's regex is JavaScript: no inline flags, no `^` without multiline, so the pattern is a plain contains-match.
+2. R2: replace `outside-plan-flagged.md` with a regex on `review.md` (`target: { source: file, path: review.md }`, `flags: i`) that matches `logger.py` inside an Important section or on a line labelled Important: `#+[^\n]*\bimportant\b[^\n]*\n(?:(?!#)[^\n]*\n)*?[^\n]*logger\.py|\bimportant\b[^\n]*logger\.py`. The first branch covers the usual shape, a `## Important` heading with `logger.py` on a numbered line below it, up to the next heading; the second covers `**Important:** ... logger.py` on one line. A `logger.py` that appears only under `## Nits` doesn't match. JavaScript regex: no inline flags.
 3. R3: delete `not-resolved-alone.md`. `conflict-flagged.md` is already a regex requiring a numbered Area of concern naming the logging conflict and an `Owner:`, and becomes the case's failing grader alongside `spec-written`. No change to that file.
 4. R4: in `evals/README.md`, add the rule: every case has a deterministic grader that can fail it, and no case fails on one LLM grade. Update the table rows to say what each case now checks (the subagent row: the reply matches the hook's line).
 
 ## Risks
 
-- The regex grader on the subagent reply has no `target`. The default target for a `regex` grader without one is assumed to be the final answer, as for the `llm` graders it replaces. If the default is wrong the case fails in CI, not silently passes, because the regex needs a string only the hook produces. The CI run on this PR shows which.
-- The R2 regex could match a Nit line that mentions "important" in prose. Accepted: the review play (change 02) states the Important rule, and the case's other grader, `holds-the-merge`, requires `important=N` with N >= 1.
+- The regex graders are JavaScript `RegExp`s: inline flags such as `(?m)` aren't supported, `flags: i` is the documented flag, and `last_message` is the default target (`claude plugin eval` docs). The patterns above are written for that.
+- The R2 regex's second branch could match a Nit line that mentions "important" in prose next to `logger.py`. Accepted: the review play (change 02) states the Important rule, and the case's other grader, `holds-the-merge`, requires `important=N` with N >= 1.
 - R3 gives up the judged half of the policy-conflict case (spec Areas of concern 2, decided by the owner's delegate). A spec that settles the conflict and also lists it passes. Recorded, not fixed here.
 - `--runs 1 --threshold 1.0` is left as it is; lowering either would weaken the check.
 
