@@ -1,8 +1,8 @@
 """Tests for scripts/artefact.py, artefact-check and the write hook.
 
 The checks are tested on small texts shaped like the templates, each broken one way.
-The command and the hook are tested as programs, against this repository's own intent
-and against a broken copy of it in a temporary directory. Set HOOK_PYTHON to run them
+The command and the hook are tested as programs, against a clean fixture under
+`tests/fixtures/intent/sample` and against a broken copy of it in a temporary directory. Set HOOK_PYTHON to run them
 under another interpreter.
 """
 
@@ -16,13 +16,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-REPO = ROOT.parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import artefact as a  # noqa: E402
 
 PYTHON = os.environ.get("HOOK_PYTHON", sys.executable)
-OWN_INTENT = REPO / "intent" / "self-running-loop"
+SAMPLE = ROOT / "tests" / "fixtures" / "intent" / "sample"
 
 INTENT = """# Intent: a thing
 
@@ -262,6 +261,29 @@ def test_spec_concern_with_no_owner_is_found():
     assert checks(a.check_spec(doc(broken), doc(INTENT))) == ["concerns"]
 
 
+def test_template_placeholders_are_not_values():
+    cases = (
+        (a.check_intent, INTENT, "Author: Someone.", "Author: <name>."),
+        (a.check_intent, INTENT, "Status: draft.", "Status: <draft>."),
+        (a.check_spec, SPEC, "Intent: [intent.md](intent.md), by", "Intent: <link>, by"),
+        (a.check_spec, SPEC, "Applied: the house rules.", "Applied: <rules>"),
+        (a.check_spec, SPEC, "Owner: Someone.", "Owner: <who>."),
+        (a.check_spec, SPEC, "**R2.** The API stays.", "**R2.** <requirement>"),
+    )
+    for check, text, real, placeholder in cases:
+        assert real in text, real
+        args = (doc(INTENT),) if check is a.check_spec else ()
+        assert check(doc(text), *args) == [], real
+        found = check(doc(text.replace(real, placeholder)), *args)
+        assert found, placeholder
+        assert "placeholder" in found[0].message, placeholder
+
+
+def test_a_value_quoting_a_placeholder_mid_sentence_passes():
+    quoted = SPEC.replace("**R2.** The API stays.", "**R2.** Replace <value> with the API.")
+    assert a.check_spec(doc(quoted), doc(INTENT)) == []
+
+
 def test_spec_with_no_applied_line_is_found():
     broken = SPEC.replace("Applied: the house rules.\n", "")
     assert checks(a.check_spec(doc(broken), doc(INTENT))) == ["header"]
@@ -317,15 +339,15 @@ def run_check(*args: str) -> subprocess.CompletedProcess[str]:
 
 def broken_copy(tmp_path: Path) -> Path:
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    copy = tmp_path / "intent" / "self-running-loop"
-    shutil.copytree(OWN_INTENT, copy)
+    copy = tmp_path / "intent" / "sample"
+    shutil.copytree(SAMPLE, copy)
     spec = copy / "spec.md"
     spec.write_text(spec.read_text().replace("**R2.**", "**R99.**"))
     return copy
 
 
-def test_command_passes_on_this_repositorys_intent():
-    result = run_check(str(OWN_INTENT))
+def test_command_passes_on_a_clean_fixture():
+    result = run_check(str(SAMPLE))
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -397,7 +419,7 @@ def test_hook_is_silent_for_a_clean_artefact():
         {
             "hook_event_name": "PostToolUse",
             "tool_name": "Edit",
-            "tool_input": {"file_path": str(OWN_INTENT / "intent.md")},
+            "tool_input": {"file_path": str(SAMPLE / "intent.md")},
         }
     )
     assert (result.returncode, result.stdout) == (0, "")
