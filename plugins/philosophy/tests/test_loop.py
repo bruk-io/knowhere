@@ -176,6 +176,27 @@ def test_a_catch_all_owner_gates_every_path():
     assert loop.gated(("README.md", "src/a.py"), rules) == ("README.md", "src/a.py")
 
 
+def test_an_escaped_hash_is_part_of_the_pattern():
+    rules = loop.parse_codeowners("\\#notes/ @owner\n")
+    assert loop.gated(("#notes/a.md", "notes/a.md"), rules) == ("#notes/a.md",)
+
+
+def test_an_escaped_space_is_part_of_the_pattern():
+    rules = loop.parse_codeowners("my\\ docs/ @owner\n")
+    assert loop.gated(("my docs/a.md", "my/a.md", "docs/a.md"), rules) == ("my docs/a.md",)
+
+
+def test_an_unescaped_trailing_comment_is_not_an_owner():
+    (rule,) = loop.parse_codeowners("docs/ @owner # comment @other\n")
+    assert rule.owners == ("@owner",)
+
+
+def test_a_line_starting_with_an_escaped_hash_is_a_rule_not_a_comment():
+    (rule,) = loop.parse_codeowners("\\# not a comment\n")
+    assert rule.pattern == "#"
+    assert rule.owners == ("not", "a", "comment")
+
+
 def test_a_signal_exit_reads_as_a_shell_reports_it():
     assert (loop.exit_code(-9), loop.exit_code(0), loop.exit_code(3)) == (137, 0, 3)
 

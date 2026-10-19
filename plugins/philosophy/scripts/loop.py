@@ -99,10 +99,40 @@ def next_change(
     return Next(Step.DONE, None)
 
 
+def _words(line: str) -> list[str]:
+    """The words of a CODEOWNERS line. A backslash before `#` or a space adds that
+    character to the current word; an unescaped `#` ends the line; unescaped whitespace
+    ends a word. A backslash before anything else is kept as written."""
+    words: list[str] = []
+    word: list[str] = []
+    started = False
+    i = 0
+    while i < len(line):
+        c = line[i]
+        if c == "\\" and line[i + 1 : i + 2] in ("#", " "):
+            word.append(line[i + 1])
+            started = True
+            i += 2
+            continue
+        if c == "#":
+            break
+        if c.isspace():
+            if started:
+                words.append("".join(word))
+                word, started = [], False
+        else:
+            word.append(c)
+            started = True
+        i += 1
+    if started:
+        words.append("".join(word))
+    return words
+
+
 def parse_codeowners(text: str) -> tuple[Rule, ...]:
     rules = []
     for line in text.splitlines():
-        words = line.split("#", 1)[0].split()
+        words = _words(line)
         if words:
             rules.append(Rule(words[0], tuple(words[1:])))
     return tuple(rules)
