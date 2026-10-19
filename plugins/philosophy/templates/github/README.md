@@ -5,8 +5,8 @@ Copy these into `.github/workflows/`, with `templates/CODEOWNERS` as
 
 | File | Runs | On |
 |---|---|---|
-| `intent-spec.yml` | `/philosophy:spec <slug>` | A merged intent with no spec yet |
-| `intent-build.yml` | `/philosophy:build <slug> auto-merge` | A merged spec or change, when `next-change` says to build |
+| `intent-spec.yml` | `/philosophy:spec <slug>` | A merged intent with no spec yet, in two hops: `find` on the merge, the action on `find`'s dispatch |
+| `intent-build.yml` | `/philosophy:build <slug> auto-merge` | A merged spec or change, when `next-change` says to build, in the same two hops |
 | `build-continue.yml` | `/philosophy:build <slug>` on the PR's branch | The owner's `@claude continue` on a build PR |
 | `claude-review.yml` | `/philosophy:review <pr>` | A PR opened as ready, or moved from draft to ready; fails while it has an Important finding |
 | `loop-bands.yml` | `band-check`, then a read-only diagnosis or `/philosophy:intent` | Daily; with `templates/bands.yaml` at the root |
@@ -21,6 +21,10 @@ Before they work:
 - Protect `main`: require a PR, code-owner review, the full check and the evals as
   required checks, and conversation resolution, so every review comment is answered and
   resolved before merge. Turn on "Allow auto-merge".
+
+A build whose plan touches `.github/workflows/` can't be built in CI: the Claude app's
+token has no `workflows` permission, so its push is refused, and the owner runs that
+build by hand instead.
 
 The build workflow fetches the plugin's scripts from knowhere. Pin the clone to a tag
 once the plugin has one you trust.

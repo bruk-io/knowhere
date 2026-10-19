@@ -4,7 +4,12 @@ name: Build the Next Change
 # (the philosophy plugin's loop). `next-change` decides, not a model: the first
 # change in the spec's delivery order with no plan on main, held while a build branch
 # for it is open. One intent builds one change at a time. The build turns on auto-merge
-# with the Claude app's token, so its merge starts this workflow again (R11).
+# with the Claude app's token, so its merge starts `find` again.
+#
+# Runs in two hops, because claude-code-action doesn't accept `push` as a triggering
+# event: `find` computes the slugs on `push`, and a `dispatch` job relays them, with
+# the push's range, as a `repository_dispatch`. The `build` job runs on that dispatch
+# and re-checks the relay against `main` before anything runs.
 
 on:
   push:
@@ -12,11 +17,14 @@ on:
     paths:
       - "intent/*/spec.md"
       - "intent/*/plans/*.md"
+  repository_dispatch:
+    types: [intent-build]
 
 permissions: {}
 
 jobs:
   find:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,18 +37,41 @@ jobs:
 
       - id: find
         name: Intents whose spec or plans this push changed
+        env:
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
         run: |
-          slugs=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" -- 'intent/*/spec.md' 'intent/*/plans/*.md' \
+          slugs=$(git diff --name-only "$BEFORE" "$SHA" -- 'intent/*/spec.md' 'intent/*/plans/*.md' \
             | cut -d/ -f2 | sort -u | jq -Rcs 'split("\n") | map(select(length > 0))')
           echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
           echo "Intents to build: $slugs"
 
-  build:
+  dispatch:
     needs: find
-    if: needs.find.outputs.slugs != '[]'
+    if: "github.event_name == 'push' && needs.find.outputs.slugs != '[]'"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Relay the slugs and the push's range as a repository_dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SLUGS: ${{ needs.find.outputs.slugs }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh api repos/{owner}/{repo}/dispatches \
+            -f event_type=intent-build \
+            -f "client_payload[slugs]=$SLUGS" \
+            -f "client_payload[before]=$BEFORE" \
+            -f "client_payload[sha]=$SHA"
+
+  build:
+    if: github.event_name == 'repository_dispatch'
     strategy:
       matrix:
-        slug: ${{ fromJSON(needs.find.outputs.slugs) }}
+        slug: ${{ fromJSON(github.event.client_payload.slugs) }}
     concurrency:
       group: build-${{ matrix.slug }}
       cancel-in-progress: false
@@ -51,15 +82,27 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
 
       - name: Fetch the plugin's scripts
         run: git clone -q --depth 1 https://github.com/bruk-io/knowhere.git "$RUNNER_TEMP/knowhere"
 
+      - id: verify
+        name: Check the dispatch is real
+        env:
+          SLUG: ${{ matrix.slug }}
+          BEFORE: ${{ github.event.client_payload.before }}
+          SHA: ${{ github.event.client_payload.sha }}
+        run: python3 "$RUNNER_TEMP/knowhere/plugins/philosophy/scripts/dispatch-check" build "$SLUG" --before "$BEFORE" --sha "$SHA"
+
       - id: next
         name: Which change is next
+        env:
+          SLUG: ${{ matrix.slug }}
         run: |
           set +e
-          line=$(python3 "$RUNNER_TEMP/knowhere/plugins/philosophy/scripts/next-change" "intent/${{ matrix.slug }}")
+          line=$(python3 "$RUNNER_TEMP/knowhere/plugins/philosophy/scripts/next-change" "intent/$SLUG")
           code=$?
           echo "$line"
           echo "build=$([ $code -eq 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
@@ -72,6 +115,7 @@ jobs:
         uses: anthropics/claude-code-action@f27be6b65a4652f08a2ba3cff79114829b588967 # v1.0.252
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_bots: "github-actions[bot]"
           plugin_marketplaces: |
             https://github.com/bruk-io/knowhere.git
           plugins: |

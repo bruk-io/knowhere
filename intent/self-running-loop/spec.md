@@ -52,10 +52,11 @@ The plays, as commands
 
 Triggers
 
-- **R8.** A push to `main` that adds `intent/*/intent.md` runs `/philosophy:spec` in CI,
-  which opens a spec PR for me.
-- **R9.** A push to `main` that adds `intent/*/spec.md` or `intent/*/plans/*.md` runs
-  `/philosophy:build` for the next change, until the delivery order is done. The next
+- **R8.** A push to `main` that adds `intent/*/intent.md` fires the matching
+  `repository_dispatch`, which runs `/philosophy:spec` in CI and opens a spec PR for me.
+- **R9.** A push to `main` that adds `intent/*/spec.md` or `intent/*/plans/*.md` fires
+  the matching `repository_dispatch`, which runs `/philosophy:build` for the next
+  change, until the delivery order is done. The next
   change is always the lowest-numbered one with no plan on `main`; if its build is
   already open, nothing starts, so a later change never builds on a base without the
   earlier one. Builds for one intent also run one at a time (a concurrency group per
@@ -74,7 +75,8 @@ Gates
   the evidence is the toolchain's, not the session's. The review workflow lists
   `claude[bot]` in `allowed_bots`, so it reviews the PRs the loop opens. The build job
   turns on auto-merge with the Claude app's token, so a merge the loop makes is made
-  by `claude[bot]` and starts the next workflow; it is never made with `GITHUB_TOKEN`.
+  by `claude[bot]`, never with `GITHUB_TOKEN`, and starts `find` on `push`, as any
+  merge does; `find`'s dispatch, not the merge itself, is what starts the action.
   Turning on auto-merge is not Claude approving its own work: GitHub merges only once
   every required check passes, every review conversation is resolved, and CODEOWNERS
   asks for no one, so the approval is the spec I approved plus checks Claude can't
@@ -175,8 +177,9 @@ list and from branch protection, not from an agent definition.
    intent.
 
 Chaining: the build job turns on auto-merge with the Claude app's token, so the merge
-is made by `claude[bot]` and starts the next workflow (R11). The review workflow lists
-`claude[bot]` in `allowed_bots`, so it reviews the PRs the loop opens.
+is made by `claude[bot]` and starts `find` on `push`, as any merge does; `find`'s
+dispatch, not the merge itself, starts the next workflow's action (R11). The review
+workflow lists `claude[bot]` in `allowed_bots`, so it reviews the PRs the loop opens.
 
 ### Where things live
 

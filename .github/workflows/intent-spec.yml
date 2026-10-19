@@ -4,17 +4,26 @@ name: Intent to Spec
 # R8). Merging the intent was the owner accepting it; the spec arrives as a PR, and
 # CODEOWNERS holds it for the owner, because the spec is where the architecture is
 # set. An intent that already has a spec is left alone.
+#
+# Runs in two hops, because claude-code-action doesn't accept `push` as a triggering
+# event (loop-trigger-events/spec.md R1): `find` computes the slugs on `push`, and a
+# `dispatch` job relays them, with the push's range, as a `repository_dispatch`. The
+# `spec` job runs on that dispatch and re-checks the relay against `main` before
+# anything runs (R5).
 
 on:
   push:
     branches: [main]
     paths:
       - "intent/*/intent.md"
+  repository_dispatch:
+    types: [intent-spec]
 
 permissions: {}
 
 jobs:
   find:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,20 +36,43 @@ jobs:
 
       - id: find
         name: Intents this push added or changed that have no spec yet
+        env:
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
         run: |
-          slugs=$(git diff --name-only --diff-filter=AM "${{ github.event.before }}" "${{ github.sha }}" -- 'intent/*/intent.md' \
+          slugs=$(git diff --name-only --diff-filter=AM "$BEFORE" "$SHA" -- 'intent/*/intent.md' \
             | cut -d/ -f2 | sort -u \
             | while read -r slug; do [ -f "intent/$slug/spec.md" ] || echo "$slug"; done \
             | jq -Rcs 'split("\n") | map(select(length > 0))')
           echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
           echo "Intents to spec: $slugs"
 
-  spec:
+  dispatch:
     needs: find
-    if: needs.find.outputs.slugs != '[]'
+    if: "github.event_name == 'push' && needs.find.outputs.slugs != '[]'"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Relay the slugs and the push's range as a repository_dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SLUGS: ${{ needs.find.outputs.slugs }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh api repos/{owner}/{repo}/dispatches \
+            -f event_type=intent-spec \
+            -f "client_payload[slugs]=$SLUGS" \
+            -f "client_payload[before]=$BEFORE" \
+            -f "client_payload[sha]=$SHA"
+
+  spec:
+    if: github.event_name == 'repository_dispatch'
     strategy:
       matrix:
-        slug: ${{ fromJSON(needs.find.outputs.slugs) }}
+        slug: ${{ fromJSON(github.event.client_payload.slugs) }}
     concurrency:
       group: intent-${{ matrix.slug }}
       cancel-in-progress: false
@@ -51,10 +83,27 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@f27be6b65a4652f08a2ba3cff79114829b588967 # v1.0.252
+      - id: verify
+        name: Check the dispatch is real and the spec is still due
+        env:
+          SLUG: ${{ matrix.slug }}
+          BEFORE: ${{ github.event.client_payload.before }}
+          SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          set +e
+          python3 plugins/philosophy/scripts/dispatch-check spec "$SLUG" --before "$BEFORE" --sha "$SHA"
+          code=$?
+          echo "due=$([ $code -eq 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          [ $code -le 1 ]
+
+      - if: steps.verify.outputs.due == 'true'
+        uses: anthropics/claude-code-action@f27be6b65a4652f08a2ba3cff79114829b588967 # v1.0.252
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_bots: "github-actions[bot]"
           plugin_marketplaces: |
             https://github.com/bruk-io/knowhere.git
           plugins: |
