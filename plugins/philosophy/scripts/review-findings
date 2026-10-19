@@ -31,7 +31,7 @@ from typing import Optional
 REVIEWER = "claude[bot]"
 # The counts on a line of their own (markdown around them allowed), so a reply that
 # quotes them mid-sentence isn't read as a review.
-COUNTS = re.compile(r"^[^\w\n]*important=(\d+) nits=(\d+)[^\w\n]*$", re.MULTILINE)
+COUNTS = re.compile(r"^[^\w\n]*important=(\d+)[^\S\n]+nits=(\d+)[^\w\n]*$", re.MULTILINE)
 THREADS = """
 query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
@@ -163,6 +163,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     comments = [c for page in json.loads(pages) for c in page]
     threads = unresolved(graphql)
     summary = latest_summary(comments)
+    if summary is None and any((c.get("user") or {}).get("login") == REVIEWER for c in comments):
+        print(
+            "review-findings: %s commented on PR %d, but no comment has a counts line;"
+            " a finding only in the review's summary needs answering by hand"
+            % (REVIEWER, args.pr),
+            file=sys.stderr,
+        )
     print(json.dumps({"threads": threads, "summary": summary}, indent=2))
     return 0 if needs_answer(threads, summary) else 1
 

@@ -119,6 +119,11 @@ def test_counts_quoted_mid_sentence_dont_make_a_summary() -> None:
     assert rf.latest_summary(comments) is None
 
 
+def test_counts_spaced_out_still_make_a_summary() -> None:
+    comments = [summary("Hold.\n\nimportant=1  nits=0 ", "2026-10-19T01:00:00Z")]
+    assert rf.latest_summary(comments)["body"].startswith("Hold.")
+
+
 def test_more_threads_reads_the_page_flag() -> None:
     assert rf.more_threads(threads_answer(node("PRRT_a", False, 1), more=True)) is True
     assert rf.more_threads(threads_answer(node("PRRT_a", False, 1))) is False
@@ -223,6 +228,15 @@ def test_review_findings_prints_the_open_thread_and_the_summary(fake_gh: Path) -
     found = json.loads(result.stdout)
     assert [t["thread"] for t in found["threads"]] == ["PRRT_open"]
     assert found["summary"]["body"].endswith("important=1 nits=0")
+
+
+def test_review_findings_says_so_when_the_review_left_no_counts(fake_gh: Path) -> None:
+    (fake_gh / "comments.json").write_text(
+        json.dumps([[summary("Verdict: hold, one finding below.", "2026-10-19T02:00:00Z")]])
+    )
+    result = run("review-findings", fake_gh, "45")
+    assert result.returncode == 0, result.stderr
+    assert "no comment has a counts line" in result.stderr
 
 
 def test_review_findings_fails_loudly_past_one_page_of_threads(fake_gh: Path) -> None:
