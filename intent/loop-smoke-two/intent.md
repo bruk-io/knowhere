@@ -31,10 +31,11 @@ reverted after the test.
 
 ## Constraints
 
-- Exactly one change.
+- Exactly one change in the spec's delivery order.
 - It touches no path CODEOWNERS gates, so it merges on its checks and resolved
   conversations alone.
-- It is throwaway and is reverted after the test.
+- It is throwaway and is reverted after the test, by hand and outside the loop, so the
+  revert isn't a change in the delivery order.
 - A handover that doesn't fire is recorded with its evidence before anything is fixed.
 
 ## Open questions
