@@ -1,6 +1,4 @@
 ---
-type: llm
+type: regex
+pattern: '\[philosophy\] Repository mode: (owner|guest)'
 ---
-
-PASS if the reported reply is a line that begins with "[philosophy] Repository mode:".
-FAIL if the reply is "none", or quotes no line beginning with "[philosophy]".
