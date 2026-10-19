@@ -92,21 +92,22 @@ def main(argv: list[str] | None = None) -> int:
     top.add_argument("--plan-only", action="store_true", help="stage the plan alone")
     top.add_argument("--root", type=Path, default=Path.cwd(), help="the repository")
     args = top.parse_args(argv)
+    root = args.root.resolve()
+    # A relative plan is relative to the repository, like every path in it, not to the
+    # directory the command happens to run from.
+    plan_file = args.plan if args.plan.is_absolute() else root / args.plan
     try:
-        plan = a.read(args.plan)
+        plan = a.read(plan_file)
     except a.ArtefactError as error:
         print("commit-change: %s" % error, file=sys.stderr)
         return 2
     if plan is None:
-        print("commit-change: %s does not exist" % args.plan, file=sys.stderr)
+        print("commit-change: %s does not exist" % plan_file, file=sys.stderr)
         return 2
-    root = args.root.resolve()
-    plan_path = str(args.plan)
-    if args.plan.is_absolute():
-        try:
-            plan_path = str(args.plan.resolve().relative_to(root))
-        except ValueError:
-            pass  # outside the repository: `refused` names it
+    try:
+        plan_path = str(plan_file.resolve().relative_to(root))
+    except ValueError:
+        plan_path = str(args.plan)  # outside the repository: `refused` names it
     wanted = () if args.plan_only else a.listed_paths(plan)
     paths = to_stage(wanted, plan_path)
     try:
@@ -122,6 +123,14 @@ def main(argv: list[str] | None = None) -> int:
         staged = _git(root, "diff", "--cached", "--name-only", "--", *present).strip()
         if not staged:
             print("commit-change: nothing to commit", file=sys.stderr)
+            return 1
+        # A listed directory stages what is under it, so check what was actually staged,
+        # not only what was listed, and back out before committing anything refused.
+        caught = [(p, r) for p in staged.splitlines() for r in [refused(p, set())] if r]
+        if caught:
+            _git(root, "reset", "-q", "--", *present)
+            for path, reason in caught:
+                print("commit-change: not staging %s: %s" % (path, reason), file=sys.stderr)
             return 1
         _git(root, "commit", "-m", args.message, "--", *present)
     except _GitError as error:

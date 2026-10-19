@@ -57,7 +57,9 @@ def test_to_stage_puts_the_plan_first_and_drops_duplicates() -> None:
 
 
 def git(cwd: Path, *args: str) -> str:
-    done = subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
+    done = subprocess.run(
+        ["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True
+    )
     return done.stdout
 
 
@@ -75,7 +77,9 @@ def write_plan(repo: Path, listed: list[str]) -> None:
     bullets = "\n".join("- `%s`" % p for p in listed)
     plan = repo / PLAN
     plan.parent.mkdir(parents=True, exist_ok=True)
-    plan.write_text("# Plan: change\n\n## Files that change\n\n%s\n\n## Order of work\n\n1. R1: x\n" % bullets)
+    plan.write_text(
+        "# Plan: change\n\n## Files that change\n\n%s\n\n## Order of work\n\n1. R1: x\n" % bullets
+    )
 
 
 @pytest.fixture
@@ -142,6 +146,43 @@ def test_a_refused_path_exits_1_names_it_and_commits_nothing(repo: Path, listed:
     assert listed in result.stderr
     assert git(repo, "rev-parse", "HEAD") == before
     assert git(repo, "diff", "--cached", "--name-only").strip() == ""
+
+
+def test_a_listed_directory_cannot_carry_bytecode_in(repo: Path) -> None:
+    write_plan(repo, ["pkg/"])
+    (repo / "pkg" / "__pycache__").mkdir(parents=True)
+    (repo / "pkg" / "mod.py").write_text("x = 1\n")
+    (repo / "pkg" / "__pycache__" / "mod.cpython-314.pyc").write_bytes(b"\0")
+    result = commit_change(repo, PLAN, "-m", "change")
+    assert result.returncode == 1 and "__pycache__" in result.stderr
+    assert git(repo, "rev-list", "--count", "HEAD").strip() == "1"  # nothing committed
+    assert git(repo, "diff", "--cached", "--name-only") == ""
+
+
+def test_a_relative_plan_is_read_from_root_not_the_working_directory(
+    repo: Path, tmp_path: Path
+) -> None:
+    write_plan(repo, ["a.py"])
+    (repo / "a.py").write_text("x = 2\n")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    result = subprocess.run(
+        [
+            PYTHON,
+            str(ROOT / "scripts" / "commit-change"),
+            PLAN,
+            "-m",
+            "change",
+            "--root",
+            str(repo),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=elsewhere,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert sorted(committed(repo)) == sorted([PLAN, "a.py"])
 
 
 def test_a_listed_path_not_yet_created_is_skipped(repo: Path) -> None:
