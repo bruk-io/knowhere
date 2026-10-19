@@ -2,8 +2,8 @@
 
 The checks are tested on small texts shaped like the templates, each broken one way.
 The command and the hook are tested as programs, against a clean fixture under
-`tests/fixtures/intent/sample` and against a broken copy of it in a temporary directory. Set HOOK_PYTHON to run them
-under another interpreter.
+`tests/fixtures/intent/sample` and against a broken copy of it in a temporary
+directory. Set HOOK_PYTHON to run them under another interpreter.
 """
 
 from __future__ import annotations
