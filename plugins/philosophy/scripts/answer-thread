@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""answer-thread: reply on a review thread, then resolve it.
+
+    answer-thread <pr> <thread-id> <comment-id> --body-file FILE [--repo OWNER/NAME]
+
+Posts the file's text as a reply to the thread's first comment, then resolves the
+thread. The ids are the ones `review-findings` prints: a `PRRT_` thread id and a numeric
+comment id; anything else is refused. Before posting, it asks GitHub which PR and
+repository the thread belongs to and which comment opens it, and refuses a thread that
+isn't on the PR it's given or a comment that isn't that thread's first, so it can only
+ever answer a review thread on that PR. Exits 0 when both steps worked, 2, with the
+reason on stderr, when anything failed (a reply that went up on a thread that didn't
+resolve says so).
+
+The respond play runs this instead of holding a broad `gh api` grant. `--repo` defaults
+to `$GITHUB_REPOSITORY`, as in CI.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+from typing import Optional
+
+THREAD_ID = re.compile(r"PRRT_[A-Za-z0-9_-]+")
+THREAD = """
+query($id: ID!) {
+  node(id: $id) {
+    ... on PullRequestReviewThread {
+      pullRequest { number repository { nameWithOwner } }
+      comments(first: 1) { nodes { databaseId } }
+    }
+  }
+}
+"""
+RESOLVE = (
+    "mutation($id: ID!) { resolveReviewThread(input: {threadId: $id}) { thread { isResolved } } }"
+)
+
+
+def refused(thread: str, comment: str, body: str) -> Optional[str]:
+    """Why these arguments can't be used, or None."""
+    if not THREAD_ID.fullmatch(thread):
+        return "%r is not a review thread id (PRRT_...)" % thread
+    if not comment.isdigit():
+        return "%r is not a comment id" % comment
+    if not body.strip():
+        return "the reply is empty: say what was done, or why not"
+    return None
+
+
+def mismatch(answer: dict, repo: str, pr: int, comment: str) -> Optional[str]:
+    """Why the thread in a THREAD query's answer isn't the one to answer, or None."""
+    found = (answer.get("data") or {}).get("node") or {}
+    pull = found.get("pullRequest") or {}
+    if not pull:
+        return "no review thread has that id"
+    where = (pull.get("repository") or {}).get("nameWithOwner") or ""
+    if where.lower() != repo.lower() or pull.get("number") != pr:
+        return "the thread is on %s#%s, not %s#%d" % (where, pull.get("number"), repo, pr)
+    first = ((found.get("comments") or {}).get("nodes") or [{}])[0].get("databaseId")
+    if str(first) != comment:
+        return "comment %s doesn't open the thread; %s does" % (comment, first)
+    return None
+
+
+def _gh(*args: str) -> str:
+    done = subprocess.run(
+        ["gh", *args], capture_output=True, encoding="utf-8", errors="replace", timeout=60
+    )
+    if done.returncode != 0:
+        raise RuntimeError("gh %s failed: %s" % (args[0], done.stderr.strip()))
+    return done.stdout
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    top = argparse.ArgumentParser(prog="answer-thread", description=__doc__.splitlines()[0])
+    top.add_argument("pr", type=int)
+    top.add_argument("thread")
+    top.add_argument("comment")
+    top.add_argument("--body-file", type=Path, required=True)
+    top.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", ""))
+    args = top.parse_args(argv)
+    if "/" not in args.repo:
+        print("answer-thread: give --repo OWNER/NAME", file=sys.stderr)
+        return 2
+    try:
+        body = args.body_file.read_text(encoding="utf-8")
+    except OSError as error:
+        print("answer-thread: %s" % error, file=sys.stderr)
+        return 2
+    reason = refused(args.thread, args.comment, body)
+    if reason:
+        print("answer-thread: %s" % reason, file=sys.stderr)
+        return 2
+    try:
+        answer = json.loads(
+            _gh("api", "graphql", "-f", "query=%s" % THREAD, "-F", "id=%s" % args.thread)
+        )
+    except (RuntimeError, ValueError, subprocess.SubprocessError) as error:
+        print("answer-thread: couldn't look the thread up: %s" % error, file=sys.stderr)
+        return 2
+    reason = mismatch(answer, args.repo, args.pr, args.comment)
+    if reason:
+        print("answer-thread: %s" % reason, file=sys.stderr)
+        return 2
+    try:
+        _gh(
+            "api",
+            "-X",
+            "POST",
+            "repos/%s/pulls/%d/comments/%s/replies" % (args.repo, args.pr, args.comment),
+            "-F",
+            "body=@%s" % args.body_file,
+        )
+    except (RuntimeError, subprocess.SubprocessError) as error:
+        print("answer-thread: the reply failed: %s" % error, file=sys.stderr)
+        return 2
+    try:
+        _gh("api", "graphql", "-f", "query=%s" % RESOLVE, "-F", "id=%s" % args.thread)
+    except (RuntimeError, subprocess.SubprocessError) as error:
+        print("answer-thread: replied, but the thread didn't resolve: %s" % error, file=sys.stderr)
+        return 2
+    print("answered and resolved %s" % args.thread)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

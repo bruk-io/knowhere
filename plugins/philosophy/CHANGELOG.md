@@ -12,6 +12,10 @@ gone. Built from `intent/self-running-loop/` in knowhere; changes 01 to 08 of it
   play runs only when a person or a workflow invokes it. Each stage commits a file the
   next reads (`intent/<slug>/intent.md`, `spec.md`, `plans/NN-<change>.md`), and each
   handover is a merge.
+- **`/philosophy:respond`, the review answered once:** when the review finishes on a
+  build PR, `review-respond.yml` has the build fix or decline each finding, reply, and
+  resolve the thread (`scripts/review-findings`, `scripts/answer-thread`), so a PR whose
+  findings are settled merges on its checks with nobody in between.
 - **`templates/`** for the intent, the spec and the plan.
 - **`scripts/artefact-check`** asserts each artefact's shape, and runs as a hook when
   Claude writes one and as a PR check in knowhere.
