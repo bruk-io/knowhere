@@ -61,8 +61,11 @@ jobs:
           plugins: |
             philosophy@knowhere
           prompt: /philosophy:respond ${{ steps.pr.outputs.number }}
+          # Only what the play does. The plugin's scripts (review-findings, answer-thread,
+          # commit-change, run-check) are granted by the skill's own allowed-tools, which
+          # hold for a headless run; this job reads review text, so nothing wider.
           claude_args: |
-            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(python3:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(bash .github/scripts/check.sh:*),Bash(uv:*),Bash(uvx:*)"
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(git push -u origin HEAD)"
 
       - name: Keep the response's execution log
         if: always() && steps.pr.outputs.number != ''

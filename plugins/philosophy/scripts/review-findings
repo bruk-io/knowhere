@@ -4,11 +4,15 @@
     review-findings <pr> [--repo OWNER/NAME]
 
 Prints JSON: `threads`, each unresolved review thread as its `thread` id, the first
-comment's `comment` id, `path`, `line` and `body`; and `summary`, the latest top-level
-comment by `claude[bot]`, which carries the verdict and any finding it couldn't post on
-a line, or null. Exits 0 when something needs an answer: an unresolved thread, or a
-summary whose closing counts line isn't `important=0 nits=0`. Exits 1 when nothing does,
-and 2, with the reason on stderr, when GitHub can't be read.
+comment's `comment` id, `path`, `line` and `body`; and `summary`, the review's newest
+top-level comment, or null. The review's comment is the newest by `claude[bot]` with a
+line that holds only its counts, `important=N nits=M`: it carries the verdict and any
+finding the review couldn't post on a line. Any later comment without a counts line
+answers it, whoever wrote it; in CI the respond play's own answer comes from the same
+login as the review. Exits 0 when something needs an answer: an unresolved thread, or an
+unanswered summary that counted findings. Exits 1 when nothing does, and 2, with the
+reason on stderr, when GitHub can't be read or the PR has more threads than one query
+returns.
 
 The respond play runs this, so a model never needs a broad `gh api` grant to find its
 work. `--repo` defaults to `$GITHUB_REPOSITORY`, as in CI.
@@ -25,12 +29,15 @@ import sys
 from typing import Optional
 
 REVIEWER = "claude[bot]"
-COUNTS = re.compile(r"\bimportant=(\d+) nits=(\d+)\b")
+# The counts on a line of their own (markdown around them allowed), so a reply that
+# quotes them mid-sentence isn't read as a review.
+COUNTS = re.compile(r"^[^\w\n]*important=(\d+) nits=(\d+)[^\w\n]*$", re.MULTILINE)
 THREADS = """
 query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       reviewThreads(first: 100) {
+        pageInfo { hasNextPage }
         nodes {
           id
           isResolved
@@ -67,16 +74,27 @@ def unresolved(graphql: dict) -> list[dict]:
     return out
 
 
+def more_threads(graphql: dict) -> bool:
+    """Whether the PR has review threads past the ones this answer holds."""
+    pull = (((graphql.get("data") or {}).get("repository") or {}).get("pullRequest")) or {}
+    page = (pull.get("reviewThreads") or {}).get("pageInfo") or {}
+    return bool(page.get("hasNextPage"))
+
+
 def latest_summary(comments: list[dict], author: str = REVIEWER) -> Optional[dict]:
-    """The newest top-level comment by the reviewer, or None. `answered` says whether
-    anyone else has commented since, which counts as answering it."""
-    theirs = [c for c in comments if (c.get("user") or {}).get("login") == author]
-    if not theirs:
+    """The reviewer's newest top-level comment with a counts line, or None. `answered`
+    says whether a comment without one, by anyone, came after it."""
+    reviews = [
+        c
+        for c in comments
+        if (c.get("user") or {}).get("login") == author and COUNTS.search(c.get("body") or "")
+    ]
+    if not reviews:
         return None
-    newest = max(theirs, key=lambda c: c.get("created_at") or "")
+    newest = max(reviews, key=lambda c: c.get("created_at") or "")
     when = newest.get("created_at") or ""
     answered = any(
-        (c.get("user") or {}).get("login") != author and (c.get("created_at") or "") > when
+        (c.get("created_at") or "") > when and not COUNTS.search(c.get("body") or "")
         for c in comments
     )
     return {"id": newest.get("id"), "body": newest.get("body") or "", "answered": answered}
@@ -134,6 +152,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
     except (RuntimeError, ValueError, subprocess.SubprocessError) as error:
         print("review-findings: %s" % error, file=sys.stderr)
+        return 2
+    if more_threads(graphql):
+        print(
+            "review-findings: PR %d has more than 100 review threads; answer them by hand"
+            % args.pr,
+            file=sys.stderr,
+        )
         return 2
     comments = [c for page in json.loads(pages) for c in page]
     threads = unresolved(graphql)

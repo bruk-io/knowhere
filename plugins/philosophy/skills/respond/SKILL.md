@@ -33,6 +33,7 @@ for another review: this is one round, and what it leaves goes to the owner.
    <comment> --body-file <file>`, which replies and resolves it. A thread left for the
    owner gets a reply with `gh pr comment` instead, so it stays open.
 6. Answer the findings that came only in the summary in one `gh pr comment`, each
-   with what was done or why not.
+   with what was done or why not. Give it no `important=N nits=M` line of its own:
+   that line is how `review-findings` tells the review's comment from its answers.
 
 Never approve, merge, edit the review play, or mark the PR ready again.

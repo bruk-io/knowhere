@@ -5,9 +5,12 @@
 
 Posts the file's text as a reply to the thread's first comment, then resolves the
 thread. The ids are the ones `review-findings` prints: a `PRRT_` thread id and a numeric
-comment id; anything else is refused, so this can only ever answer a review thread on
-the PR it's given. Exits 0 when both steps worked, 2, with the reason on stderr, when
-either failed (a reply that went up on a thread that didn't resolve says so).
+comment id; anything else is refused. Before posting, it asks GitHub which PR and
+repository the thread belongs to and which comment opens it, and refuses a thread that
+isn't on the PR it's given or a comment that isn't that thread's first, so it can only
+ever answer a review thread on that PR. Exits 0 when both steps worked, 2, with the
+reason on stderr, when anything failed (a reply that went up on a thread that didn't
+resolve says so).
 
 The respond play runs this instead of holding a broad `gh api` grant. `--repo` defaults
 to `$GITHUB_REPOSITORY`, as in CI.
@@ -16,6 +19,7 @@ to `$GITHUB_REPOSITORY`, as in CI.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -24,6 +28,16 @@ from pathlib import Path
 from typing import Optional
 
 THREAD_ID = re.compile(r"PRRT_[A-Za-z0-9_-]+")
+THREAD = """
+query($id: ID!) {
+  node(id: $id) {
+    ... on PullRequestReviewThread {
+      pullRequest { number repository { nameWithOwner } }
+      comments(first: 1) { nodes { databaseId } }
+    }
+  }
+}
+"""
 RESOLVE = (
     "mutation($id: ID!) { resolveReviewThread(input: {threadId: $id}) { thread { isResolved } } }"
 )
@@ -37,6 +51,21 @@ def refused(thread: str, comment: str, body: str) -> Optional[str]:
         return "%r is not a comment id" % comment
     if not body.strip():
         return "the reply is empty: say what was done, or why not"
+    return None
+
+
+def mismatch(answer: dict, repo: str, pr: int, comment: str) -> Optional[str]:
+    """Why the thread in a THREAD query's answer isn't the one to answer, or None."""
+    found = (answer.get("data") or {}).get("node") or {}
+    pull = found.get("pullRequest") or {}
+    if not pull:
+        return "no review thread has that id"
+    where = (pull.get("repository") or {}).get("nameWithOwner") or ""
+    if where.lower() != repo.lower() or pull.get("number") != pr:
+        return "the thread is on %s#%s, not %s#%d" % (where, pull.get("number"), repo, pr)
+    first = ((found.get("comments") or {}).get("nodes") or [{}])[0].get("databaseId")
+    if str(first) != comment:
+        return "comment %s doesn't open the thread; %s does" % (comment, first)
     return None
 
 
@@ -66,6 +95,17 @@ def main(argv: Optional[list[str]] = None) -> int:
         print("answer-thread: %s" % error, file=sys.stderr)
         return 2
     reason = refused(args.thread, args.comment, body)
+    if reason:
+        print("answer-thread: %s" % reason, file=sys.stderr)
+        return 2
+    try:
+        answer = json.loads(
+            _gh("api", "graphql", "-f", "query=%s" % THREAD, "-F", "id=%s" % args.thread)
+        )
+    except (RuntimeError, ValueError, subprocess.SubprocessError) as error:
+        print("answer-thread: couldn't look the thread up: %s" % error, file=sys.stderr)
+        return 2
+    reason = mismatch(answer, args.repo, args.pr, args.comment)
     if reason:
         print("answer-thread: %s" % reason, file=sys.stderr)
         return 2

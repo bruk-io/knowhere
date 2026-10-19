@@ -34,8 +34,20 @@ rf = _load("review_findings", "review-findings")
 at = _load("answer_thread", "answer-thread")
 
 
-def threads_answer(*nodes: dict) -> dict:
-    return {"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": list(nodes)}}}}}
+def threads_answer(*nodes: dict, more: bool = False) -> dict:
+    threads = {"pageInfo": {"hasNextPage": more}, "nodes": list(nodes)}
+    return {"data": {"repository": {"pullRequest": {"reviewThreads": threads}}}}
+
+
+def thread_answer(repo: str = "owner/repo", number: int = 45, first: int = 7) -> dict:
+    return {
+        "data": {
+            "node": {
+                "pullRequest": {"number": number, "repository": {"nameWithOwner": repo}},
+                "comments": {"nodes": [{"databaseId": first}]},
+            }
+        }
+    }
 
 
 def node(thread: str, resolved: bool, comment: int, body: str = "Nit: x") -> dict:
@@ -79,6 +91,39 @@ def test_latest_summary_is_the_reviewers_newest_comment() -> None:
     assert rf.latest_summary(comments)["body"].startswith("new")
 
 
+def test_the_plays_own_answer_from_the_same_login_answers_the_summary() -> None:
+    comments = [
+        summary("Hold.\n\nimportant=1 nits=0", "2026-10-19T01:00:00Z"),
+        summary("Declined the summary's finding: ...", "2026-10-19T01:30:00Z"),
+    ]
+    found = rf.latest_summary(comments)
+    assert found["body"].startswith("Hold.")
+    assert found["answered"] is True
+    assert rf.needs_answer([], found) is False
+
+
+def test_a_later_review_with_counts_is_the_new_summary_and_unanswered() -> None:
+    comments = [
+        summary("First.\n\nimportant=1 nits=0", "2026-10-19T01:00:00Z"),
+        summary("Answered.", "2026-10-19T01:30:00Z"),
+        summary("Second.\n\n**important=0 nits=2**", "2026-10-19T02:00:00Z"),
+    ]
+    found = rf.latest_summary(comments)
+    assert found["body"].startswith("Second.")
+    assert found["answered"] is False
+    assert rf.needs_answer([], found) is True
+
+
+def test_counts_quoted_mid_sentence_dont_make_a_summary() -> None:
+    comments = [summary("The review said `important=1 nits=0` and I fixed it.", "2026-10-19T01:00:00Z")]
+    assert rf.latest_summary(comments) is None
+
+
+def test_more_threads_reads_the_page_flag() -> None:
+    assert rf.more_threads(threads_answer(node("PRRT_a", False, 1), more=True)) is True
+    assert rf.more_threads(threads_answer(node("PRRT_a", False, 1))) is False
+
+
 @pytest.mark.parametrize(
     ("threads", "body", "needs"),
     [
@@ -111,6 +156,22 @@ def test_refused(thread: str, comment: str, body: str, ok: bool) -> None:
     assert (at.refused(thread, comment, body) is None) is ok
 
 
+@pytest.mark.parametrize(
+    ("answer", "says"),
+    [
+        (thread_answer(), None),
+        (thread_answer(repo="Owner/Repo"), None),
+        (thread_answer(number=99), "owner/repo#99, not owner/repo#45"),
+        (thread_answer(repo="other/repo"), "other/repo#45, not owner/repo#45"),
+        (thread_answer(first=8), "comment 7 doesn't open the thread"),
+        ({"data": {"node": None}}, "no review thread has that id"),
+    ],
+)
+def test_mismatch(answer: dict, says: str | None) -> None:
+    found = at.mismatch(answer, "owner/repo", 45, "7")
+    assert found is None if says is None else says in found
+
+
 # --- both scripts, against a fake gh -------------------------------------------------
 
 
@@ -123,6 +184,7 @@ def fake_gh(tmp_path: Path) -> Path:
     (tmp_path / "graphql.json").write_text(
         json.dumps(threads_answer(node("PRRT_open", False, 7), node("PRRT_done", True, 8)))
     )
+    (tmp_path / "thread.json").write_text(json.dumps(thread_answer()))
     (tmp_path / "comments.json").write_text(
         json.dumps([[summary("Verdict: hold.\n\nimportant=1 nits=0", "2026-10-19T02:00:00Z")]])
     )
@@ -132,10 +194,12 @@ def fake_gh(tmp_path: Path) -> Path:
         'printf "%%s\\n" "$*" >> %s\n'
         'case "$*" in\n'
         '  *"api graphql"*resolveReviewThread*) echo \'{"data":{}}\' ;;\n'
+        '  *"api graphql"*PullRequestReviewThread*) cat %s ;;\n'
         '  *"api graphql"*) cat %s ;;\n'
         '  *"/comments"*replies*) echo \'{"id": 1}\' ;;\n'
         '  *"/comments"*) cat %s ;;\n'
-        "esac\n" % (log, tmp_path / "graphql.json", tmp_path / "comments.json")
+        "esac\n"
+        % (log, tmp_path / "thread.json", tmp_path / "graphql.json", tmp_path / "comments.json")
     )
     script.chmod(0o755)
     return tmp_path
@@ -161,14 +225,36 @@ def test_review_findings_prints_the_open_thread_and_the_summary(fake_gh: Path) -
     assert found["summary"]["body"].endswith("important=1 nits=0")
 
 
-def test_answer_thread_replies_then_resolves(fake_gh: Path) -> None:
+def test_review_findings_fails_loudly_past_one_page_of_threads(fake_gh: Path) -> None:
+    (fake_gh / "graphql.json").write_text(
+        json.dumps(threads_answer(node("PRRT_open", False, 7), more=True))
+    )
+    result = run("review-findings", fake_gh, "45")
+    assert result.returncode == 2 and "more than 100 review threads" in result.stderr
+    assert result.stdout == ""
+
+
+def test_answer_thread_checks_the_thread_then_replies_then_resolves(fake_gh: Path) -> None:
     body = fake_gh / "reply.md"
     body.write_text("Accepted, fixed in abc123.")
     result = run("answer-thread", fake_gh, "45", "PRRT_open", "7", "--body-file", str(body))
     assert result.returncode == 0, result.stderr
-    calls = (fake_gh / "gh-calls").read_text().splitlines()
-    assert "repos/owner/repo/pulls/45/comments/7/replies" in calls[0]
-    assert "resolveReviewThread" in calls[1] and "id=PRRT_open" in calls[1]
+    calls = (fake_gh / "gh-calls").read_text()
+    look = calls.index("PullRequestReviewThread")
+    reply = calls.index("repos/owner/repo/pulls/45/comments/7/replies")
+    resolve = calls.index("resolveReviewThread")
+    assert look < reply < resolve
+    assert calls.count("id=PRRT_open") == 2
+
+
+def test_answer_thread_refuses_a_thread_on_another_pr_and_posts_nothing(fake_gh: Path) -> None:
+    (fake_gh / "thread.json").write_text(json.dumps(thread_answer(number=99)))
+    body = fake_gh / "reply.md"
+    body.write_text("x")
+    result = run("answer-thread", fake_gh, "45", "PRRT_open", "7", "--body-file", str(body))
+    assert result.returncode == 2 and "not owner/repo#45" in result.stderr
+    calls = (fake_gh / "gh-calls").read_text()
+    assert "replies" not in calls and "resolveReviewThread" not in calls
 
 
 def test_answer_thread_refuses_a_bad_id_and_calls_nothing(fake_gh: Path) -> None:
