@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: read
       pull-requests: write
       id-token: write
     steps:
@@ -79,9 +80,11 @@ jobs:
           fi
           # Counts with nothing posted means findings nobody can read or answer, and
           # every comment must be answered before merge, so that isn't a pass.
-          posted=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
-            --jq ".[] | select(.user.login == \"claude[bot]\" and .created_at >= \"$STARTED\") | .id" | wc -l)
-          if [ "$posted" -eq 0 ]; then
+          # Read first, then count: a failed read stops the step with gh's own error
+          # instead of counting as nothing posted.
+          ids=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq ".[] | select(.user.login == \"claude[bot]\" and .created_at >= \"$STARTED\") | .id")
+          if [ -z "$ids" ]; then
             echo "The review counted $COUNTS but posted no comment, so nobody can read or answer it. Its findings are in this run's execution log artifact."
             exit 1
           fi
