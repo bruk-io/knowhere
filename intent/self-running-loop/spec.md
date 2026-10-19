@@ -84,8 +84,9 @@ Gates
   nothing more.
 - **R12.** CODEOWNERS assigns `@brukhabtu` what starts work and sets the architecture,
   `intent/*/intent.md` and `intent/*/spec.md`, and what runs the loop in CI:
-  `.github/workflows/`, the scripts those workflows run in `.github/scripts/`, and
-  `.github/CODEOWNERS` itself. `main` requires code-owner review. I accept each intent
+  `.github/workflows/`, the scripts those workflows run in `.github/scripts/`,
+  `.claude/checks.json`, which names the check CI runs, and `.github/CODEOWNERS`
+  itself. `main` requires code-owner review. I accept each intent
   and approve the architecture once, in the spec, so a build that implements an
   approved spec needs no review from me: the plugin's code, its hooks, scripts, evals
   and plays included, merges once its required checks pass and every review

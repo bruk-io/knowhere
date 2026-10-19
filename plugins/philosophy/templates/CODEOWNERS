@@ -8,8 +8,10 @@
 /intent/*/intent.md @OWNER
 /intent/*/spec.md @OWNER
 
-# The workflows and the scripts they run, so a build can't change what CI runs, and
-# this file, so a build can't change what waits for the owner.
+# The workflows, the scripts they run and the file that names the full check, so a
+# build can't change what CI runs, and this file, so a build can't change what waits
+# for the owner.
 /.github/workflows/ @OWNER
 /.github/scripts/ @OWNER
+/.claude/checks.json @OWNER
 /.github/CODEOWNERS @OWNER
