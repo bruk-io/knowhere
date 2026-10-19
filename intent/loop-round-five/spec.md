@@ -19,10 +19,10 @@ Evals
   the reply. The LLM grader is removed.
 - **R2.** `review-checks-the-plan` has no LLM grader: `outside-plan-flagged` becomes a
   regex that matches a line naming `logger.py` marked Important.
-- **R3.** `spec-flags-policy-conflict` no longer decides on the LLM grader
-  `not-resolved-alone` alone: the property it checks (the spec does not settle the
-  conflict itself) is expressed as a regex over the spec's Areas of concern, or the case
-  keeps the LLM grader only beside a regex that must also pass.
+- **R3.** `spec-flags-policy-conflict` has no LLM grader: `not-resolved-alone` is
+  removed, and the regex `conflict-flagged` is the case's failing grader. It requires one
+  numbered Area of concern that names the logging conflict and an Owner, so a spec that
+  never puts the conflict to the owner fails the case.
 - **R4.** The eval README states the rule: every case has a deterministic grader that
   can fail it, and no case fails on one LLM grade.
 
@@ -83,9 +83,11 @@ check slows every change after it.
 with a regex wherever the property is a string. The subagent case works because the
 hook's output is a fixed line the model cannot produce unless it was given it: remove
 the prompt's hint so the string is evidence. The review case's property is "logger.py
-named on an Important line", which a regex on the review file states exactly. Where a
-property is judgement (the policy-conflict case), the LLM grade stays as a second,
-non-sole opinion. `--runs 1 --threshold 1.0` stays: lowering either would weaken the
+named on an Important line", which a regex on the review file states exactly. The
+policy-conflict case's judged half, that the spec didn't also pick a side, is dropped
+rather than kept beside a regex: any LLM grader that can fail a case breaks R4. What the
+case still proves, deterministically, is that the conflict reaches the owner as an owned
+concern (Areas of concern 2). `--runs 1 --threshold 1.0` stays: lowering either would weaken the
 check.
 
 **Plan drift (R5, R6).** Chosen over either option alone: the review play says
@@ -124,7 +126,7 @@ the plan is read.
 | Intent constraint | Met by |
 |---|---|
 | Validation logic is a script, never an instruction to a model. | R1, R2, R3, R6, R7 |
-| A check is never weakened to make it pass. | R1, R2, R3, R4, R10 |
+| A check is never weakened to make it pass. | R1, R2, R4, R10; R3 narrows one case on purpose, and Areas of concern 2 says what it gives up |
 | The review play stays gated by CODEOWNERS. | R5, R6 |
 
 ## Open questions
@@ -140,12 +142,13 @@ the plan is read.
    Bruk Habtu. Proposed: change 02 adds the CI job; the owner marks `plan-drift` a
    required check in branch protection after it has run once. Until then it informs
    and does not hold the merge.
-2. **R3 keeps an LLM grader beside a regex, and "no case fails on one LLM grade" is a
-   judgement about what counts as weakening a check.** Owner: Bruk Habtu. Proposed: if
-   the policy-conflict property cannot be written as a regex without losing what the
-   case catches, keep the LLM grader as advisory (reported, not failing) and keep the
-   regex as the failing grader; the owner decides at the change 01 plan whether that is
-   acceptable or the case should stay as is and run more than once.
+2. **R3 gives up the policy-conflict case's judged half.** The case no longer checks
+   that the spec didn't also settle the conflict itself, only that it puts the conflict
+   to the owner as a numbered, owned concern. The intent's outcome ("no case fails on
+   the strength of a single LLM grade") decided it: deterministic over judged. Owner:
+   Bruk Habtu, decided by his delegate in the review of #41. If a spec that settles the
+   conflict and also lists it ever passes, that case gets its own regex or a second
+   case.
 3. **R7 removes `git add *` and `git commit *` from the build play, which also
    removes them for the rare change that needs a file the plan does not list.** Owner:
    Bruk Habtu. Proposed: that path already requires editing the plan in the same
