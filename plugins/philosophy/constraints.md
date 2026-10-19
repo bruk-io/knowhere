@@ -49,42 +49,48 @@ The first line of this message says which mode this repository is in.
 
 ## Doing the work
 
-- If a task fits in a handful of tool calls, do it directly, with no intent, no
+- If a task fits in a handful of tool calls, do it directly, with no board, no
   delegation, and no separate verifier.
-- Anything larger runs as one loop in a repository I own: intent, spec, build, review.
-  Each stage commits a file the next one reads, and each handover is a merge, which is
-  also the approval. Each play is a command, run by hand or by a workflow on the merge
-  before it. In a guest repository, its own process governs.
+- Anything larger runs as one loop on a Backlog.md board, in a repository I own or one
+  that already has a board: understand, size, then do or split, then check and learn. Split work re-enters the same loop. Each step has a
+  skill, and the steps hand over through the files they leave on the board. New work
+  starts at `philosophy:capture-intent`. Work already on the board starts from the next
+  unblocked task. In a guest repository without a board, its own process governs.
 
-  | Play | Command | Leaves |
-  |---|---|---|
-  | Write down what is wanted | `/philosophy:intent <slug>` | `intent/<slug>/intent.md`, in a PR |
-  | Requirements and design | `/philosophy:spec <slug>` | `intent/<slug>/spec.md`, in a PR |
-  | Plan and build one change | `/philosophy:build <slug>` | `intent/<slug>/plans/NN-<change>.md` and its code, in a PR |
-  | Review a PR | `/philosophy:review <pr>` | Findings on the PR, never an approval |
+  | Step | Skill |
+  |---|---|
+  | Write down what finished looks like | `philosophy:capture-intent` |
+  | Work out how predictable it is; split or spike | `philosophy:size-work` |
+  | Decide it is ready to start | `philosophy:accept-work` |
+  | Write the requirements for large work | `philosophy:write-spec` |
+  | Answer a design question | `philosophy:record-decision` |
+  | Plan one change | `philosophy:plan-change` |
+  | Hand work to other agents or sessions | `philosophy:delegate-work` |
+  | Check the work while doing it | `philosophy:verify-work` |
+  | Decide whether it closes | The `philosophy:reviewer` agent (`philosophy:close-work`) |
+  | Keep what was learned | `philosophy:learn-from-work` |
 
-- `python3 "{plugin_root}/scripts/artefact-check"` asserts the shape of an intent, a
-  spec or a plan, and runs on its own when one is written. Run it rather than checking
-  by eye.
-- I accept each intent and approve each spec, and CODEOWNERS names the other paths that
-  need me. A build that implements an approved spec merges when its required checks
-  pass.
-- The agent that wrote a change never approves it. A review comments; the required
-  checks decide, and I do where CODEOWNERS says so.
+- The board's conventions arrive as a rule the first time the board is touched, and
+  `python3 "{plugin_root}/scripts/board-check"` asserts them. Run it rather than
+  checking by eye.
+- Keep the plan visible. Prefer a board over memory. Acceptance criteria and stated
+  blockers make the work reviewable while it's still cheap to change course, and the
+  board is what survives a compacted context. A task with no blockers is saying it can
+  start now and won't collide with anything.
 - Treat stuck as information. Work that turns out bigger than expected is worth
   stopping on, with a proposed split, rather than pushing through. That's a good moment
   for a human to look.
 - Run long work against a stated finish, with a ceiling: one end condition, judged on
   what's actually visible, and a budget so it can't run forever. Say what you're doing
-  as you go; a quiet run is an unverifiable one.
+  as you go; a quiet run is an unverifiable one. `/goal` drives a long run, phrased on
+  the board's printed state, with a turn cap.
 - The scope is the deliverable. Something else worth doing that turns up along the way
-  becomes a new intent and is not a change to make now.
-- A lesson outlives the task. A mistake Claude makes twice becomes a line in the
-  repository's CLAUDE.md, and an incident becomes an eval case that stays in the suite.
+  becomes a new task and is not a change to make now.
+- Closing is a separate decision from doing. Whether a task closes is answered once, by
+  someone who did not do the work, from the acceptance criteria and the evidence.
 - Subagents are for sizeable, independent tracks of work. Do not delegate what one agent
   can finish.
-- Split work by complexity, unknowns, and risk, never by time. Each change in a spec's
-  delivery order is one PR's worth.
+- Size work by complexity, unknowns, and risk, never by time.
 
 ## Conventions
 

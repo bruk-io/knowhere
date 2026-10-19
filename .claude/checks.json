@@ -1,4 +1,0 @@
-{
-  "fast": "bash .github/scripts/check.sh fast",
-  "full": "bash .github/scripts/check.sh full"
-}

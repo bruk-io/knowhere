@@ -15,7 +15,7 @@ The same two steps work inside Claude Code as `/plugin marketplace add bruk-io/k
 and `/plugin install philosophy@knowhere`. Start a new session afterwards.
 
 The hooks and scripts run under `python3` and need nothing installed. They are written
-for Python 3.9 and later. The plays use `git` and the GitHub CLI (`gh`).
+for Python 3.9 and later. The board tools need the Backlog.md CLI (`backlog`) on PATH.
 
 The constraints say the default branch is `main`. Git can hold that for new
 repositories: `git config --global init.defaultBranch main`.
@@ -24,130 +24,118 @@ repositories: `git config --global init.defaultBranch main`.
 
 | Piece | What it carries | When it reaches the model |
 |---|---|---|
-| `constraints.md` | The constraints that apply everywhere, including the work loop | Every session and every subagent, from the hook |
+| `constraints.md` | The constraints that apply everywhere, including the order of the work loop | Every session, printed by the hook |
 | `rules/code-design.md` | Every choice tells the reader something | First time a source file is touched, in owner mode |
 | `rules/python.md` | Python dialect, the 3.15 floor, uv, ruff, mypy, pypeeker, with the core-and-shell and `match` examples | First time a `.py` or `pyproject.toml` is touched, in owner mode |
 | `rules/python-tests.md` | The three test layers, defined by where the mocks start, and the order of work | First time a Python test file is touched, in owner mode |
 | `rules/python-tests-unit.md` | Unit tests: one pure function, nothing mocked | First time a file under `tests/unit/` is touched, in owner mode |
 | `rules/python-tests-integration.md` | Integration tests: the world faked at its edge and nowhere else | First time a file under `tests/integration/` is touched, in owner mode |
 | `rules/python-tests-e2e.md` | End-to-end tests: the real world, nothing faked | First time a file under `tests/e2e/` is touched, in owner mode |
-| The five plays | One command per play of the loop (below) | When a person or a workflow runs it |
+| `rules/board.md` | What each board key and section means | First time `backlog/` is touched or `backlog` runs |
+| The step skills | One small skill per step of the work loop (below) | On demand |
 | `philosophy:python-idioms` | The full idiom dictionary and the yielded-effects example | On demand |
-| `templates/` | The shapes of an intent, a spec and a plan | When a play writes one |
-| `scripts/artefact-check` | The artefacts' shapes as checks | When an artefact is written, in CI, or when run |
-| `scripts/next-change`, `gated-paths`, `run-check`, `branch-diff`, `dispatch-check` | The plays' mechanical steps | When a play runs them |
+| `philosophy:reviewer` | The agent that reviews a task and closes it, with `close-work` preloaded | When a task is handed to it |
+| `scripts/board-check` | The board's conventions as checks | When a skill, the reviewer, or a person runs it |
+| `scripts/close-task` | The close, the same way every time | When the reviewer closes a task |
+| `scripts/record-check` | A check's own output on the task, word for word | When the worker or the reviewer runs a check |
 | `docs/engineering-philosophy.md` | The reasoning | Never; the constraints point at it |
+| `docs/board-examples.md` | Real board files, checked by the tests | When the board rule's reader is unsure of a shape |
 
 Claude Code does not load a plugin's `CLAUDE.md` or `rules/`, so `hooks/context.py` does
-that job. The constraints arrive at the start of each session and each subagent, and a
-rule arrives once per session and per subagent, and again after a compact or a clear.
+that job. A rule arrives once per session and per subagent, and again after a compact
+or a clear.
 
-## The loop
+## The step skills
 
-The loop follows Anthropic's AI-native SDLC playbook. Each stage commits a file the next
-stage reads, each handover is a merge, and the merge is the approval. An intent lives at
-`intent/<slug>/` in the repository that owns it, and that repository runs it.
+Each skill handles one step and follows one of Anthropic's AI-native SDLC plays. They
+compose through the files they leave on the board, not by calling each other. The order
+of the steps is in `constraints.md`, so it is in every session. To start new work, call
+`/philosophy:capture-intent` or describe the problem.
 
-| Play | Command | Leaves | Anthropic play |
-|---|---|---|---|
-| Capture the intent | `/philosophy:intent <slug>` | `intent.md`, in a PR | Capture as intent.md |
-| Write the spec | `/philosophy:spec <slug>` | `spec.md`, in a PR | Requirements and design |
-| Build one change | `/philosophy:build <slug> [auto-merge]` | `plans/NN-<change>.md`, then the code, in a PR | Plan mode, give Claude a feedback loop |
-| Review a PR | `/philosophy:review <pr>` | Findings on the PR, never an approval | AI in the PR review loop |
-| Answer the review | `/philosophy:respond <pr>` | Each finding fixed or declined, its thread resolved | AI in the PR review loop |
+| Skill | Step | Anthropic play |
+|---|---|---|
+| `capture-intent` | Write down what finished looks like | Capture as intent.md |
+| `size-work` | Size by complexity, unknowns, and risk; split or spike | - |
+| `accept-work` | Decide the work is ready to start | The human approval at each gate |
+| `write-spec` | Write the requirements for large or cross-team work | Requirements and design (requirements) |
+| `record-decision` | Answer a design question as a decision | Requirements and design (design) |
+| `plan-change` | Plan one change before editing | Plan mode as the default starting point |
+| `delegate-work` | Subagents, parallel sessions, model and effort | Parallel sessions and subagents |
+| `verify-work` | Check the work with the repository's own checks | Give Claude a feedback loop |
+| `close-work` | Decide whether it closes, as someone who did not do it | AI in the PR review loop |
+| `learn-from-work` | Turn lessons into tasks, rules, skills, checks, or evals | The CLAUDE.md, skills, evals, metrics |
 
-Each play is a skill with model invocation turned off, so it runs only when a person or
-a workflow invokes it. The judgement is the model's; the mechanical steps are scripts:
+Four plays are not skills, because they are configuration rather than judgment: evals
+in CI, hooks as approval gates, CI/CD integration, and metric detection. This plugin
+does not include them yet.
+
+## The board tools
+
+Whatever a skill used to check by reading is a script now, and the skills say when to
+run it and how to read the result.
 
 ```sh
-python3 scripts/artefact-check intent               # every intent's shape
-python3 scripts/next-change intent/<slug>           # build NN, continue NN, taken NN, or done
-python3 scripts/gated-paths intent/<slug>/plans/01-x.md   # plan files CODEOWNERS gates
-python3 scripts/run-check fast                      # the declared check, as evidence
-python3 scripts/branch-diff build/<slug>/01         # a branch's commits and diff, for a review
-python3 scripts/review-findings <pr>                # what a review left that needs an answer
-python3 scripts/answer-thread <pr> <thread> <comment> --body-file F   # reply, then resolve
-python3 scripts/dispatch-check spec <slug> --before <sha> --sha <sha>   # a dispatch is real and still due
+python3 scripts/board-check                       # the whole board
+python3 scripts/board-check ready TASK-3          # also: plan <id>, close <id>
+python3 scripts/board-check spec doc-1 --coverage
+python3 scripts/board-check parallel TASK-3 TASK-4  # shared files, or one waiting on the other
+python3 scripts/board-check route TASK-3            # the model and effort for it
+python3 scripts/record-check TASK-3 --tier fast     # the declared check; output on the task
+python3 scripts/record-check TASK-3 -- just lint    # any other check
+python3 scripts/record-check TASK-3 --repro -- uv run pytest tests/test_bug.py
+python3 scripts/close-task TASK-3 --notes "Verdict: closes. Two findings answered here."
 ```
 
-`artefact-check` prints one finding per line, saying what is wrong and how to fix it, or
-a JSON list with `--json`. It exits 0 when clean, 1 with findings, and 2 when it cannot
-read a file. It runs on its own whenever Claude writes an intent, a spec or a plan.
+`board-check` prints one finding per line, saying what is wrong and how to fix it, or a
+JSON list with `--json`. It exits 0 when clean, 1 with findings, and 2 when it cannot
+read the board. It understands two conventions the CLI doesn't: an open question is
+settled when it is ticked or its line says `Carried forward:`, and a finish line has
+moved when the criteria's wording differs from the commit that accepted the task.
 
-`next-change` reads the spec's delivery order: the first change with no plan is next,
-and it is taken while a `build/<slug>/NN` branch for it exists on the remote, so one
-intent builds one change at a time. It reads branches, not PRs, so it needs no GitHub;
-abandon a build by deleting its branch. `run-check` runs the command a repository declares
-in `.claude/checks.json` and prints the command, its output's tail and its exit code:
+`close-task` refuses, changing nothing, unless every criterion is ticked, every child is
+done, and a moved finish line carries `finish-moved`. The criteria's wording and that
+label must also match the last commit, so a review can tick criteria but not reword
+them, however the file was edited, and a test recorded with `--repro` must be unchanged
+since its commit. A bug needs a recorded repro, or a note starting `No repro:` that
+says why. It then sets `Done` through the CLI, appends the notes, and commits the task
+file alone.
+
+`record-check` runs a command, prints its output, and appends the command, its exit
+code and the last 60 lines of output to the task, exiting with the command's own code.
+`--tier fast` and `--tier full` run the commands the repository declares in
+`.claude/checks.json`:
 
 ```json
 {"fast": "just test-changed", "full": "just check"}
 ```
 
-### The triggers
+They run from the board's own repository, and `close-task` refuses a task whose
+declared checks changed since it was accepted, unless a note starting
+`Checks changed:` says why. With `--repro` the command must fail and its test files
+must be committed, and the note records that commit.
 
-Each handover is a git event, so no model has to remember the next step.
-`templates/github/` holds the workflows for another repository, and its README says what
-to set up:
+`hooks/guard.py` holds the close to that path. It denies setting `Done` any other way,
+asks the person before `close-task` runs outside the reviewer, and keeps the reviewer's
+shell off commands that change files or git history and off `backlog` commands that
+change a task. The guard also denies `git init` without `-b main` unless git already
+defaults to `main`.
 
-| Workflow | Runs | When |
-|---|---|---|
-| `intent-spec.yml` | `/philosophy:spec <slug>` | An intent merges and has no spec yet, in two hops: `find` on the merge, then the action on `find`'s dispatch |
-| `intent-build.yml` | `/philosophy:build <slug> auto-merge` | A spec or a change merges, and `next-change` says build, in the same two hops |
-| `build-continue.yml` | `/philosophy:build <slug>` on the PR's branch | The owner replies `@claude continue` on a build PR that stopped at a gated path |
-| `claude-review.yml` | `/philosophy:review <pr>` | A PR opened as ready, or moved from draft to ready |
-| `review-respond.yml` | `/philosophy:respond <pr>` | The review finishes on a build PR: one round of fixes and answers |
+The reviewer's own calls are allowed without a prompt: this plugin's scripts at this
+plugin's path, the declared checks through `record-check --tier`, and the `backlog`
+commands it may run. That is a deliberate trade. The close, including its commit, runs
+with no person in the loop, because closing is decided by someone who did not do the
+work and the reviewer is that someone; the notes say why it closed. Claude Code asks
+before its Edit and Write tools change anything under `.claude/`, unless permissions are
+bypassed, and a change to the declared checks after acceptance stops the close, so the
+checks the reviewer runs are ones a person chose. Never add a permission rule that allows `record-check` with a command
+after `--`: the rule would see only `record-check` and allow whatever follows. The
+allow is read strictly and fails closed, so a command with a `$`, a backtick, a `#`, a
+redirect, a wrapper such as `env`, or a script named by a relative path goes to the
+usual permission prompt.
 
-`intent-spec.yml` and `intent-build.yml` run the action under `repository_dispatch`, not
-`push`, because `claude-code-action` doesn't accept `push` as a triggering event. `find`
-still decides which intents to run, on `push`; a `dispatch` job then relays its slugs and
-the push's range as `client_payload`, and `dispatch-check` re-checks that relay against
-`main` before the action runs.
-
-### Watching the loop
-
-The loop measures itself, and the measurement is code:
-
-```sh
-python3 scripts/loop-metrics                       # per intent: handover hours, spec rework, stalled;
-                                                   # merged without the owner; Important findings
-python3 scripts/loop-readings ci_failure_rate | python3 scripts/band-check --metric ci_failure_rate
-```
-
-`band-check` is the playbook's detection: mean and sigma over the earlier days, then 1, 2
-and 3 sigma and two Western Electric drift rules. `loop-bands.yml` runs it daily on the
-metrics in `bands.yaml`. 1 sigma logs; 2 sigma has Claude diagnose, read-only, into the
-run's summary; 3 sigma has `/philosophy:intent` write the breach up as an intent, which
-the owner triages like any other. Readings are daily, and a verdict needs seven earlier
-days. The same run warns about any stalled intent: one whose next change is held by a
-build branch with no open PR, or by a PR open more than three days.
-
-### The gates
-
-A merge is the approval, so the gates are GitHub's. In knowhere:
-
-- **CODEOWNERS** (`templates/CODEOWNERS` for another repository) holds intents, specs,
-  the workflows, the scripts they run, `.claude/checks.json`, which names the check they
-  run, and CODEOWNERS itself for the owner. Anything
-  else, the plugin's code included, merges on its checks and resolved conversations,
-  because the architecture it implements was approved in its spec. That means a build
-  can change the review play or the plugin's checks, held by the review rather than by
-  the owner: the price of a loop that runs without them.
-- **Required checks:** the full check from `.claude/checks.json`, run by CI, and the
-  evals, which skip themselves when the plugin didn't change.
-- **Resolved conversations:** the review runs once a PR is ready, and `main` requires
-  every conversation to be resolved, so each of its findings, Important or nit, is
-  answered and resolved before merge. A build opens its PR as a draft and marks it
-  ready when the work is done.
-- **Only the owner** can trigger `@claude`, so only they can continue a build that
-  stopped at a gated path.
-
-`hooks/guard.py` holds a build to its plan. On a `build/<slug>/NN` branch, only the
-change's plan can be written until it is committed; after that, an Edit, Write or notebook edit to a
-file the plan doesn't list is denied with the fix in the reason, and so is a repro test the
-plan's Proof names once it is committed. It also denies `git init` without `-b main`
-unless git already defaults to `main`. It is a guardrail, not a security boundary: it
-fails open, and a shell command can still write a file.
+Everything else in the guard is a guardrail, not a security boundary: it fails open, it
+does not see Backlog.md's MCP tools, and a shell can always write a file in a way it
+doesn't recognise.
 
 ## Owner mode and guest mode
 
@@ -165,38 +153,41 @@ Edit `owners.txt` to add an organisation or a single repository.
 uv run --with pytest pytest tests
 ```
 
-The tests cover the hooks, the scripts, and the cross-file references. They run the
-hooks and commands as subprocesses against throwaway repositories. To run them under a
-specific interpreter, set `HOOK_PYTHON`.
+The tests cover the hooks, the board tools, and the cross-file references. They run the
+hooks as subprocesses against throwaway repositories, and the board tools against a
+real board built with the `backlog` CLI (skipped when it isn't installed). To run the
+hooks and scripts under a specific interpreter, set `HOOK_PYTHON`.
 
 `claude plugin validate --strict .` checks the manifests and the hook config.
-
-`evals/` holds the eval suite, one case per behaviour the loop depends on; its README
-says how to run it. In knowhere it runs on every PR that changes the plugin.
 
 ## What it does not do
 
 - **Most of the Python standard is prose.** ruff, mypy, and pypeeker are named in
   `rules/python.md`, but nothing here runs them. The uv guard, ruff and ast-grep on
   edit live in the `bruk` and `idiom` plugins.
-- **The loop is new.** The plays, scripts, hooks, evals, gates, triggers and metrics are
-  written and tested, and the intent that built them is the first to go through. The
-  chain of triggers hasn't run end to end yet: a throwaway intent through every
-  handover is the test.
-- **It does not cover authoring Claude Code extensions.** How to write a good skill,
-  rule, agent or hook is the `authoring-kit` plugin's job, so install both.
+- **Parts of the work loop are untried.** `board-check`, `close-task`, `record-check`,
+  the reviewer agent, the guard, the `finish-moved` label, checks in tiers, and specs
+  are written and tested but not yet used on real work. Intents, the accept step, and the board
+  conventions have been used since October 2026.
+- **It does not cover authoring Claude Code extensions.** The work loop says where a
+  lesson goes and how work is handed off. How to write a good skill, rule, agent or hook
+  is the `authoring-kit` plugin's job, so install both.
 - **It overlaps the `bruk` and `idiom` plugins.** With those enabled as well, the same
   ground is covered twice in different words. Use one or the other.
 
-## Planned
+## Planned for 0.5.0
 
 - **Programmatic enforcement of the Python rules with pypeeker.** Then `rules/python.md`
   shrinks to the judgement lines and a pointer to `philosophy:python-idioms`, and the
   checkable lines become checks with their reasons in the messages.
-- **The checkable lines of the `rules/python-tests*.md` rules** go with them: doubles
-  only under `tests/integration/`, the integration suite run twice, and the retired
-  "functional test" and "adapter test".
+- **The checkable lines of the `rules/python-tests*.md` rules** go with them: doubles only under
+  `tests/integration/`, the integration suite run twice, and the retired "functional
+  test" and "adapter test".
 - **Prose checks:** Canadian spelling and no em dashes, as a hook in owner mode.
+- **A `Stop` hook for the fast tier,** so "before saying a task is done" doesn't depend
+  on `verify-work` triggering.
+- **A worker agent** carrying what `delegate-work` can only ask for: its own worktree,
+  no scheduling, and no sizing.
 - **`rules/code-design.md` and `rules/python.md` overlap,** and the first says the
   community's style outranks mine while the second is my dialect. The `python.md` shrink
   settles which wins.

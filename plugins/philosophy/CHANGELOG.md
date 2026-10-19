@@ -1,60 +1,15 @@
 # Changelog
 
-## 0.5.0
+## 0.6.0
 
-The work loop follows Anthropic's AI-native SDLC playbook, and the Backlog.md board is
-gone. Built from `intent/self-running-loop/` in knowhere; changes 01 to 08 of its spec.
-
-### Added
-
-- **The four plays as commands:** `/philosophy:intent`, `/philosophy:spec`,
-  `/philosophy:build` and `/philosophy:review`, skills with model invocation off, so a
-  play runs only when a person or a workflow invokes it. Each stage commits a file the
-  next reads (`intent/<slug>/intent.md`, `spec.md`, `plans/NN-<change>.md`), and each
-  handover is a merge.
-- **`/philosophy:respond`, the review answered once:** when the review finishes on a
-  build PR, `review-respond.yml` has the build fix or decline each finding, reply, and
-  resolve the thread (`scripts/review-findings`, `scripts/answer-thread`), so a PR whose
-  findings are settled merges on its checks with nobody in between.
-- **`templates/`** for the intent, the spec and the plan.
-- **`scripts/artefact-check`** asserts each artefact's shape, and runs as a hook when
-  Claude writes one and as a PR check in knowhere.
-- **`scripts/next-change`, `gated-paths` and `run-check`**, the build's mechanical
-  calls: which change is next (one at a time per intent), which plan files CODEOWNERS
-  gates, and the declared check's output as evidence.
-- **Subagents get the constraints.** `SessionStart` never fires for a subagent, so the
-  context hook answers `SubagentStart` with the same text.
-- **An eval suite** in `evals/`: a build commits its plan first, a spec flags a policy
-  conflict instead of settling it, a review reports a file outside the plan, and a
-  subagent gets the constraints. `/philosophy:review` also takes a branch, for runs
-  without GitHub, and reads it through `scripts/branch-diff`, which accepts only a plain
-  branch name.
-- **`scripts/loop-metrics`, `loop-readings` and `band-check`:** the loop's own numbers
-  from git and PR history, and control bands over them. `loop-bands.yml` and
-  `templates/bands.yaml` turn a 3-sigma breach into an intent for the owner to triage.
-- **`templates/github/`**: the workflows that run the plays on a merge (spec on an
-  intent, the next build on a spec or a change, the review on every PR, and the owner's
-  `@claude continue`), for a repository to copy.
-- **`templates/CODEOWNERS`** for a repository to copy: intents, specs, the gates and
-  architecture definitions wait for the owner, and the rest merges on its checks.
-- **The guard holds a build to its plan.** On a `build/<slug>/NN` branch, nothing but
-  the plan can be written until it is committed, a file the plan doesn't list is denied, and
-  a committed repro test named on a `Repro:` line of the plan's Proof can't be edited.
-
-### Removed
-
-- **The board:** `board.py`, `board-check`, `close-task`, `record-check`,
-  `rules/board.md` and `docs/board-examples.md`.
-- **The reviewer agent and the ten step skills** (`capture-intent`, `size-work`,
-  `accept-work`, `write-spec`, `record-decision`, `plan-change`, `delegate-work`,
-  `verify-work`, `close-work`, `learn-from-work`). Process that was left to the model
-  to discover is now a command that is invoked, and closing is a merge.
-- **The guard's close and reviewer logic.** It keeps `git init -b main`.
-
-### Changed
-
-- **"Doing the work" in `constraints.md`** describes the new loop, the gates, and where
-  a lesson goes: a mistake made twice into CLAUDE.md, an incident into an eval case.
+- **The Backlog.md board version is back, and the self-running intent loop is gone.**
+  0.5.0 replaced the board with an intent, spec, build and review loop that ran as
+  GitHub workflows. It was too slow to be worth it, so this release restores 0.4.6's
+  plugin as it was: the work-loop skills from `capture-intent` to `learn-from-work`,
+  the `reviewer` agent, `board-check`, `close-task` and `record-check`. The intent,
+  spec, build, review and respond commands, their scripts, hooks, evals and workflow
+  templates are removed. The version is 0.6.0, not 0.4.7, so installs of 0.5.0
+  update to it.
 
 ## 0.4.6
 

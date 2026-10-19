@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
-"""Hold the loop's guardrails. PreToolUse on Bash, Edit, Write and NotebookEdit.
+"""Hold the close to the work loop. PreToolUse on Bash, Edit and Write.
 
+- Setting a task to Done by hand, with `backlog task edit ... -s Done` or an edit that
+  leaves a task file at `status: Done`, is denied. The reason names close-task, which
+  checks the criteria and the children before it changes anything.
+- Running close-task anywhere but in the reviewer agent asks the person first, because
+  whether a task closes is decided by someone who did not do the work.
+- In the reviewer agent, the usual ways a shell command changes files or git history
+  are denied, and so is any `backlog` command beyond reading the board, ticking
+  criteria, appending notes and filing drafts. The reviewer's own calls (this plugin's
+  scripts, the repository's declared checks through `record-check --tier`, and those
+  `backlog` commands) are allowed without a prompt, read strictly so that anything the
+  parser can't see into is left to the usual permissions.
 - `git init` without `-b main` is denied unless git already defaults to `main`.
-- On a `build/<slug>/NN` branch, an Edit or Write is held to the change's plan,
-  `intent/<slug>/plans/NN-*.md`. Until the plan is committed, only the plan can be
-  written. After that, a file the plan's Files that change doesn't list is denied, and
-  so is a repro test the plan's Proof names, once it is committed.
 
 guard.sh runs first and skips Python for payloads that cannot matter. This is a
-guardrail, not a security boundary: it fails open, so a command it cannot read, a shell
-command that writes a file, or any error, lets the call through. Written for Python 3.9.
+guardrail for the work loop, not a security boundary: it fails open, so a command it
+cannot read, or any error, lets the call through. Written for Python 3.9.
 """
 
 from __future__ import annotations
@@ -24,13 +31,30 @@ from typing import NamedTuple, Optional
 
 import shellwords
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-
-import artefact as a  # noqa: E402
-
-BUILD_BRANCH = re.compile(r"^build/([^/]+)/(\d{2})$")
-REPRO = re.compile(r"^[-*]\s+Repro:", re.I)
-BACKTICKED = re.compile(r"`([^`]+)`")
+REVIEWER = "philosophy:reviewer"
+WRITERS = frozenset(
+    {"rm", "mv", "cp", "tee", "touch", "mkdir", "rmdir", "chmod", "truncate", "dd", "patch"}
+    | {"ln", "unlink", "install"}
+)
+GIT_WRITES = frozenset(
+    {"add", "am", "apply", "checkout", "cherry-pick", "clean", "commit", "init", "merge", "mv"}
+    | {"pull", "push", "rebase", "reset", "restore", "revert", "rm", "switch"}
+)
+REDIRECTS = frozenset({">", ">>", ">|", "&>", "&>>"})
+TASK_FILE = re.compile(r"/backlog/(?:tasks|drafts|completed)/[^/]+\.md$")
+STATUS = re.compile(r"\A\ufeff?---\n.*?^status:[ \t]*(.*?)[ \t]*$", re.M | re.S)
+DONE_COMMAND = re.compile(r"\bbacklog\s+tasks?\s+edit\b.*(?:-s|--status)[\s=]+['\"]?done\b", re.I)
+# `backlog task edit` options that take a value, so the value is never read as an option.
+VALUE_OPTIONS = frozenset(
+    {"-t", "--title", "-d", "--description", "--desc", "-a", "--assignee", "-l", "--labels"}
+    | {"--priority", "--ac", "--remove-ac", "--check-ac", "--uncheck-ac", "--plan"}
+    | {"--notes", "--append-notes", "--final-summary", "--append-final-summary", "--dep"}
+    | {"--ref", "--doc", "--modified-file", "-p", "--parent", "--type", "--ordinal"}
+    | {"--add-label", "--remove-label", "--milestone", "--project"}
+)
+REVIEWER_EDITS = frozenset({"--check-ac", "--uncheck-ac", "--append-notes", "--plain"})
+SCRIPTS = frozenset({"board-check", "close-task", "record-check"})
+UNREADABLE = re.compile(r"[$`#]|<<|<\(|>\(")
 
 
 class Decision(NamedTuple):
@@ -38,14 +62,54 @@ class Decision(NamedTuple):
     reason: str
 
 
-class Build(NamedTuple):
-    """The change a build branch is for."""
-
-    slug: str
-    number: str
-
-
 # --- the logic: plain data in, plain data out ---------------------------------------
+
+
+def options(args: list[str]) -> list[tuple[str, Optional[str]]]:
+    """Pair each option of a `backlog` command with its value, if it takes one."""
+    out: list[tuple[str, Optional[str]]] = []
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg.startswith("--") and "=" in arg:
+            name, value = arg.split("=", 1)
+            out.append((name, value))
+        elif arg in VALUE_OPTIONS or arg in ("-s", "--status"):
+            out.append((arg, args[i + 1] if i + 1 < len(args) else None))
+            i += 1
+        elif re.fullmatch(r"-s\S+", arg):
+            out.append(("-s", arg[2:]))
+        elif arg.startswith("-"):
+            out.append((arg, None))
+        i += 1
+    return out
+
+
+def is_task_edit(name: str, args: list[str]) -> bool:
+    return name == "backlog" and args[:1] in (["task"], ["tasks"]) and args[1:2] == ["edit"]
+
+
+def sets_done(name: str, args: list[str]) -> bool:
+    return is_task_edit(name, args) and any(
+        option in ("-s", "--status") and (value or "").strip().lower() == "done"
+        for option, value in options(args[2:])
+    )
+
+
+def reviewer_may_run_backlog(args: list[str]) -> bool:
+    """Read the board, tick or untick criteria, append notes, and file drafts. Nothing else."""
+    noun, verb = (args + ["", ""])[:2]
+    if noun.startswith("-") or noun in ("board", "search", "overview"):
+        return True
+    if verb in ("view", "list", "get", "--plain"):
+        return True
+    if noun in ("task", "tasks") and re.fullmatch(r"[\w-]*\d[\w.]*", verb):
+        return True  # `backlog task 5` views it
+    if noun in ("task", "tasks") and verb == "edit":
+        return all(option in REVIEWER_EDITS for option, _ in options(args[3:]))
+    if noun in ("task", "tasks") and verb == "create":
+        return "--draft" in args
+    return noun == "draft" and verb == "create"
 
 
 def git_command(args: list[str]) -> list[str]:
@@ -60,6 +124,44 @@ def git_subcommand(args: list[str]) -> str:
     return (git_command(args) or [""])[0]
 
 
+def git_writes(args: list[str]) -> bool:
+    rest = git_command(args)
+    if not rest:
+        return False
+    sub, more = rest[0], rest[1:]
+    flags = {a for a in more if a.startswith("-")}
+    plain = [a for a in more if not a.startswith("-")]
+    if sub in GIT_WRITES:
+        return True
+    if sub == "stash":
+        return not plain or plain[0] not in ("list", "show")
+    if sub == "branch":
+        return bool(plain) or bool(flags & {"-d", "-D", "-m", "-M", "-c", "-C", "--delete"})
+    if sub == "tag":
+        return bool(plain) and not flags & {"-l", "--list"}
+    if sub == "worktree":
+        return bool(plain) and plain[0] in ("add", "remove", "move", "prune", "repair")
+    return False
+
+
+def writes(name: str, args: list[str]) -> bool:
+    """Whether a program call plainly changes files or git history."""
+    if name in WRITERS:
+        return True
+    if name == "sed" and any(a == "--in-place" or re.fullmatch(r"-[nEr]*i\S*", a) for a in args):
+        return True
+    if name in ("perl", "ruby") and any(re.fullmatch(r"-[pnlaw0]*i\S*", a) for a in args):
+        return True
+    if name == "find" and ("-delete" in args or "-exec" in args and "rm" in args):
+        return True
+    if name == "git" and git_writes(args):
+        return True
+    return any(
+        arg in REDIRECTS and (i + 1 >= len(args) or args[i + 1] != "/dev/null")
+        for i, arg in enumerate(args)
+    )
+
+
 def starts_main(args: list[str]) -> bool:
     """Whether `git init` is given `main` as its first branch."""
     for i, arg in enumerate(args):
@@ -70,186 +172,177 @@ def starts_main(args: list[str]) -> bool:
     return False
 
 
-def decide_bash(command: str, default_branch: str) -> Optional[Decision]:
-    found = shellwords.programs(command)
-    if found is None:
-        return None
-    if any(
-        ran.name == "git"
-        and git_subcommand(ran.args) == "init"
-        and not starts_main(git_command(ran.args)[1:])
-        and default_branch != "main"
-        for ran in found
-    ):
-        return Decision(
-            "deny",
-            "The default branch is main: run `git init -b main`, or set it once for every "
-            "repository with `git config --global init.defaultBranch main`.",
-        )
-    return None
+def own_call(words: list[str], root: str) -> bool:
+    """Whether one simple command is a call the reviewer makes without a prompt.
 
-
-def build_of(branch: str) -> Optional[Build]:
-    found = BUILD_BRANCH.match(branch)
-    return Build(found.group(1), found.group(2)) if found else None
-
-
-def plan_dir(build: Build) -> str:
-    return "intent/%s/plans/" % build.slug
-
-
-def is_own_plan(path: str, build: Build) -> bool:
-    """Whether a path is this change's plan: directly in the plans folder, named
-    `NN-<change>.md`."""
-    found = Path(path)
-    return (
-        found.parent.as_posix() + "/" == plan_dir(build)
-        and found.name.startswith(build.number + "-")
-        and found.suffix == ".md"
-    )
-
-
-def repro_tests(plan: a.Doc) -> frozenset[str]:
-    """The tests a plan's Proof names in a bullet starting `Repro:`, including a bullet
-    that wraps onto further lines."""
-    proof = a.section(plan, "Proof") or ""
-    return frozenset(
-        path.strip().removeprefix("./")
-        for bullet in a.items(proof, a.BULLET)
-        if REPRO.match(bullet)
-        for path in BACKTICKED.findall(bullet)
-    )
-
-
-def decide_edit(
-    path: Optional[str],
-    build: Optional[Build],
-    plans: tuple[str, ...],
-    plan: Optional[a.Doc],
-    plan_committed: bool,
-    committed: frozenset[str],
-) -> Optional[Decision]:
-    """Hold an Edit or Write on a build branch to the change's plan.
-
-    `path` is the file's path in the repository, or None when it is outside it.
-    `plans` are the paths of this change's plans; `plan` is the one plan, read from the
-    working tree so an edit can add a file to it, or None if there is none.
-    `plan_committed` says whether that plan is in HEAD. `committed` is the plan's repro
-    tests that are already in HEAD.
+    That is `cd`, a `backlog` command the reviewer may run, or `python3` running one of
+    this plugin's scripts by its absolute path in this plugin, but never `record-check`
+    with an open command after `--`. Read strictly: no assignments, wrappers, redirects
+    or comments.
     """
-    if build is None or path is None or is_own_plan(path, build):
+    if any("<" in word or ">" in word for word in words):
+        return False
+    if words[0] == "cd":
+        return len(words) <= 2
+    if words[0] == "backlog":
+        return reviewer_may_run_backlog(words[1:])
+    if words[0] not in ("python3", "python") or len(words) < 2 or not os.path.isabs(words[1]):
+        return False
+    script = os.path.basename(words[1])
+    at_home = os.path.realpath(words[1]) == os.path.realpath(os.path.join(root, "scripts", script))
+    return script in SCRIPTS and at_home and not (script == "record-check" and "--" in words)
+
+
+def reviewer_may_skip_prompt(command: str, root: str) -> bool:
+    """Whether every part of the command is one of the reviewer's own calls.
+
+    This grants a permission, so it fails closed: any `$`, backtick or process
+    substitution, which the parser can't see into, means no.
+    """
+    if UNREADABLE.search(command):
+        return False
+    parts = shellwords.simple_commands(command, keep_assignments=True)
+    return bool(parts) and all(own_call(words, root) for words in parts)
+
+
+def status_of(text: str) -> str:
+    found = STATUS.match(text)
+    if not found:
+        return ""
+    value = re.sub(r"\s+#.*$", "", found.group(1)).strip()
+    return value.strip("'\"").strip().lower()
+
+
+def after_edit(tool: str, tool_input: dict, existing: str) -> Optional[str]:
+    """The task file's text once this Edit or Write lands, or None if it can't be known."""
+    if tool == "Write":
+        return str(tool_input.get("content") or "")
+    old = str(tool_input.get("old_string") or "")
+    new = str(tool_input.get("new_string") or "")
+    if not old or old not in existing:
         return None
-    if len(plans) > 1:
-        return Decision(
-            "deny",
-            "Change %s of %s has more than one plan (%s). Keep one, then build from it."
-            % (build.number, build.slug, ", ".join(plans)),
-        )
-    if plan is not None and not plan_committed:
-        return Decision(
-            "deny",
-            "Commit the plan, %s, alone as the branch's first commit before changing "
-            "anything else: the plan comes first in the history, not only on disk." % plan.path,
-        )
-    if plan is None:
-        return Decision(
-            "deny",
-            "This is the build branch for change %s of %s, and its plan comes first: write "
-            "%s%s-<change>.md from the plan template and commit it alone, then build from it."
-            % (build.number, build.slug, plan_dir(build), build.number),
-        )
-    if path in committed:
-        return Decision(
-            "deny",
-            "%s is the committed repro test for this change. Fix the code, not the test: "
-            "a fix that edits its own repro proves nothing. If the test itself is wrong, "
-            "stop and say so in the PR." % path,
-        )
-    listed = frozenset(p.removeprefix("./") for p in a.listed_paths(plan))
-    if path not in listed:
-        return Decision(
-            "deny",
-            "%s is not in the plan's Files that change (%s). If this change needs it, add "
-            "it there, one backticked path per bullet, in the same commit as the edit, and "
-            "say why in the PR. A bigger drift is a reason to stop, not to push on."
-            % (path, plan.path),
-        )
+    return existing.replace(old, new, -1 if tool_input.get("replace_all") else 1)
+
+
+def decide(
+    tool: str,
+    tool_input: dict,
+    agent_type: str,
+    existing: str,
+    root: str,
+    default_branch: str = "",
+) -> Optional[Decision]:
+    """Say whether this tool call is denied, needs the person, is allowed, or (None) is left
+    to the usual permissions.
+
+    `existing` is the current text of the task file an Edit or Write changes, or "".
+    `default_branch` is git's `init.defaultBranch`, read only for a `git init`.
+    """
+    reviewer = agent_type == REVIEWER
+    close_task = 'python3 "%s/scripts/close-task" <id> --notes "<closing notes>"' % root
+    by_script = Decision(
+        "deny",
+        "A task is set to Done only by close-task, which refuses unless every criterion is met "
+        "and every child is done: %s. %s"
+        % (
+            close_task,
+            "Run it once the review says the task closes."
+            if reviewer
+            else "Whether it closes is decided by someone who did not do the work, so hand the "
+            "task to the philosophy:reviewer agent, which runs it.",
+        ),
+    )
+    if tool == "Bash":
+        command = str(tool_input.get("command") or "")
+        found = shellwords.programs(command)
+        if found is None:
+            return by_script if DONE_COMMAND.search(command) else None
+        if any(sets_done(ran.name, ran.args) for ran in found):
+            return by_script
+        if any(
+            ran.name == "git"
+            and git_subcommand(ran.args) == "init"
+            and not starts_main(git_command(ran.args)[1:])
+            and default_branch != "main"
+            for ran in found
+        ):
+            return Decision(
+                "deny",
+                "The default branch is main: run `git init -b main`, or set it once for every "
+                "repository with `git config --global init.defaultBranch main`.",
+            )
+        if not reviewer:
+            if any(ran.name == "close-task" for ran in found):
+                return Decision(
+                    "ask",
+                    "close-task is closing a task outside the philosophy:reviewer agent. Approve "
+                    "only if you reviewed the work yourself and did not do it; otherwise decline "
+                    "and hand the task to the reviewer.",
+                )
+            return None
+        if any(ran.name == "backlog" and not reviewer_may_run_backlog(ran.args) for ran in found):
+            return Decision(
+                "deny",
+                "The reviewer reads the board, ticks criteria with --check-ac, appends notes, and "
+                "files drafts. Changing a task's criteria, labels, plan or status changes the "
+                "work under review: report it as a finding instead.",
+            )
+        if any(writes(ran.name, ran.args) for ran in found):
+            return Decision(
+                "deny",
+                "The reviewer does not change the work it reviews: report what should change as "
+                "a finding instead. Reading, running the checks without fixing, board-check, "
+                "record-check, close-task, and backlog notes and drafts are allowed.",
+            )
+        if reviewer_may_skip_prompt(command, root):
+            return Decision(
+                "allow",
+                "The reviewer's own calls: this plugin's scripts, including the repository's "
+                "declared checks through record-check --tier, and backlog commands that read "
+                "the board, tick criteria, append notes, or file drafts.",
+            )
+    elif tool in ("Edit", "Write"):
+        path = str(tool_input.get("file_path") or "").replace("\\", "/")
+        if TASK_FILE.search(path):
+            # An Edit whose old_string isn't in the file fails on its own, so None goes ahead.
+            after = after_edit(tool, tool_input, existing)
+            if after is not None and status_of(after) == "done" and status_of(existing) != "done":
+                return by_script
     return None
 
 
 # --- the shell ----------------------------------------------------------------------
 
 
-def git(cwd: str, *args: str) -> Optional[str]:
-    try:
-        done = subprocess.run(["git", "-C", cwd, *args], capture_output=True, text=True, timeout=3)
-    except (OSError, subprocess.SubprocessError):
-        return None
-    return done.stdout.strip() if done.returncode == 0 else None
-
-
 def git_default_branch(cwd: str) -> str:
-    return git(cwd, "config", "--get", "init.defaultBranch") or ""
-
-
-def existing_dir(path: Path) -> Path:
-    while not path.is_dir() and path != path.parent:
-        path = path.parent
-    return path
-
-
-def edit_decision(file_path: str, cwd: str) -> Optional[Decision]:
-    """Read what `decide_edit` needs for one file, and decide. The repro tests that are
-    frozen come from the plan as committed, not as edited since: removing a `Repro:`
-    line from the plan must not unfreeze its test."""
-    target = Path(file_path)
-    if not target.is_absolute():
-        target = Path(cwd) / target
-    found = git(
-        str(existing_dir(target.parent)), "rev-parse", "--show-toplevel", "--abbrev-ref", "HEAD"
-    )
-    if found is None or "\n" not in found:
-        return None
-    root, branch = found.split("\n", 1)
-    build = build_of(branch.strip())
-    if build is None:
-        return None
     try:
-        path: Optional[str] = target.resolve().relative_to(Path(root).resolve()).as_posix()
-    except ValueError:
-        path = None
-    found = sorted(Path(root, plan_dir(build)).glob("%s-*.md" % build.number))
-    plans = tuple(p.relative_to(root).as_posix() for p in found)
-    plan = a.read(found[0]) if len(found) == 1 else None
-    # Two git calls for most edits: which repository and branch, and the plan as
-    # committed. A third only when the file is one of that plan's repro tests.
-    committed_plan = git(root, "show", "HEAD:%s" % plans[0]) if plans else None
-    plan_committed = committed_plan is not None
-    frozen = repro_tests(a.parse(committed_plan, plans[0])) if committed_plan else frozenset()
-    in_head = path in frozen and git(root, "cat-file", "-e", "HEAD:%s" % path) is not None
-    committed = frozenset({path}) if in_head and path else frozenset()
-    return decide_edit(path, build, plans, plan, plan_committed, committed)
-
-
-def decide(tool: str, tool_input: dict, cwd: str) -> Optional[Decision]:
-    if tool == "Bash":
-        command = str(tool_input.get("command") or "")
-        default = git_default_branch(cwd) if "init" in command else ""
-        return decide_bash(command, default)
-    path = tool_input.get("file_path") or tool_input.get("notebook_path")
-    if tool in ("Edit", "Write", "NotebookEdit") and path:
-        return edit_decision(str(path), cwd)
-    return None
+        done = subprocess.run(
+            ["git", "-C", cwd, "config", "--get", "init.defaultBranch"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return done.stdout.strip()
 
 
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
-        decision = decide(
-            str(payload.get("tool_name") or ""),
-            payload.get("tool_input") or {},
-            str(payload.get("cwd") or os.getcwd()),
-        )
+        tool = str(payload.get("tool_name") or "")
+        tool_input = payload.get("tool_input") or {}
+        existing = ""
+        path = str(tool_input.get("file_path") or "")
+        if tool in ("Edit", "Write") and TASK_FILE.search(path.replace("\\", "/")):
+            target = Path(path)
+            existing = target.read_text(encoding="utf-8") if target.is_file() else ""
+        root = os.environ.get("CLAUDE_PLUGIN_ROOT") or str(Path(__file__).resolve().parent.parent)
+        default_branch = ""
+        if tool == "Bash" and "init" in str(tool_input.get("command") or ""):
+            default_branch = git_default_branch(str(payload.get("cwd") or os.getcwd()))
+        agent = str(payload.get("agent_type") or "")
+        decision = decide(tool, tool_input, agent, existing, root, default_branch)
         if decision is not None:
             output = {
                 "hookEventName": "PreToolUse",
