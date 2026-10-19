@@ -27,7 +27,7 @@
     },
     {
       "name": "philosophy",
-      "description": "The standing constraints in every session and subagent, code and Python rules when a matching file is touched, and a self-running work loop following Anthropic's AI-native SDLC playbook: intent, spec, build and review as commands, with scripts that check the artefacts and make the build's mechanical calls.",
+      "description": "The standing constraints every session, code, Python and board rules when a matching file is touched, small composable skills for each step of the work loop following Anthropic's AI-native SDLC plays, and the scripts and reviewer agent that check and close the work.",
       "author": {
         "name": "bruk-io"
       },

@@ -1,9 +1,6 @@
 *.DS_Store
-# Local Claude state stays out; the declared checks are shared (R11).
-.claude/*
-!.claude/checks.json
+.claude/
 site/
 .venv/
-**/evals/results/
 __pycache__/
 *.pyc

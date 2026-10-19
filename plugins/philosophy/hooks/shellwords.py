@@ -21,6 +21,8 @@ WRAPPERS = frozenset({"time", "command", "exec", "nohup", "env", "npx", "bunx", 
 PYTHON = re.compile(r"python(?:3(?:\.\d+)?)?")
 PYTHON_VALUE_OPTIONS = frozenset({"-W", "-X", "-m", "-c"})
 SHELLS = frozenset({"sh", "bash", "zsh", "dash"})
+# Commands that run the command after their `--`, such as this plugin's record-check.
+RUNNERS = frozenset({"record-check"})
 
 
 class Program(NamedTuple):
@@ -74,7 +76,7 @@ def program(words: list[str]) -> Program:
     """The program a simple command runs and its arguments.
 
     Looks through shell keywords, wrappers such as `env` and `npx`, `uv run`, and
-    `python3 [options] script`, so `env python3 -u x/run-check fast` runs `run-check`.
+    `python3 [options] script`, so `env python3 -u x/close-task 5` runs `close-task`.
     """
     rest = list(words)
     while rest:
@@ -99,14 +101,14 @@ def program(words: list[str]) -> Program:
                 return Program(name, args, rest[0])
             rest = args
         else:
-            return Program(name, rest[1:], rest[0])
+            return Program("backlog" if name == "backlog.md" else name, rest[1:], rest[0])
     return Program("", [], "")
 
 
 def programs(command: str) -> Optional[list[Program]]:
     """Every program the command runs, or None if it can't be read.
 
-    That includes the command inside `sh -c '...'`.
+    That includes the command inside `sh -c '...'` and after a runner's `--`.
     """
     parts = simple_commands(command)
     if parts is None:
@@ -120,6 +122,9 @@ def programs(command: str) -> Optional[list[Program]]:
         inner = None
         if ran.name in SHELLS and "-c" in ran.args[:-1]:
             inner = ran.args[ran.args.index("-c") + 1]
+        elif ran.name in RUNNERS and "--" in ran.args[:-1]:
+            after = ran.args[ran.args.index("--") + 1 :]
+            inner = after[0] if len(after) == 1 else shlex.join(after)
         if inner is not None:
             nested = programs(inner)
             if nested is None:

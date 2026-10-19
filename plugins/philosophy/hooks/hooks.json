@@ -1,5 +1,5 @@
 {
-  "description": "philosophy: constraints at session and subagent start; each rule the first time a matching file is touched; intents, specs and plans checked as they are written; git init held to main",
+  "description": "philosophy: constraints at session start; each rule the first time a matching file or command is touched; the close held to close-task and the reviewer",
   "hooks": {
     "SessionStart": [
       {
@@ -12,20 +12,9 @@
         ]
       }
     ],
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/context.py\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|NotebookEdit",
+        "matcher": "Bash|Edit|Write",
         "hooks": [
           {
             "type": "command",
@@ -47,11 +36,12 @@
         ]
       },
       {
-        "matcher": "Write|Edit",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/artefact_hook.py\"",
+            "if": "Bash(backlog *)",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/context.py\"",
             "timeout": 10
           }
         ]

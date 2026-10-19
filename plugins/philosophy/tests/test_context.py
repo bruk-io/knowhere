@@ -52,11 +52,13 @@ def test_matches(path: str, globs: tuple[str, ...], expected: bool) -> None:
 
 def test_parse_rule_reads_paths_commands_and_mode() -> None:
     text = (
-        '---\npaths:\n  - "**/*.py"\n  - "**/pyproject.toml"\ncommands:\n  - uv\n'
+        '---\npaths:\n  - "**/*.py"\n  - "**/pyproject.toml"\ncommands:\n  - backlog\n'
         "mode: owner\n---\n# Python\n\nBody.\n"
     )
     rule = context.parse_rule("python", text)
-    expected = Rule("python", ("**/*.py", "**/pyproject.toml"), ("uv",), True, "# Python\n\nBody.")
+    expected = Rule(
+        "python", ("**/*.py", "**/pyproject.toml"), ("backlog",), True, "# Python\n\nBody."
+    )
     assert rule == expected
 
 
@@ -74,13 +76,13 @@ def test_parse_rule_refuses_an_inline_list(key: str) -> None:
 @pytest.mark.parametrize(
     ("command", "words"),
     [
-        ("mkdocs build", ("mkdocs",)),
-        ("FOO=1 mkdocs serve -a :8000", ("mkdocs",)),
-        ("cd x && mkdocs build", ("cd", "mkdocs")),
-        ('echo "mkdocs" | grep x', ("echo", "grep")),
-        ("npm test; /usr/local/bin/mkdocs x", ("npm", "mkdocs")),
-        ("cd repo\nmkdocs build", ("cd", "mkdocs")),
-        ("sh -c 'mkdocs build'", ("sh", "mkdocs")),
+        ("backlog task list", ("backlog",)),
+        ("FOO=1 backlog task edit 5 -s Done", ("backlog",)),
+        ("cd x && backlog board", ("cd", "backlog")),
+        ('echo "backlog" | grep x', ("echo", "grep")),
+        ("npm test; /usr/local/bin/backlog x", ("npm", "backlog")),
+        ("cd repo\nbacklog task list", ("cd", "backlog")),
+        ("sh -c 'backlog board'", ("sh", "backlog")),
         ('echo "unbalanced', ("echo",)),
     ],
 )
@@ -116,31 +118,32 @@ def test_repo_mode() -> None:
 
 def test_rules_for_filters_seen_and_matches_files_or_commands() -> None:
     python = Rule("python", ("**/*.py",), (), True, "p")
-    docs = Rule("docs", ("**/docs/**",), ("mkdocs",), False, "d")
-    rules = (python, docs)
+    board = Rule("board", ("**/backlog/**",), ("backlog",), False, "b")
+    rules = (python, board)
     file = context.Touch("/r/a.py", (), "/r")
     assert context.rules_for(rules, file, frozenset()) == (python,)
     assert context.rules_for(rules, file, frozenset({"python"})) == ()
-    assert context.rules_for(rules, context.Touch("/r/docs/index.md", (), "/r"), frozenset()) == (
-        docs,
-    )
-    assert context.rules_for(rules, context.Touch(None, ("cd", "mkdocs"), "/r"), frozenset()) == (
-        docs,
+    assert context.rules_for(
+        rules, context.Touch("/r/backlog/tasks/t.md", (), "/r"), frozenset()
+    ) == (board,)
+    assert context.rules_for(rules, context.Touch(None, ("cd", "backlog"), "/r"), frozenset()) == (
+        board,
     )
     assert context.rules_for(rules, context.Touch(None, ("git",), "/r"), frozenset()) == ()
 
 
 def test_in_mode_drops_owner_rules_for_guests() -> None:
     python = Rule("python", ("**/*.py",), (), True, "p")
-    docs = Rule("docs", ("**/docs/**",), ("mkdocs",), False, "d")
-    assert context.in_mode((python, docs), Mode.GUEST) == (docs,)
-    assert context.in_mode((python, docs), Mode.OWNER) == (python, docs)
+    board = Rule("board", ("**/backlog/**",), ("backlog",), False, "b")
+    assert context.in_mode((python, board), Mode.GUEST) == (board,)
+    assert context.in_mode((python, board), Mode.OWNER) == (python, board)
 
 
 def test_every_shipped_rule_loads_strictly() -> None:
     names = sorted(p.stem for p in (ROOT / "rules").glob("*.md"))
     rules = tuple(context.parse_rule(n, (ROOT / "rules" / (n + ".md")).read_text()) for n in names)
     assert [r.name for r in rules] == [
+        "board",
         "code-design",
         "python",
         "python-tests",
@@ -253,29 +256,6 @@ def test_session_start_in_guest_repo(tmp_path: Path, guest: Path) -> None:
     assert "# Standing constraints" in result.stdout
 
 
-def test_subagent_start_gets_the_constraints(tmp_path: Path, owned: Path) -> None:
-    payload = {
-        "hook_event_name": "SubagentStart",
-        "session_id": "s1",
-        "cwd": str(owned),
-        "agent_id": "worker-1",
-        "agent_type": "general-purpose",
-    }
-    result = run_hook(tmp_path, payload)
-    assert result.returncode == 0, result.stderr
-    output = json.loads(result.stdout)["hookSpecificOutput"]
-    assert output["hookEventName"] == "SubagentStart"
-    assert output["additionalContext"].startswith("[philosophy] Repository mode: owner.")
-    assert "# Standing constraints" in output["additionalContext"]
-    assert "{plugin_root}" not in output["additionalContext"]
-
-
-def test_subagent_start_in_guest_repo_says_so(tmp_path: Path, guest: Path) -> None:
-    payload = {"hook_event_name": "SubagentStart", "session_id": "s1", "cwd": str(guest)}
-    output = json.loads(run_hook(tmp_path, payload).stdout)["hookSpecificOutput"]
-    assert "Repository mode: guest" in output["additionalContext"]
-
-
 def test_session_start_outside_git_is_owner(tmp_path: Path) -> None:
     plain = tmp_path / "plain"
     plain.mkdir()
@@ -353,7 +333,7 @@ def test_git_runs_only_when_an_owner_rule_matched(tmp_path: Path, owned: Path) -
     (fake / "git").chmod(0o755)
     path = "%s:%s" % (fake, os.environ["PATH"])
     run_hook(tmp_path, touch(owned, "README.md"), PATH=path)
-    run_hook(tmp_path, touch(owned, "docs/guide - draft.md"), PATH=path)
+    run_hook(tmp_path, touch(owned, "backlog/tasks/task-1 - X.md"), PATH=path)
     assert not log.exists()
     assert "rule python" in injected(run_hook(tmp_path, touch(owned, "a.py"), PATH=path))
     assert log.read_text().count("called") == 1
@@ -383,8 +363,19 @@ def test_rule_is_delivered_even_when_markers_cannot_be_written(tmp_path: Path, o
     assert "rule python" in injected(run_hook(tmp_path, touch(owned, "a.py")))
 
 
+def test_backlog_command_delivers_the_board_rule_once(tmp_path: Path, owned: Path) -> None:
+    text = injected(run_hook(tmp_path, bash(owned, "backlog task list --plain")))
+    assert "[philosophy] rule board" in text
+    assert "{plugin_root}" not in text and str(ROOT / "scripts" / "board-check") in text
+    assert injected(run_hook(tmp_path, touch(owned, "backlog/tasks/task-1 - X.md"))) == ""
+
+
 def test_other_commands_deliver_nothing(tmp_path: Path, owned: Path) -> None:
-    assert injected(run_hook(tmp_path, bash(owned, "git status && echo mkdocs"))) == ""
+    assert injected(run_hook(tmp_path, bash(owned, "git status && echo backlog"))) == ""
+
+
+def test_board_file_delivers_the_board_rule_in_a_guest_repo(tmp_path: Path, guest: Path) -> None:
+    assert "rule board" in injected(run_hook(tmp_path, touch(guest, "backlog/tasks/task-1 - X.md")))
 
 
 def test_unrelated_file_injects_nothing(tmp_path: Path, owned: Path) -> None:

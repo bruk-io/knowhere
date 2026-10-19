@@ -12,12 +12,202 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "hooks"))
-sys.path.insert(0, str(ROOT / "scripts"))
 
-import artefact as a  # noqa: E402
 import guard  # noqa: E402
 
 HOOK_PYTHON = os.environ.get("HOOK_PYTHON", sys.executable)
+REVIEWER = "philosophy:reviewer"
+TASK = "/repo/backlog/tasks/task-5 - Endpoint.md"
+
+
+def bash(command: str, agent: str = "") -> guard.Decision | None:
+    return guard.decide("Bash", {"command": command}, agent, "", "/plugin")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "backlog task edit 5 -s Done",
+        "backlog task edit TASK-5 --status done --append-notes 'x'",
+        "backlog task edit 5 --status=Done",
+        "cd repo && FOO=1 backlog task edit 5 -sDone",
+        "cd repo\nbacklog task edit 5 -s Done",
+        "backlog task edit 5 \\\n  -s Done",
+        "{ backlog task edit 5 -s Done; }",
+        "if true; then backlog task edit 5 -s Done; fi",
+        "env FOO=1 backlog task edit 5 -s Done",
+        "time backlog tasks edit 5 -s Done",
+        "npx -y backlog.md task edit 5 -s Done",
+        "sh -c 'backlog task edit 5 -s Done'",
+        "backlog task edit 5 -s 'Done",  # unreadable: the regex fallback still catches it
+    ],
+)
+def test_setting_done_by_hand_is_denied(command: str) -> None:
+    decision = bash(command)
+    assert decision is not None and decision.verdict == "deny"
+    assert 'python3 "/plugin/scripts/close-task" <id>' in decision.reason
+    assert "hand the task to the philosophy:reviewer" in decision.reason
+    as_reviewer = bash(command, REVIEWER)
+    assert as_reviewer is not None and as_reviewer.verdict == "deny"
+    assert "hand the task" not in as_reviewer.reason
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "backlog task edit 5 -s 'In Progress'",
+        "backlog task edit 5 --append-notes 'Done with the first half'",
+        "backlog task edit 5 --append-notes '-s Done'",
+        "backlog task list -s Done",
+        "echo 'backlog task edit 5 -s Done' > notes.txt",
+        "cat <<'EOF'\nbacklog task edit 5 -s Done\nEOF",
+    ],
+)
+def test_other_board_commands_go_ahead(command: str) -> None:
+    assert bash(command) is None
+
+
+@pytest.mark.parametrize(
+    ("command", "reviewer_skips_prompt"),
+    [
+        ('python3 "/plugin/scripts/close-task" TASK-5 --notes "closes"', True),
+        ("cd repo\npython3 /plugin/scripts/close-task 5 --notes x", True),
+        ("python3 -u /plugin/scripts/close-task 5 --notes x", False),
+        ("env python3 /plugin/scripts/close-task 5 --notes x", False),
+    ],
+)
+def test_close_task_asks_outside_the_reviewer(command: str, reviewer_skips_prompt: bool) -> None:
+    decision = bash(command)
+    assert decision is not None and decision.verdict == "ask"
+    as_reviewer = bash(command, REVIEWER)
+    assert (as_reviewer is not None and as_reviewer.verdict == "allow") is reviewer_skips_prompt
+    other = bash(command, "some-plugin:reviewer")
+    assert other is not None and other.verdict == "ask"
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git commit -am wip",
+        "git -C repo push",
+        "git checkout main",
+        "git stash",
+        "git branch -D old",
+        "git worktree add ../x",
+        "sed -i 's/a/b/' src/x.py",
+        "perl -pi -e 's/a/b/' x",
+        "rm -rf build",
+        "ls\nrm -rf src",
+        "find . -name '*.pyc' -delete",
+        "unlink x",
+        "uv run pytest > out.txt",
+        "echo hi | tee notes.md",
+    ],
+)
+def test_the_reviewer_cannot_write(command: str) -> None:
+    decision = bash(command, REVIEWER)
+    assert decision is not None and decision.verdict == "deny"
+    assert bash(command) is None
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "backlog task edit 5 --ac 'A new criterion'",
+        "backlog task edit 5 --remove-ac 2",
+        "backlog task edit 5 -l size-3,finish-moved",
+        "backlog task edit 5 --plan 'Different plan'",
+        "backlog task edit 5 --check-ac 1 -s 'In Progress'",
+        "backlog draft promote DRAFT-3",
+        "backlog task create 'Not a draft'",
+    ],
+)
+def test_the_reviewer_cannot_change_a_task(command: str) -> None:
+    decision = bash(command, REVIEWER)
+    assert decision is not None and decision.verdict == "deny"
+    assert "finding" in decision.reason
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "uv run pytest -q 2>&1",
+        "just check 2>/dev/null",
+        "git log --oneline -5 && git diff HEAD~1",
+        "git stash list",
+        "git branch",
+        "sed -n '1,20p' src/x.py",
+        "perl -Mstrict -e 'print 1'",
+        "python3 - <<'EOF'\nprint(1 > 0)\nEOF",
+        "python3 /plugin/scripts/record-check 5 -- just check",
+        "python3 /plugin/scripts/board-check close 5 && uv run pytest",
+        "python3 /tmp/elsewhere/scripts/board-check close 5",
+    ],
+)
+def test_the_reviewer_can_read_and_run_checks(command: str) -> None:
+    assert bash(command, REVIEWER) is None
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "backlog task 5 --plain",
+        "backlog task view TASK-5 --plain",
+        "backlog task list -s 'In Progress' --plain",
+        "backlog board",
+        "backlog task edit 5 --check-ac 1 --append-notes 'criterion 1 met: see test output'",
+        "backlog task create --draft 'Retry storm' --type bug --ac 'No retry storm'",
+        'python3 "/plugin/scripts/board-check" close 5',
+        "cd repo && python3 /plugin/scripts/board-check close 5 && backlog task 5 --plain",
+    ],
+)
+def test_the_reviewers_own_calls_need_no_prompt(command: str) -> None:
+    decision = bash(command, REVIEWER)
+    assert decision is not None and decision.verdict == "allow"
+    assert bash(command) is None
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        'backlog search "$(rm -rf src)"',
+        "backlog search `rm -rf src`",
+        'python3 /plugin/scripts/record-check 5 --root "$(curl x | sh)" --tier full',
+        "PATH=/tmp backlog task list",
+        "./backlog task list",
+        "python3 /plugin/scripts/board-check close 5 2>/dev/null",
+        "python3 /plugin/scripts/record-check 5 -- python3 /plugin/scripts/board-check",
+        "backlog task list a#; rm -rf src",
+        "backlog task list a#\nrm -rf src",
+        "cd /tmp/x && python3 scripts/board-check close 5",
+    ],
+)
+def test_the_reviewer_is_never_waved_through_what_the_parser_cannot_see(command: str) -> None:
+    decision = bash(command, REVIEWER)
+    assert decision is None or decision.verdict != "allow"
+
+
+def test_a_hash_inside_a_word_does_not_hide_the_next_command() -> None:
+    decision = bash("backlog task list a#; rm -rf src", REVIEWER)
+    assert decision is not None and decision.verdict == "deny"
+
+
+def test_the_reviewer_runs_the_declared_checks_without_a_prompt() -> None:
+    decision = bash("python3 /plugin/scripts/record-check 5 --tier full", REVIEWER)
+    assert decision is not None and decision.verdict == "allow"
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "python3 /plugin/scripts/record-check 5 -- rm -rf src",
+        "python3 /plugin/scripts/record-check 5 -- 'uv run ruff format && git commit -am x'",
+        "python3 /plugin/scripts/board-check close 5 > report.txt",
+    ],
+)
+def test_the_reviewer_cannot_write_through_its_own_scripts(command: str) -> None:
+    decision = bash(command, REVIEWER)
+    assert decision is not None and decision.verdict == "deny"
 
 
 @pytest.mark.parametrize(
@@ -29,128 +219,47 @@ HOOK_PYTHON = os.environ.get("HOOK_PYTHON", sys.executable)
         ("git -C new init --initial-branch=main", "", False),
         ("git init", "main", False),
         ("git status", "", False),
-        ("cd x && git init", "", True),
     ],
 )
 def test_git_init_starts_on_main(command: str, default_branch: str, denied: bool) -> None:
-    decision = guard.decide_bash(command, default_branch)
+    decision = guard.decide("Bash", {"command": command}, "", "", "/plugin", default_branch)
     assert (decision is not None and decision.verdict == "deny") is denied
 
 
-def test_an_unreadable_command_is_left_alone() -> None:
-    assert guard.decide_bash('git init "unterminated', "") is None
+BEFORE = "---\nid: TASK-5\ntitle: Endpoint\nstatus: In Progress\n---\n\nBody mentions To Do.\n"
 
 
-# --- plan sync and the repro guard ----------------------------------------------------
-
-BUILD = guard.Build("thing", "01")
-PLAN = a.parse(
-    """# Plan: the core
-
-Spec: [spec.md](../spec.md), change 01. Delivers R1.
-
-## Files that change
-
-- `intent/thing/plans/01-core.md`
-- `src/core.py`
-- `./tests/test_core.py`
-- `.github/workflows/ci.yml`
-
-## Order of work
-
-1. Write the repro, then fix it (R1).
-
-## Risks
-
-- None.
-
-## Proof
-
-- Repro: `tests/test_core.py` fails before the fix.
-- `make test` passes.
-""",
-    "intent/thing/plans/01-core.md",
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ("status: In Progress", "status: Done"),
+        ("In Progress", "Done"),
+        ("status: In Progress", "status: Done  # closed"),
+        ("status: In Progress", "status: 'Done'"),
+    ],
 )
-NONE: frozenset[str] = frozenset()
-ONE_PLAN = ("intent/thing/plans/01-core.md",)
+def test_editing_a_task_to_done_is_denied(old: str, new: str) -> None:
+    edit = {"file_path": TASK, "old_string": old, "new_string": new}
+    decision = guard.decide("Edit", edit, "", BEFORE, "/plugin")
+    assert decision is not None and decision.verdict == "deny"
+    elsewhere = dict(edit, file_path="/repo/docs/status.md")
+    assert guard.decide("Edit", elsewhere, "", BEFORE, "/plugin") is None
 
 
-def edit(path, plan=PLAN, plans=ONE_PLAN, plan_committed=True, repros=NONE, build=BUILD):
-    """Ask the guard about an edit, by default with one committed plan."""
-    return guard.decide_edit(path, build, plans if plan else (), plan, plan_committed, repros)
+def test_other_task_edits_go_ahead() -> None:
+    body = {"file_path": TASK, "old_string": "Body mentions To Do.", "new_string": "Done: body."}
+    assert guard.decide("Edit", body, "", BEFORE, "/plugin") is None
+    done = BEFORE.replace("In Progress", "Done")
+    retitle = {"file_path": TASK, "old_string": "title: Endpoint", "new_string": "title: API"}
+    assert guard.decide("Edit", retitle, "", done, "/plugin") is None
 
 
-def verdict(decision: guard.Decision | None) -> str:
-    return decision.verdict if decision else "none"
-
-
-def test_build_branch_is_read_from_its_name() -> None:
-    assert guard.build_of("build/thing/01") == BUILD
-    assert guard.build_of("main") is None
-    assert guard.build_of("build/thing/1") is None
-
-
-def test_nothing_is_held_off_a_build_branch() -> None:
-    assert edit("src/other.py", build=None) is None
-
-
-def test_before_the_plan_only_the_plan_can_be_written() -> None:
-    denied = edit("src/core.py", plan=None)
-    assert verdict(denied) == "deny" and "intent/thing/plans/01-<change>.md" in denied.reason
-    assert edit("intent/thing/plans/01-core.md", plan=None) is None
-
-
-def test_an_uncommitted_plan_does_not_unlock_code() -> None:
-    denied = edit("src/core.py", plan_committed=False)
-    assert verdict(denied) == "deny" and "first commit" in denied.reason
-    assert edit("intent/thing/plans/01-core.md", plan_committed=False) is None
-
-
-def test_only_the_plan_itself_counts_as_the_plan() -> None:
-    for path in ("intent/thing/plans/x/01-anything.py", "intent/thing/plans/01-core.py"):
-        assert verdict(edit(path, plan=None)) == "deny", path
-
-
-def test_two_plans_for_one_change_is_an_error() -> None:
-    plans = ONE_PLAN + ("intent/thing/plans/01-again.md",)
-    assert verdict(edit("src/core.py", plans=plans)) == "deny"
-
-
-def test_another_changes_plan_is_held_like_any_file() -> None:
-    assert verdict(edit("intent/thing/plans/02-next.md")) == "deny"
-
-
-def test_listed_files_go_ahead() -> None:
-    for path in ("src/core.py", "tests/test_core.py", ".github/workflows/ci.yml"):
-        assert edit(path) is None, path
-
-
-def test_an_unlisted_file_is_denied_with_the_fix() -> None:
-    denied = edit("src/other.py")
-    assert verdict(denied) == "deny"
-    assert "Files that change" in denied.reason and "same commit" in denied.reason
-
-
-def test_a_file_outside_the_repository_is_left_alone() -> None:
-    assert edit(None) is None
-
-
-def test_the_repro_is_read_from_the_proof() -> None:
-    assert guard.repro_tests(PLAN) == frozenset({"tests/test_core.py"})
-
-
-def test_a_repro_bullet_that_wraps_still_names_its_test() -> None:
-    wrapped = a.parse(
-        "# Plan: x\n\n## Proof\n\n- Repro: the test that fails first,\n  `tests/test_wrapped.py`.\n",
-        "plan.md",
+def test_writing_a_task_as_done_is_denied_unless_it_already_was() -> None:
+    write = {"file_path": TASK, "content": "---\nid: TASK-5\nstatus: Done\n---\n"}
+    assert guard.decide("Write", write, "", BEFORE, "/plugin") is not None
+    assert (
+        guard.decide("Write", write, "", BEFORE.replace("In Progress", "Done"), "/plugin") is None
     )
-    assert guard.repro_tests(wrapped) == frozenset({"tests/test_wrapped.py"})
-
-
-def test_a_committed_repro_is_frozen() -> None:
-    committed = frozenset({"tests/test_core.py"})
-    denied = edit("tests/test_core.py", repros=committed)
-    assert verdict(denied) == "deny" and "Fix the code" in denied.reason
 
 
 # --- the hook as Claude Code runs it ---------------------------------------------------
@@ -174,27 +283,24 @@ def run(tmp_path: Path, payload: dict) -> subprocess.CompletedProcess[str]:
     )
 
 
-def payload(command: str) -> dict:
-    return {
+def payload(command: str, agent: str = "") -> dict:
+    data = {
         "hook_event_name": "PreToolUse",
         "tool_name": "Bash",
         "tool_input": {"command": command},
     }
+    if agent:
+        data["agent_type"] = agent
+    return data
 
 
 def test_hook_denies_with_json(tmp_path: Path) -> None:
-    result = run(tmp_path, payload("git -c init.defaultBranch=master init -q x"))
+    result = run(tmp_path, payload("backlog task edit 5 -s Done"))
     assert result.returncode == 0, result.stderr
-    output = json.loads(result.stdout)["hookSpecificOutput"] if result.stdout else {}
-    default = subprocess.run(
-        ["git", "config", "--get", "init.defaultBranch"], capture_output=True, text=True
-    ).stdout.strip()
-    if default == "main":
-        assert output == {}
-    else:
-        assert output["hookEventName"] == "PreToolUse"
-        assert output["permissionDecision"] == "deny"
-        assert "git init -b main" in output["permissionDecisionReason"]
+    output = json.loads(result.stdout)["hookSpecificOutput"]
+    assert output["hookEventName"] == "PreToolUse"
+    assert output["permissionDecision"] == "deny"
+    assert str(ROOT / "scripts" / "close-task") in output["permissionDecisionReason"]
 
 
 def test_hook_skips_python_for_unrelated_calls(tmp_path: Path) -> None:
@@ -203,160 +309,38 @@ def test_hook_skips_python_for_unrelated_calls(tmp_path: Path) -> None:
     (broken / "python3").write_text("#!/bin/sh\necho python started >&2\nexit 3\n")
     (broken / "python3").chmod(0o755)
     path = "%s:%s" % (broken, os.environ["PATH"])
-    for command in ("uv run pytest", "git status"):
-        result = subprocess.run(
-            ["sh", str(ROOT / "hooks" / "guard.sh")],
-            input=json.dumps(payload(command)),
-            capture_output=True,
-            text=True,
-            env=dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT), PATH=path),
-        )
-        assert (result.returncode, result.stdout, result.stderr) == (0, "", "")
+    result = subprocess.run(
+        ["sh", str(ROOT / "hooks" / "guard.sh")],
+        input=json.dumps(payload("uv run pytest")),
+        capture_output=True,
+        text=True,
+        env=dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT), PATH=path),
+    )
+    assert (result.returncode, result.stdout, result.stderr) == (0, "", "")
+
+
+def test_hook_reaches_python_for_the_reviewer(tmp_path: Path) -> None:
+    result = run(tmp_path, payload("git commit -m x", REVIEWER))
+    assert json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_hook_reaches_python_for_git_init(tmp_path: Path) -> None:
+    result = run(tmp_path, payload("git init -q --template= x"))
+    assert result.returncode == 0, result.stderr
+    decision = json.loads(result.stdout)["hookSpecificOutput"] if result.stdout else {}
+    default = subprocess.run(
+        ["git", "config", "--get", "init.defaultBranch"], capture_output=True, text=True
+    ).stdout.strip()
+    assert decision.get("permissionDecision") == (None if default == "main" else "deny")
 
 
 def test_hook_fails_open_on_bad_input() -> None:
     result = subprocess.run(
         ["sh", str(ROOT / "hooks" / "guard.sh")],
-        input="git init but not json",
+        input="backlog but not json",
         capture_output=True,
         text=True,
         env=dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT)),
     )
     assert result.returncode == 0 and result.stdout == ""
     assert "guard skipped" in result.stderr
-
-
-# --- plan sync as the hook runs it, in a throwaway repository on a build branch -------
-
-
-def git(cwd: Path, *args: str) -> None:
-    subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True)
-
-
-@pytest.fixture
-def build_repo(tmp_path: Path) -> Path:
-    repo = tmp_path / "repo"
-    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
-    git(repo, "config", "user.email", "test@example.com")
-    git(repo, "config", "user.name", "Test")
-    (repo / "README.md").write_text("x\n")
-    git(repo, "add", ".")
-    git(repo, "commit", "-q", "-m", "start")
-    git(repo, "checkout", "-q", "-b", "build/thing/01")
-    return repo
-
-
-def edit_payload(repo: Path, file: str) -> dict:
-    return {
-        "hook_event_name": "PreToolUse",
-        "tool_name": "Edit",
-        "tool_input": {"file_path": str(repo / file), "old_string": "a", "new_string": "b"},
-        "cwd": str(repo),
-    }
-
-
-def hook_verdict(tmp_path: Path, payload: dict) -> str:
-    result = run(tmp_path, payload)
-    assert result.returncode == 0, result.stderr
-    return (
-        json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"]
-        if result.stdout
-        else "none"
-    )
-
-
-def write_plan(repo: Path) -> None:
-    plans = repo / "intent" / "thing" / "plans"
-    plans.mkdir(parents=True, exist_ok=True)
-    (plans / "01-core.md").write_text(
-        "# Plan: x\n\n## Files that change\n\n- `src/core.py`\n- `tests/test_core.py`\n\n"
-        "## Proof\n\n- Repro: `tests/test_core.py` fails first.\n"
-    )
-
-
-def test_hook_holds_code_until_the_plan_exists(tmp_path: Path, build_repo: Path) -> None:
-    assert hook_verdict(tmp_path, edit_payload(build_repo, "src/core.py")) == "deny"
-    assert (
-        hook_verdict(tmp_path, edit_payload(build_repo, "intent/thing/plans/01-core.md")) == "none"
-    )
-
-
-def test_hook_holds_edits_to_the_plan(tmp_path: Path, build_repo: Path) -> None:
-    write_plan(build_repo)
-    assert hook_verdict(tmp_path, edit_payload(build_repo, "src/core.py")) == "deny"
-    git(build_repo, "add", ".")
-    git(build_repo, "commit", "-q", "-m", "plan: 01 x")
-    assert hook_verdict(tmp_path, edit_payload(build_repo, "src/core.py")) == "none"
-    assert hook_verdict(tmp_path, edit_payload(build_repo, "src/other.py")) == "deny"
-
-
-def test_hook_denies_edits_while_a_change_has_two_plans(tmp_path: Path, build_repo: Path) -> None:
-    write_plan(build_repo)
-    second = build_repo / "intent" / "thing" / "plans" / "01-other.md"
-    second.write_text((build_repo / "intent" / "thing" / "plans" / "01-core.md").read_text())
-    git(build_repo, "add", ".")
-    git(build_repo, "commit", "-q", "-m", "plan: 01 x")
-    result = run(tmp_path, edit_payload(build_repo, "src/core.py"))
-    reason = json.loads(result.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
-    assert "more than one plan" in reason and "01-other.md" in reason
-    assert hook_verdict(tmp_path, edit_payload(build_repo, "intent/thing/plans/01-other.md")) == (
-        "none"
-    )
-
-
-def test_the_plan_template_names_no_repro() -> None:
-    template = (Path(__file__).resolve().parent.parent / "templates" / "plan.md").read_text()
-    assert guard.repro_tests(guard.a.parse(template, "plan.md")) == frozenset()
-
-
-def test_hook_freezes_the_repro_once_committed(tmp_path: Path, build_repo: Path) -> None:
-    write_plan(build_repo)
-    git(build_repo, "add", ".")
-    git(build_repo, "commit", "-q", "-m", "plan: 01 x")
-    test = build_repo / "tests" / "test_core.py"
-    test.parent.mkdir()
-    test.write_text("def test_x(): assert False\n")
-    assert hook_verdict(tmp_path, edit_payload(build_repo, "tests/test_core.py")) == "none"
-    git(build_repo, "add", ".")
-    git(build_repo, "commit", "-q", "-m", "repro")
-    assert hook_verdict(tmp_path, edit_payload(build_repo, "tests/test_core.py")) == "deny"
-
-
-def test_hook_keeps_the_repro_frozen_when_the_plan_drops_it(
-    tmp_path: Path, build_repo: Path
-) -> None:
-    write_plan(build_repo)
-    test = build_repo / "tests" / "test_core.py"
-    test.parent.mkdir()
-    test.write_text("def test_x(): assert False\n")
-    git(build_repo, "add", ".")
-    git(build_repo, "commit", "-q", "-m", "plan and repro")
-    plan = build_repo / "intent" / "thing" / "plans" / "01-core.md"
-    plan.write_text(plan.read_text().replace("- Repro: `tests/test_core.py` fails first.\n", ""))
-    assert hook_verdict(tmp_path, edit_payload(build_repo, "tests/test_core.py")) == "deny"
-
-
-def test_hook_holds_notebook_edits_too(tmp_path: Path, build_repo: Path) -> None:
-    payload = edit_payload(build_repo, "x")
-    payload["tool_name"] = "NotebookEdit"
-    payload["tool_input"] = {"notebook_path": str(build_repo / "analysis.ipynb")}
-    assert hook_verdict(tmp_path, payload) == "deny"
-
-
-def test_hook_resolves_a_relative_path_against_the_payload_cwd(
-    tmp_path: Path, build_repo: Path
-) -> None:
-    payload = edit_payload(build_repo, "x")
-    payload["tool_input"]["file_path"] = "src/core.py"
-    assert hook_verdict(tmp_path, payload) == "deny"
-
-
-def test_hook_leaves_main_alone(tmp_path: Path, build_repo: Path) -> None:
-    git(build_repo, "checkout", "-q", "main")
-    assert hook_verdict(tmp_path, edit_payload(build_repo, "src/core.py")) == "none"
-
-
-def test_hook_leaves_files_outside_the_repository_alone(tmp_path: Path, build_repo: Path) -> None:
-    payload = edit_payload(build_repo, "x")
-    payload["tool_input"]["file_path"] = str(tmp_path / "elsewhere" / "notes.md")
-    assert hook_verdict(tmp_path, payload) == "none"
