@@ -1,7 +1,8 @@
 #!/bin/bash
 # The repository's check, in two tiers, declared in .claude/checks.json.
 #   fast: what a build runs before it opens a PR - the philosophy plugin's tests and
-#         lint, and the shape of every intent, spec and plan.
+#         lint, the shape of every intent, spec and plan, and that the intent
+#         workflows carry no inlined "${{ }}" into a run: block.
 #   full: fast, plus authoring-kit's tests and the marketplace's validation. CI runs it
 #         on every PR, so the evidence a merge rests on is CI's, not a session's.
 # Exits non-zero on the first failure.
@@ -16,6 +17,8 @@ echo "== philosophy: ruff"
 uvx ruff check --config plugins/philosophy/ruff.toml plugins/philosophy
 echo "== artefacts"
 python3 plugins/philosophy/scripts/artefact-check intent
+echo "== inline expressions"
+python3 .github/scripts/inline-expressions.py
 
 if [ "$tier" = full ]; then
   echo "== authoring-kit: tests"

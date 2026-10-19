@@ -35,7 +35,7 @@ repositories: `git config --global init.defaultBranch main`.
 | `philosophy:python-idioms` | The full idiom dictionary and the yielded-effects example | On demand |
 | `templates/` | The shapes of an intent, a spec and a plan | When a play writes one |
 | `scripts/artefact-check` | The artefacts' shapes as checks | When an artefact is written, in CI, or when run |
-| `scripts/next-change`, `gated-paths`, `run-check`, `branch-diff` | The plays' mechanical steps | When a play runs them |
+| `scripts/next-change`, `gated-paths`, `run-check`, `branch-diff`, `dispatch-check` | The plays' mechanical steps | When a play runs them |
 | `docs/engineering-philosophy.md` | The reasoning | Never; the constraints point at it |
 
 Claude Code does not load a plugin's `CLAUDE.md` or `rules/`, so `hooks/context.py` does
@@ -64,6 +64,7 @@ python3 scripts/next-change intent/<slug>           # build NN, continue NN, tak
 python3 scripts/gated-paths intent/<slug>/plans/01-x.md   # plan files CODEOWNERS gates
 python3 scripts/run-check fast                      # the declared check, as evidence
 python3 scripts/branch-diff build/<slug>/01         # a branch's commits and diff, for a review
+python3 scripts/dispatch-check spec <slug> --before <sha> --sha <sha>   # a dispatch is real and still due
 ```
 
 `artefact-check` prints one finding per line, saying what is wrong and how to fix it, or
@@ -88,10 +89,16 @@ to set up:
 
 | Workflow | Runs | When |
 |---|---|---|
-| `intent-spec.yml` | `/philosophy:spec <slug>` | An intent merges and has no spec yet |
-| `intent-build.yml` | `/philosophy:build <slug> auto-merge` | A spec or a change merges, and `next-change` says build |
+| `intent-spec.yml` | `/philosophy:spec <slug>` | An intent merges and has no spec yet, in two hops: `find` on the merge, then the action on `find`'s dispatch |
+| `intent-build.yml` | `/philosophy:build <slug> auto-merge` | A spec or a change merges, and `next-change` says build, in the same two hops |
 | `build-continue.yml` | `/philosophy:build <slug>` on the PR's branch | The owner replies `@claude continue` on a build PR that stopped at a gated path |
 | `claude-review.yml` | `/philosophy:review <pr>` | A PR opened as ready, or moved from draft to ready |
+
+`intent-spec.yml` and `intent-build.yml` run the action under `repository_dispatch`, not
+`push`, because `claude-code-action` doesn't accept `push` as a triggering event. `find`
+still decides which intents to run, on `push`; a `dispatch` job then relays its slugs and
+the push's range as `client_payload`, and `dispatch-check` re-checks that relay against
+`main` before the action runs.
 
 ### Watching the loop
 
