@@ -52,8 +52,9 @@ Customers, claims handlers, the portal team, the claims-core API.
 
 ## The same intent once accepted
 
-Frontmatter only; the body is unchanged. Accepting is a commit that changes `status`
-from `Draft` to `To Do`.
+Frontmatter changes, and the spec's approval is recorded under `## Notes` when product
+signs off, before the work is split. Accepting is a commit that changes `status` from
+`Draft` to `To Do`; the body is otherwise unchanged.
 
 ```markdown
 ---
@@ -64,6 +65,9 @@ assignee:
 labels:
   - size-5
 ---
+
+## Notes
+Spec approved by @p.owner
 ```
 
 ## The spec

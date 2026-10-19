@@ -35,6 +35,7 @@ INTENT_STATUSES = ("Draft", "To Do", "In Progress", "Done")
 NAME = re.compile(r"^(?!(?:task|draft|doc|decision|size|slice)-)[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 SLICE_LABEL = re.compile(r"^slice-(\d+)$", re.I)
 SLICE_ITEM = re.compile(r"^(\d+)[.)][ \t]+(.*)$")
+SPEC_APPROVED = re.compile(r"^Spec approved by\s+\S+", re.M | re.I)
 TESTER_SEES = re.compile(r"tester sees:[ \t]*(\S.*)", re.I)
 DEPENDS_ON = re.compile(r"depends on:[ \t]*(.*)", re.I)
 CITATION = re.compile(r"\bR(\d+)\b")
@@ -559,7 +560,7 @@ def check_plan(board: Board, task: Task) -> list[Finding]:
     For an intent, the plan is `backlog/plans/<name>.md`: its slices.
     """
     if is_intent_file(task):
-        return check_slices(board, task)
+        return check_gates(board, task) + check_slices(board, task)
     if not task.plan.strip():
         return [
             Finding(
@@ -772,6 +773,50 @@ def check_slices(board: Board, intent: Task) -> list[Finding]:
             )
             for n in sorted(known - covered)
         ]
+    return out
+
+
+def check_gates(board: Board, intent: Task) -> list[Finding]:
+    """Whether the approvals that come before a split were given before it.
+
+    Accepting is the decision to split, large work gets its requirements written first,
+    and product approves the whole spec before the work is cut into tasks. Each is a
+    person's decision, so the check asks for the record of it, not the judgement.
+    """
+    work = children(board, intent)
+    if not work:
+        return []
+    name = intent.id
+    out: list[Finding] = []
+    if is_draft(intent):
+        out.append(
+            Finding(
+                name,
+                "gate",
+                "has %d accepted tasks but is still a Draft: accept the intent first (set "
+                "status: To Do), since accepting is the decision that it is understood well "
+                "enough to split" % len(work),
+            )
+        )
+    has_spec = any(same_id(d.name, name) for d in board.specs)
+    if "size-8" in intent.labels and not has_spec:
+        out.append(
+            Finding(
+                name,
+                "gate",
+                "is size-8 with tasks but has no backlog/specs/%s.md: work this size gets its "
+                "requirements written down and approved before it is split" % name,
+            )
+        )
+    if has_spec and SPEC_APPROVED.search(intent.notes) is None:
+        out.append(
+            Finding(
+                name,
+                "gate",
+                "has tasks but its spec is not approved: product approves the whole before the "
+                "work is split. Add 'Spec approved by @name' under '## Notes' in %s" % intent.path,
+            )
+        )
     return out
 
 
@@ -1040,7 +1085,7 @@ def check_board(board: Board, accepted: dict[str, tuple[str, tuple[Item, ...]]])
     out = check_config(board) + check_sizes(board) + check_pairing(board)
     for task in board.tasks:
         if is_intent_file(task):
-            out += check_slices(board, task)
+            out += check_gates(board, task) + check_slices(board, task)
         if task.id in accepted:
             commit, criteria = accepted[task.id]
             out += check_moved(task, criteria, commit)

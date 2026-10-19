@@ -26,6 +26,11 @@
 - **New pairing checks.** A spec or plan with no intent of the same name is reported,
   and so is an intent with an unusable name (the name is a label, so it cannot look like
   an id or a `size-` or `slice-` label) or status.
+- **The approvals before a split are checks, not just prose.** `board-check` reports an
+  intent that has accepted tasks while still a `Draft`, a `size-8` intent with tasks and no
+  spec, and a spec with no `Spec approved by @name` under the intent's `## Notes`. Each
+  message says why: accepting is the decision to split, large work gets its requirements
+  first, and product approves the whole before the work is cut up.
 - **Skills and rule describe the new layout.** `capture-intent` writes the intent file,
   `write-spec` writes `specs/<name>.md` with no doc type, `Intent:` line or `--doc`
   link, and `size-work`, `accept-work`, `plan-change`, `close-work` and `record-decision`

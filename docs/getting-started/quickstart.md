@@ -22,5 +22,6 @@ Get up and running with the philosophy plugin.
 > Write this down as an intent: <the problem, in your own words>
 ```
 
-Claude drafts the intent on the repository's Backlog.md board, and the rest of the loop
-picks up from there.
+Claude drafts the intent as `backlog/intents/<name>.md` in the repository, and the rest of
+the loop picks up from there: size and accept it, write a spec for large work, plan its
+slices in `backlog/plans/<name>.md`, and derive the Backlog.md tasks from them.

@@ -1147,7 +1147,13 @@ def test_examples_agree_with_board_check() -> None:
     name = "claims-status"
     where = "backlog/intents/%s.md" % name
     draft_intent = b.parse_intent(draft, where)
-    intent_task = b.parse_intent(accepted + draft.split("---\n", 2)[2], where)
+    intent_task = b.parse_intent(
+        accepted.split("## Notes")[0]
+        + draft.split("---\n", 2)[2]
+        + "\n## Notes"
+        + accepted.split("## Notes")[1],
+        where,
+    )
     tasks = [
         b.parse_task(design, "backlog/tasks/task-1 - Decide.md"),
         b.parse_task(leaf_text, "backlog/tasks/task-2 - Status.md"),
@@ -1302,3 +1308,33 @@ def test_tick_intent_ticks_through_the_command(tmp_path: Path) -> None:
     text = (tmp_path / "backlog" / "intents" / ("%s.md" % NAME)).read_text()
     assert "- [x] Customers see claim status" in text
     assert command(tmp_path, "tick-intent", NAME, "9").returncode == 2
+
+
+# --- the approvals before a split -----------------------------------------------------
+
+
+def test_a_split_needs_an_accepted_intent_an_approved_spec_and_a_spec_at_size_8() -> None:
+    board = work(member("TASK-1", "slice-1"), member("TASK-2", "slice-2"))
+    assert b.check_gates(board, named_intent()) == []
+    draft = named_intent(status="Draft")
+    assert messages(b.check_gates(work(member("TASK-1", "slice-1")), draft))[0].startswith(
+        "has 1 accepted tasks but is still a Draft: accept the intent first"
+    )
+    unapproved = named_intent(notes="")
+    unapproved_board = Board(
+        (unapproved, member("TASK-1", "slice-1")), (), b.TYPES, "task", (named_spec(),), ()
+    )
+    assert messages(b.check_gates(unapproved_board, unapproved)) == [
+        "has tasks but its spec is not approved: product approves the whole before the work is "
+        "split. Add 'Spec approved by @name' under '## Notes' in backlog/intents/claims-status.md"
+    ]
+    big = named_intent(labels=("size-8",))
+    no_spec = Board((big, member("TASK-1", "slice-1")), (), b.TYPES, "task")
+    assert messages(b.check_gates(no_spec, big)) == [
+        "is size-8 with tasks but has no backlog/specs/claims-status.md: work this size gets its "
+        "requirements written down and approved before it is split"
+    ]
+
+
+def test_no_tasks_means_no_gates_yet() -> None:
+    assert b.check_gates(work(), named_intent(status="Draft", notes="")) == []

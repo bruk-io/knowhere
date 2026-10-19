@@ -164,6 +164,13 @@ def migrate(
             Change(specs[0], None),
         ]
         notes.append("spec %s -> backlog/specs/%s.md" % (specs[0], name))
+        if b.SPEC_APPROVED.search(anchor.notes) is None and any(
+            not b.is_draft(t) and b.same_id(t.parent, anchor.id) for t in tasks.values()
+        ):
+            todo.append(
+                "backlog/intents/%s.md has no 'Spec approved by @name' under '## Notes': add it "
+                "if product approved the spec, since the check asks for the record" % name
+            )
     else:
         todo.append("no spec found for %s: none moved" % anchor.id)
     if plans:
