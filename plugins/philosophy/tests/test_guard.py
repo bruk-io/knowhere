@@ -147,6 +147,27 @@ def test_a_repro_bullet_that_wraps_still_names_its_test() -> None:
     assert guard.repro_tests(wrapped) == frozenset({"tests/test_wrapped.py"})
 
 
+def test_a_bold_repro_label_names_its_test_too() -> None:
+    bold = a.parse(
+        "# Plan: x\n\n## Proof\n\n- **Repro:** `tests/test_bold.py` fails first.\n"
+        "- **Repro**: `tests/test_other.py`.\n",
+        "plan.md",
+    )
+    assert guard.repro_tests(bold) == frozenset({"tests/test_bold.py", "tests/test_other.py"})
+
+
+@pytest.mark.parametrize("spelling", ["src//core.py", "src/x/../core.py", "./src/./core.py"])
+def test_plan_paths_are_normalised_before_comparison(spelling: str) -> None:
+    plan = a.parse(
+        "# Plan: x\n\n## Files that change\n\n- `%s`\n\n## Proof\n\n"
+        "- Repro: `%s`\n" % (spelling, spelling.replace("core", "repro")),
+        "intent/thing/plans/01-core.md",
+    )
+    assert edit("src/core.py", plan=plan) is None
+    assert verdict(edit("src/repro.py", plan=plan, repros=frozenset({"src/repro.py"}))) == "deny"
+    assert guard.repro_tests(plan) == frozenset({"src/repro.py"})
+
+
 def test_a_committed_repro_is_frozen() -> None:
     committed = frozenset({"tests/test_core.py"})
     denied = edit("tests/test_core.py", repros=committed)
@@ -288,6 +309,20 @@ def test_hook_holds_edits_to_the_plan(tmp_path: Path, build_repo: Path) -> None:
     git(build_repo, "commit", "-q", "-m", "plan: 01 x")
     assert hook_verdict(tmp_path, edit_payload(build_repo, "src/core.py")) == "none"
     assert hook_verdict(tmp_path, edit_payload(build_repo, "src/other.py")) == "deny"
+
+
+def test_hook_wants_the_plan_in_the_branchs_first_commit(
+    tmp_path: Path, build_repo: Path
+) -> None:
+    (build_repo / "notes.txt").write_text("x\n")
+    git(build_repo, "add", ".")
+    git(build_repo, "commit", "-q", "-m", "something before the plan")
+    write_plan(build_repo)
+    git(build_repo, "add", ".")
+    git(build_repo, "commit", "-q", "-m", "plan: 01 x")
+    result = run(tmp_path, edit_payload(build_repo, "src/core.py"))
+    reason = json.loads(result.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "first commit" in reason and "origin/main" in reason and "alone" not in reason
 
 
 def test_hook_denies_edits_while_a_change_has_two_plans(tmp_path: Path, build_repo: Path) -> None:

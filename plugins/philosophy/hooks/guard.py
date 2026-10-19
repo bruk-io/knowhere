@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -29,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import artefact as a  # noqa: E402
 
 BUILD_BRANCH = re.compile(r"^build/([^/]+)/(\d{2})$")
-REPRO = re.compile(r"^[-*]\s+Repro:", re.I)
+REPRO = re.compile(r"^[-*]\s+(?:\*\*Repro:?\*\*|Repro:)", re.I)
 BACKTICKED = re.compile(r"`([^`]+)`")
 
 
@@ -109,12 +110,18 @@ def is_own_plan(path: str, build: Build) -> bool:
     )
 
 
+def normal(path: str) -> str:
+    """A repository path without `./`, repeated `/` or `..`, so two spellings of one file
+    compare equal."""
+    return posixpath.normpath(path.strip())
+
+
 def repro_tests(plan: a.Doc) -> frozenset[str]:
     """The tests a plan's Proof names in a bullet starting `Repro:`, including a bullet
     that wraps onto further lines."""
     proof = a.section(plan, "Proof") or ""
     return frozenset(
-        path.strip().removeprefix("./")
+        normal(path)
         for bullet in a.items(proof, a.BULLET)
         if REPRO.match(bullet)
         for path in BACKTICKED.findall(bullet)
@@ -134,7 +141,7 @@ def decide_edit(
     `path` is the file's path in the repository, or None when it is outside it.
     `plans` are the paths of this change's plans; `plan` is the one plan, read from the
     working tree so an edit can add a file to it, or None if there is none.
-    `plan_committed` says whether that plan is in HEAD. `committed` is the plan's repro
+    `plan_committed` says whether that plan is in the branch's first commit. `committed` is the plan's repro
     tests that are already in HEAD.
     """
     if build is None or path is None or is_own_plan(path, build):
@@ -148,8 +155,9 @@ def decide_edit(
     if plan is not None and not plan_committed:
         return Decision(
             "deny",
-            "Commit the plan, %s, alone as the branch's first commit before changing "
-            "anything else: the plan comes first in the history, not only on disk." % plan.path,
+            "Commit the plan, %s, as the first commit on this branch since origin/main "
+            "before changing anything else: the plan comes first in the history, not only "
+            "on disk, and a plan added after other commits does not count." % plan.path,
         )
     if plan is None:
         return Decision(
@@ -165,7 +173,7 @@ def decide_edit(
             "a fix that edits its own repro proves nothing. If the test itself is wrong, "
             "stop and say so in the PR." % path,
         )
-    listed = frozenset(p.removeprefix("./") for p in a.listed_paths(plan))
+    listed = frozenset(normal(p) for p in a.listed_paths(plan))
     if path not in listed:
         return Decision(
             "deny",
@@ -198,6 +206,18 @@ def existing_dir(path: Path) -> Path:
     return path
 
 
+def plan_in_first_commit(root: str, plan_path: str) -> bool:
+    """Whether the oldest commit on the branch since `origin/main` (or `main`) holds the
+    plan. With no main to count from, a plan present in HEAD is enough."""
+    for base in ("origin/main", "main"):
+        commits = git(root, "log", "--reverse", "--format=%H", "%s..HEAD" % base)
+        if commits is not None:
+            first = commits.split("\n", 1)[0]
+            named = git(root, "show", "--name-only", "--format=", first) if first else None
+            return plan_path in (named or "").splitlines()
+    return git(root, "cat-file", "-e", "HEAD:%s" % plan_path) is not None
+
+
 def edit_decision(file_path: str, cwd: str) -> Optional[Decision]:
     """Read what `decide_edit` needs for one file, and decide. The repro tests that are
     frozen come from the plan as committed, not as edited since: removing a `Repro:`
@@ -224,7 +244,7 @@ def edit_decision(file_path: str, cwd: str) -> Optional[Decision]:
     # Two git calls for most edits: which repository and branch, and the plan as
     # committed. A third only when the file is one of that plan's repro tests.
     committed_plan = git(root, "show", "HEAD:%s" % plans[0]) if plans else None
-    plan_committed = committed_plan is not None
+    plan_committed = bool(plans) and plan_in_first_commit(root, plans[0])
     frozen = repro_tests(a.parse(committed_plan, plans[0])) if committed_plan else frozenset()
     in_head = path in frozen and git(root, "cat-file", "-e", "HEAD:%s" % path) is not None
     committed = frozenset({path}) if in_head and path else frozenset()
