@@ -43,13 +43,16 @@ PLAN_NAME = re.compile(r"^\d{2}-[a-z0-9][a-z0-9-]*\.md$")
 # "Carried forward:" opening the question's text or one of its sentences, with a reason
 # after it. Quoting the phrase mid-sentence doesn't settle a question.
 CARRIED = re.compile(r"(?:^|[.?!]\s+)carried forward:\s*\S", re.I)
-OWNER = re.compile(r"\bOwner:\s*\S", re.I)
-APPLIED = re.compile(r"^Applied:\s*\S", re.M)
+# A field value that opens with `<` is the template's placeholder, not a value.
+OWNER = re.compile(r"\bOwner:\s*[^\s<]", re.I)
+APPLIED = re.compile(r"^Applied:\s*[^\s<]", re.M)
+PLACEHOLDER_REQUIREMENT = re.compile(r"^[-*]\s+\*\*R\d+\.\*\*\s*<")
 
 
 def header_field(name: str) -> re.Pattern[str]:
-    """A header field such as `Author:` as a word of its own, with a value after it."""
-    return re.compile(r"(?<![\w-])%s:[ \t]*[^\s.]" % name)
+    """A header field such as `Author:` as a word of its own, with a value after it that
+    is not the template's `<...>` placeholder."""
+    return re.compile(r"(?<![\w-])%s:[ \t]*[^\s.<]" % name)
 
 
 HEADER_FIELDS = {name: header_field(name) for name in ("Author", "Status", "Intent")}
@@ -229,7 +232,12 @@ def check_intent(doc: Doc) -> list[Finding]:
     for field in ("Author", "Status"):
         if not HEADER_FIELDS[field].search(doc.header):
             out.append(
-                Finding(doc.path, "header", "the line under the title needs '%s: <value>'" % field)
+                Finding(
+                    doc.path,
+                    "header",
+                    "the line under the title needs '%s: <value>', not the template's "
+                    "placeholder: replace it" % field,
+                )
             )
     return out + check_questions(doc)
 
@@ -245,6 +253,16 @@ def check_requirements(spec: Doc) -> list[Finding]:
             )
         ]
     out = [
+        Finding(
+            spec.path,
+            "requirements",
+            "a requirement still holds the template's placeholder: replace it with the "
+            "requirement's text",
+        )
+        for line in (section(spec, "Requirements") or "").splitlines()
+        if PLACEHOLDER_REQUIREMENT.match(line.strip())
+    ]
+    out += [
         Finding(spec.path, "requirements", "R%d is defined more than once" % number)
         for number in sorted({n for n in numbers if numbers.count(n) > 1})
     ]
@@ -295,7 +313,8 @@ def check_concerns(spec: Doc) -> list[Finding]:
         Finding(
             spec.path,
             "concerns",
-            'area of concern names no owner: "%s". Add "Owner: <who resolves it>"' % concern[:80],
+            'area of concern names no owner: "%s". Add "Owner: <who resolves it>", replacing '
+            "the template's placeholder" % concern[:80],
         )
         for concern in items(section(spec, "Areas of concern") or "", NUMBERED)
         if not OWNER.search(concern)
@@ -305,14 +324,21 @@ def check_concerns(spec: Doc) -> list[Finding]:
 def check_spec(spec: Doc, intent: Optional[Doc]) -> list[Finding]:
     out = check_title(spec, "Spec") + check_sections(spec, SPEC_SECTIONS)
     if not HEADER_FIELDS["Intent"].search(spec.header):
-        out.append(Finding(spec.path, "header", "the header needs an 'Intent:' line"))
+        out.append(
+            Finding(
+                spec.path,
+                "header",
+                "the header needs an 'Intent:' line, not the template's placeholder: "
+                "replace it",
+            )
+        )
     if not APPLIED.search(spec.header):
         out.append(
             Finding(
                 spec.path,
                 "header",
                 "the header needs an 'Applied:' line naming each policy rule and skill in "
-                "force while it was written",
+                "force while it was written, not the template's placeholder: replace it",
             )
         )
     return (
