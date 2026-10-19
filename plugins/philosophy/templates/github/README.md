@@ -21,6 +21,10 @@ Before they work:
 - Protect `main`: require a PR, code-owner review, the full check and the evals as
   required checks, and conversation resolution, so every review comment is answered and
   resolved before merge. Turn on "Allow auto-merge".
+- Run the required checks on `ready_for_review` as well as the default `pull_request`
+  events. A build's own pushes are made as `github-actions[bot]`, and the runs they
+  start can wait for approval; the build marks its PR ready as the Claude app after its
+  last push, so the checks run on its final commit.
 
 A build whose plan touches `.github/workflows/` can't be built in CI: the Claude app's
 token has no `workflows` permission, so its push is refused, and the owner runs that

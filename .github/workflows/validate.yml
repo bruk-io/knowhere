@@ -1,7 +1,11 @@
 name: Validate
 
 on:
+  # ready_for_review as well: a build's own pushes are made as github-actions[bot], and
+  # runs those pushes start wait for approval, so the checks run on the build's final
+  # commit when the Claude app marks the PR ready.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - ".claude-plugin/marketplace.json"
       - "plugins/**"
