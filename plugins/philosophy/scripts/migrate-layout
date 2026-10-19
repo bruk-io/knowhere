@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""migrate-layout: move one piece of work to named intent, spec and plan files.
+
+    migrate-layout <board-root> --name <name> [--intent ID] [--spec DOC] [--plan DOC]
+                   [--dry-run]
+
+Moves the intent task's content to backlog/intents/<name>.md and removes the task, moves
+its spec doc to backlog/specs/<name>.md and the plan doc under backlog/docs/plans to
+backlog/plans/<name>.md, and ties each task that was a child of the intent to the work
+with a <name> label and a reference to the intent file. Backlog.md keeps labels and
+references, so the tie survives its next edit; a parent_task_id to a task that no longer
+exists would not.
+
+What it cannot do it prints as a to-do: the slice-n label on each task, and a plan in
+the shape the slice checks read. Run board-check afterwards. Exit 0 means moved (or, with
+--dry-run, would move), and 2 means it could not tell what to move or changed nothing.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import board as b  # noqa: E402
+import migrate as m  # noqa: E402
+
+
+def parser() -> argparse.ArgumentParser:
+    top = argparse.ArgumentParser(
+        prog="migrate-layout", description="Move one piece of work to the named-file layout."
+    )
+    top.add_argument("root", type=Path, help="the repository (or directory) holding backlog/")
+    top.add_argument("--name", required=True, help="the work's name, such as nux-ep2")
+    top.add_argument("--intent", help="the intent task to move, when there is more than one")
+    top.add_argument("--spec", help="the spec doc, when it cannot be found from the intent")
+    top.add_argument("--plan", help="the plan doc, when there is more than one under docs/plans")
+    top.add_argument("--dry-run", action="store_true", help="say what would move; change nothing")
+    return top
+
+
+def read(root: Path) -> dict[str, str]:
+    base = root / "backlog"
+    return {
+        path.relative_to(root).as_posix(): path.read_text(encoding="utf-8")
+        for folder in ("tasks", "drafts", "completed", "docs")
+        for path in sorted((base / folder).rglob("*.md"))
+        if path.is_file()
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parser().parse_args(argv)
+    if not (args.root / "backlog" / "config.yml").is_file():
+        print("migrate-layout: no backlog/config.yml in %s" % args.root, file=sys.stderr)
+        return 2
+    try:
+        files = read(args.root)
+        done = m.migrate(files, args.name, args.intent, args.spec, args.plan)
+        for change in done.changes:
+            fresh = change.path.startswith(("backlog/intents/", "backlog/specs/", "backlog/plans/"))
+            if change.text is not None and fresh and (args.root / change.path).exists():
+                raise LookupError("%s already exists: move it aside first" % change.path)
+    except (LookupError, ValueError, OSError, UnicodeDecodeError) as error:
+        print("migrate-layout: %s" % error, file=sys.stderr)
+        return 2
+    prefix = "would: " if args.dry_run else "did: "
+    for note in done.notes:
+        print(prefix + note)
+    if not args.dry_run:
+        for change in done.changes:
+            target = args.root / change.path
+            if change.text is None:
+                target.unlink()
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(change.text, encoding="utf-8")
+    for item in done.todo:
+        print("by hand: " + item)
+    print("next: board-check --root %s" % args.root)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

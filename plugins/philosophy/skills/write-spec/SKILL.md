@@ -21,18 +21,13 @@ exist, such as security, compliance, and UX. The play asks for a spec "ready to 
 the engineering team" that will "describe clearly any areas of concern, especially where
 you cannot satisfy contradicting policies".
 
-Create it as a Backlog.md document of type `specification` under `specs/`, then link it
-from the intent with `--doc`:
-
-```sh
-backlog doc create "Spec: <intent title>" -t specification -p specs
-backlog doc update <doc-id> --content "<the spec>"
-backlog task edit <intent-id> --doc "<path to the spec>"
-```
+Write it as `backlog/specs/<name>.md`, the same `<name>` as the intent's file
+`backlog/intents/<name>.md`. The matching name is the link: no `Intent:` line, no doc
+type, no key on the intent. Backlog.md does not manage the folder, so edit the file by
+hand. It needs only a `title` in its frontmatter.
 
 | Section | What goes in it |
 |---|---|
-| `Intent:` line | The intent's id. The problem stays on the intent and is not restated |
 | `## Requirements` | Numbered (R1, R2, ...) and each checkable, so tasks can cite them |
 | `## Policies applied` | Which policies shaped the requirements, and how |
 | `## Areas of concern` | Where policies conflict or can't be met, for the policy owner |
@@ -40,7 +35,8 @@ backlog task edit <intent-id> --doc "<path to the spec>"
 | `## Design questions` | Each becomes a design task (`philosophy:record-decision`) |
 | `## Out of scope` | What the spec deliberately leaves out |
 
-Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/board-check" spec <doc-id>` before asking for
+The problem stays on the intent and is not restated. Run
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/board-check" spec <name>` before asking for
 approval, and fix what it reports.
 
 ## Approve it
@@ -49,12 +45,14 @@ The product owner checks that the spec solves the intent's problem and that each
 question is answered or carried forward. A tech lead joins for higher-risk work. Areas
 of concern go to their policy owners before the work is split.
 
-Record the approval as a note on the intent: `--append-notes "Spec approved by @name"`.
-The commit is the record of who approved it and when.
+Record the approval under `## Notes` in the intent file: `Spec approved by @name`. The
+commit is the record of who approved it and when, and `board-check` reports tasks
+that exist without the note, since the split waits for the approval.
 
 ## After approval
 
-Split the work from the requirements, and have each leaf cite the requirement numbers
-it delivers. `board-check spec <doc-id> --coverage` names any requirement no task cites.
-A change to an approved spec after its children have started counts as a moved finish
-line: add `finish-moved` to the intent with a note saying what changed and why.
+Plan the slices (`philosophy:write-plan`), then derive the tasks from them, and have each
+leaf cite the requirement numbers it delivers. `board-check spec <name> --coverage` names
+any requirement no task cites. A change to an approved spec after its tasks have started
+counts as a moved finish line: add `finish-moved` to the intent's `labels` with a note
+under `## Notes` saying what changed and why.

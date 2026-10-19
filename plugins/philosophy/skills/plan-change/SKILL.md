@@ -10,12 +10,16 @@ Follows Anthropic's "Plan mode as the default starting point" play, for leaf tas
 
 ## Write it
 
-Read the task, its parent, and any spec or decision it references first.
+Read the task, its intent (`backlog/intents/<name>.md`), its slice in
+`backlog/plans/<name>.md`, and any spec or decision it references first. This plan is
+for one change: the slices and their order are already decided in the intent's plan
+(`philosophy:write-plan`), and this says how the change is made.
 
 - The files that change go in `modified_files` (`--modified-file`).
 - `--plan` holds `### Order of work`, `### Risks`, and `### Proof`. Proof names the
   checks that will show the change works (`philosophy:verify-work`).
-- Under an intent with a spec, the plan names the requirements it delivers (R1, R2).
+- In a piece of work with a spec (`backlog/specs/<name>.md`), the plan names the
+  requirements it delivers (R1, R2).
 
 Plan mode is a good way to write it, because nothing can be edited until the plan is
 approved. Then run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/board-check" plan <id>` and

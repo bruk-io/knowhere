@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""tick-intent: tick the `## Done when` boxes of an intent file, and nothing else.
+
+    tick-intent <name> <n> [<n>...] [--root DIR]
+
+An intent (`backlog/intents/<name>.md`) has no `backlog` CLI, so this is the one edit a
+reviewer makes to it: ticking the criteria that are met. Wording stays as it is, because
+a criterion that is wrong is a finding for whoever owns the finish line. Exit 0 means
+ticked, and 2 means it could not tell what to tick.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import board as b  # noqa: E402
+
+
+def main(argv: list[str] | None = None) -> int:
+    top = argparse.ArgumentParser(prog="tick-intent", description="Tick intent criteria.")
+    top.add_argument("name", help="the work's name, such as nux-ep2")
+    top.add_argument("numbers", type=int, nargs="+", help="criteria to tick, counting from 1")
+    top.add_argument("--root", type=Path, help="the repository holding backlog/")
+    args = top.parse_args(argv)
+    root = args.root or b.find_root(Path.cwd())
+    if root is None:
+        print("tick-intent: no backlog/config.yml here or above; pass --root", file=sys.stderr)
+        return 2
+    path = root / "backlog" / "intents" / ("%s.md" % args.name)
+    try:
+        text = path.read_text(encoding="utf-8")
+        path.write_text(b.ticked_intent_text(text, tuple(args.numbers)), encoding="utf-8")
+    except (LookupError, OSError, UnicodeDecodeError) as error:
+        print("tick-intent: %s" % error, file=sys.stderr)
+        return 2
+    print("ticked %s: %s" % (args.name, ", ".join("#%d" % n for n in args.numbers)))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

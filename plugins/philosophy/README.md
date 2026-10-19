@@ -37,6 +37,7 @@ repositories: `git config --global init.defaultBranch main`.
 | `philosophy:reviewer` | The agent that reviews a task and closes it, with `close-work` preloaded | When a task is handed to it |
 | `scripts/board-check` | The board's conventions as checks | When a skill, the reviewer, or a person runs it |
 | `scripts/close-task` | The close, the same way every time | When the reviewer closes a task |
+| `scripts/migrate-layout` | Moves one piece of work from the old layout (intent task, spec doc) to named intent, spec and plan files | Once per piece of work, when upgrading from 0.6 |
 | `scripts/record-check` | A check's own output on the task, word for word | When the worker or the reviewer runs a check |
 | `docs/engineering-philosophy.md` | The reasoning | Never; the constraints point at it |
 | `docs/board-examples.md` | Real board files, checked by the tests | When the board rule's reader is unsure of a shape |
@@ -58,6 +59,7 @@ of the steps is in `constraints.md`, so it is in every session. To start new wor
 | `size-work` | Size by complexity, unknowns, and risk; split or spike | - |
 | `accept-work` | Decide the work is ready to start | The human approval at each gate |
 | `write-spec` | Write the requirements for large or cross-team work | Requirements and design (requirements) |
+| `write-plan` | Order an intent into slices and derive its tasks from them | - |
 | `record-decision` | Answer a design question as a decision | Requirements and design (design) |
 | `plan-change` | Plan one change before editing | Plan mode as the default starting point |
 | `delegate-work` | Subagents, parallel sessions, model and effort | Parallel sessions and subagents |

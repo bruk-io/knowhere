@@ -2,13 +2,17 @@
 """board-check: assert that a Backlog.md board follows the work loop's conventions.
 
     board-check [all]              the whole board: config, sizes, moved finish lines,
-                                   closed tasks, plans in progress, specs
-    board-check ready <id>         whether a draft is understood well enough to accept
-    board-check plan <id>          whether a leaf's plan has its sections and files
-    board-check spec <doc> [--coverage]
-                                   whether a spec is linked, complete and numbered;
+                                   closed tasks, plans in progress, specs, intent/spec/plan pairing
+    board-check ready <id|name>    whether a draft (or an intent by name) is understood
+                                   well enough to accept
+    board-check plan <id|name>     whether a leaf's plan has its sections and files; for
+                                   an intent's name, whether its plan has ordered slices
+                                   and every task comes from one
+    board-check spec <name|doc> [--coverage]
+                                   whether a spec is paired, complete and numbered;
                                    with --coverage, whether every requirement is cited
-    board-check close <id>         whether the criteria and children let a task close
+                                   (a name such as nux-ep2 is backlog/specs/nux-ep2.md)
+    board-check close <id|name>    whether the criteria and children let a task close
     board-check parallel <id> <id>...
                                    whether tasks can run at once: no shared files, no
                                    task waiting on another
@@ -69,7 +73,7 @@ def parser() -> argparse.ArgumentParser:
     routing.add_argument("id", nargs="?")
     routing.add_argument("--sweep", action="store_true", help="for a sweep, not a task")
     spec = checks.add_parser("spec", parents=[shared], help="whether a spec is complete")
-    spec.add_argument("doc", help="the doc id, such as doc-1, or its path")
+    spec.add_argument("doc", help="the work name, such as nux-ep2, or a doc id or path")
     spec.add_argument("--coverage", action="store_true", help="every requirement is cited")
     return top
 
@@ -81,7 +85,14 @@ def run(args: argparse.Namespace, root: Path) -> tuple[list[b.Finding], str, Opt
     unchecked = "" if b.has_history(root) else " (finish lines not checked: no git history)"
     if check == "all":
         found = b.check_board(board, b.accepted_versions(root, board))
-        return found, "%d tasks, %d docs%s" % (len(board.tasks), len(board.docs), unchecked), None
+        counts = "%d tasks, %d intents, %d specs, %d plans, %d docs" % (
+            len([t for t in board.tasks if not b.is_intent_file(t)]),
+            len([t for t in board.tasks if b.is_intent_file(t)]),
+            len(board.specs),
+            len(board.plans),
+            len(board.docs),
+        )
+        return found, counts + unchecked, None
     if check == "size":
         return b.check_sizes(board), "sizes", None
     if check == "config":
@@ -97,7 +108,7 @@ def run(args: argparse.Namespace, root: Path) -> tuple[list[b.Finding], str, Opt
     if check == "spec":
         doc = b.find_doc(board, args.doc)
         if doc is None:
-            raise LookupError("no doc %r under backlog/docs" % args.doc)
+            raise LookupError("no spec %r under backlog/specs or backlog/docs" % args.doc)
         return b.check_spec(board, doc, args.coverage), "%s spec" % doc.id, None
     if check == "parallel":
         if len(args.ids) < 2:

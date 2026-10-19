@@ -41,7 +41,7 @@ GIT_WRITES = frozenset(
     | {"pull", "push", "rebase", "reset", "restore", "revert", "rm", "switch"}
 )
 REDIRECTS = frozenset({">", ">>", ">|", "&>", "&>>"})
-TASK_FILE = re.compile(r"/backlog/(?:tasks|drafts|completed)/[^/]+\.md$")
+TASK_FILE = re.compile(r"/backlog/(?:tasks|drafts|completed|intents)/[^/]+\.md$")
 STATUS = re.compile(r"\A\ufeff?---\n.*?^status:[ \t]*(.*?)[ \t]*$", re.M | re.S)
 DONE_COMMAND = re.compile(r"\bbacklog\s+tasks?\s+edit\b.*(?:-s|--status)[\s=]+['\"]?done\b", re.I)
 # `backlog task edit` options that take a value, so the value is never read as an option.
@@ -53,7 +53,7 @@ VALUE_OPTIONS = frozenset(
     | {"--add-label", "--remove-label", "--milestone", "--project"}
 )
 REVIEWER_EDITS = frozenset({"--check-ac", "--uncheck-ac", "--append-notes", "--plain"})
-SCRIPTS = frozenset({"board-check", "close-task", "record-check"})
+SCRIPTS = frozenset({"board-check", "close-task", "record-check", "tick-intent"})
 UNREADABLE = re.compile(r"[$`#]|<<|<\(|>\(")
 
 

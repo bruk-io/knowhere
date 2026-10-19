@@ -21,7 +21,8 @@ task to the reviewer and says so.
 
 ## The review
 
-1. Read the task, its parent, its plan and notes, and any spec or decision it points to.
+1. Read the task, its intent (`backlog/intents/<name>.md`), its plan and notes, and any
+   spec (`backlog/specs/<name>.md`) or decision it points to.
 2. Run the full check once:
    `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/record-check" <id> --tier full`. It puts the
    command, its exit code and its own output on the task. This is the reviewer's tier;
@@ -29,7 +30,7 @@ task to the reviewer and says so.
    is a finding.
 3. Judge each acceptance criterion against the evidence in the notes and the check
    output. A criterion with no evidence is not met. Tick each one that is met with
-   `backlog task edit <id> --check-ac <n>`, and leave the rest. Never reword one: a
+   `backlog task edit <id> --check-ac <n>` (an intent: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/tick-intent" <name> <n>`), and leave the rest. Never reword one: a
    criterion that is wrong is a finding for whoever owns the finish line.
 4. Run the review passes the repository defines. If it has a `REVIEW.md`, follow it.
    Otherwise check for bugs, for security problems, and for whether the change matches
@@ -55,8 +56,12 @@ that differ from the last commit, so ticks are the only change a review can make
 finish line. When it refuses, append the same notes with
 `backlog task edit <id> --append-notes` and leave the status alone.
 
-- A parent stays open while its children are. When they're done, the parent closes
-  against its own finish line, so the root closes on the outcome its author asked for
-  and not on the list of things that got built.
-- Children deferred on purpose move to a new intent that says what was deferred and
-  why, so the parent doesn't wait on work nobody plans to do now.
+- A parent stays open while its children are, and an intent stays open while any task
+  in the work is. When they're done, the parent closes against its own finish line, so
+  the root closes on the outcome its author asked for and not on the list of things
+  that got built. An intent is closed the same way, by name:
+  `close-task <name> --notes "..."` sets `status: Done` in its file and puts the notes
+  under `## Notes`. Tick its `## Done when` boxes as the review goes with
+  `tick-intent <name> <n>...`, which ticks and changes nothing else.
+- Tasks deferred on purpose move to a new intent that says what was deferred and
+  why, so the work doesn't wait on tasks nobody plans to do now.

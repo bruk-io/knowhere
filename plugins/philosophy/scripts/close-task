@@ -7,7 +7,9 @@ Refuses, and changes nothing, unless every acceptance criterion is ticked, every
 is Done, the criteria and the finish-moved label match the last commit, and any change
 to the criteria since acceptance carries that label. So a reviewer can tick criteria
 but not reword them. Then it sets the task to Done through the backlog CLI, appends the
-closing notes, and commits the task file on its own.
+closing notes, and commits the task file on its own. An intent (`backlog/intents/<name>.md`)
+is not a Backlog.md task, so it sets `status: Done` in the file and appends the notes
+under `## Notes` itself.
 
 Whether the task should close is the reviewer's judgement. This script only makes the
 close itself identical each time. Exit 0 means closed, 1 means it refused, and 2 means
@@ -28,7 +30,7 @@ import board as b  # noqa: E402
 
 def parser() -> argparse.ArgumentParser:
     top = argparse.ArgumentParser(prog="close-task", description="Close a board task.")
-    top.add_argument("id", help="the task, such as TASK-5 or 5")
+    top.add_argument("id", help="the task, such as TASK-5 or 5, or an intent by name, such as nux-ep2")
     top.add_argument(
         "--notes",
         required=True,
@@ -66,25 +68,34 @@ def main(argv: list[str] | None = None) -> int:
         print("close-task: %s not closed; nothing changed" % task.id, file=sys.stderr)
         return 1
 
-    try:
-        edit = subprocess.run(
-            ["backlog", "task", "edit", task.id, "-s", "Done", "--append-notes", args.notes],
-            cwd=str(root),
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-    except (OSError, subprocess.SubprocessError) as error:
-        return fail("could not run the backlog CLI: %s" % error)
-    if edit.returncode != 0:
-        output = (edit.stderr or edit.stdout).strip()
-        now = b.find_task(b.load_board(root), task.id)
-        if now is not None and b.is_done(now):
-            return fail(
-                "%s is Done with the notes appended, but Backlog.md reported a failure, most "
-                "likely its own commit: %s" % (task.id, output)
+    if b.is_intent_file(task):
+        try:
+            path = root / task.path
+            path.write_text(
+                b.closed_intent_text(path.read_text(encoding="utf-8"), args.notes), encoding="utf-8"
             )
-        return fail("backlog task edit failed, and nothing changed: %s" % output)
+        except (OSError, ValueError) as error:
+            return fail("could not close %s, and nothing changed: %s" % (task.id, error))
+    else:
+        try:
+            edit = subprocess.run(
+                ["backlog", "task", "edit", task.id, "-s", "Done", "--append-notes", args.notes],
+                cwd=str(root),
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            return fail("could not run the backlog CLI: %s" % error)
+        if edit.returncode != 0:
+            output = (edit.stderr or edit.stdout).strip()
+            now = b.find_task(b.load_board(root), task.id)
+            if now is not None and b.is_done(now):
+                return fail(
+                    "%s is Done with the notes appended, but Backlog.md reported a failure, most "
+                    "likely its own commit: %s" % (task.id, output)
+                )
+            return fail("backlog task edit failed, and nothing changed: %s" % output)
 
     if args.no_commit or b.git(root, "rev-parse", "--git-dir") is None:
         print("closed %s; not committed" % task.id)
