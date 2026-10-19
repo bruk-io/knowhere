@@ -46,7 +46,8 @@ question is answered or carried forward. A tech lead joins for higher-risk work.
 of concern go to their policy owners before the work is split.
 
 Record the approval under `## Notes` in the intent file: `Spec approved by @name`. The
-commit is the record of who approved it and when.
+commit is the record of who approved it and when, and `board-check` reports tasks
+that exist without the note, since the split waits for the approval.
 
 ## After approval
 

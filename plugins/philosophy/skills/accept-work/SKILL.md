@@ -33,7 +33,9 @@ A follow-up filed from a review is accepted like anything else. Its finish line 
 the outcome rather than the mechanism the reviewer suggested, and it is sized when
 someone has looked, not when it is filed.
 
-When something is missing, say exactly what, and leave it as a draft.
+When something is missing, say exactly what, and leave it as a draft. An intent is
+accepted before its tasks are: `board-check` reports tasks under a draft intent, and
+size-8 work with no spec.
 
 ## Who accepts
 
