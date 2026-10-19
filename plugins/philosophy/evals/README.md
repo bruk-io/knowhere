@@ -9,7 +9,7 @@ or nearly did:
 | `build/build-plans-first` | `/philosophy:build` makes `plan: 01` the first commit on its branch, and commits after it. The graders read git's reflog, `.git/logs/HEAD`, not the model's account | brig-seed: implementers dispatched by Workflow scripts never planned |
 | `spec/spec-flags-policy-conflict` | `/philosophy:spec` writes a spec whose Areas of concern list the intent and CLAUDE.md logging conflict, with an `Owner:` | The playbook's design play: policy conflicts are the owner's call |
 | `review/review-checks-the-plan` | `/philosophy:review` reports `logger.py`, outside the plan, under Important, so its closing `important=N` line, which the review gate reads, holds the merge | The review on knowhere#13 |
-| `subagent/subagent-gets-constraints` | The subagent's reply matches the hook's `[philosophy] Repository mode:` line, which only the `SubagentStart` hook can produce, as the prompt doesn't name it | brig-seed: subagents never saw the loop |
+| `subagent/subagent-gets-constraints` | The Agent tool was called, and the reply matches the hook's `[philosophy] Repository mode:` line, which the prompt doesn't name. The parent session holds the `SessionStart` copy of that line too, so a parent that called a subagent and quoted its own context would still pass: strong evidence, not proof | brig-seed: subagents never saw the loop |
 
 Every case has a deterministic grader (`regex`, `file_exists`) that can fail it, and no
 case fails on one LLM grade.
