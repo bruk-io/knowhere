@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""review-findings: what the review left on a PR that still needs an answer.
+
+    review-findings <pr> [--repo OWNER/NAME]
+
+Prints JSON: `threads`, each unresolved review thread as its `thread` id, the first
+comment's `comment` id, `path`, `line` and `body`; and `summary`, the latest top-level
+comment by `claude[bot]`, which carries the verdict and any finding it couldn't post on
+a line, or null. Exits 0 when something needs an answer: an unresolved thread, or a
+summary whose closing counts line isn't `important=0 nits=0`. Exits 1 when nothing does,
+and 2, with the reason on stderr, when GitHub can't be read.
+
+The respond play runs this, so a model never needs a broad `gh api` grant to find its
+work. `--repo` defaults to `$GITHUB_REPOSITORY`, as in CI.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from typing import Optional
+
+REVIEWER = "claude[bot]"
+COUNTS = re.compile(r"\bimportant=(\d+) nits=(\d+)\b")
+THREADS = """
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviewThreads(first: 100) {
+        nodes {
+          id
+          isResolved
+          comments(first: 1) { nodes { databaseId path line originalLine body } }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+# --- the logic: plain data in, plain data out ---------------------------------------
+
+
+def unresolved(graphql: dict) -> list[dict]:
+    """The unresolved threads in a reviewThreads query's answer, each with its first
+    comment's id, place and text."""
+    pull = (((graphql.get("data") or {}).get("repository") or {}).get("pullRequest")) or {}
+    out = []
+    for node in (pull.get("reviewThreads") or {}).get("nodes") or []:
+        if node.get("isResolved"):
+            continue
+        first = ((node.get("comments") or {}).get("nodes") or [{}])[0]
+        out.append(
+            {
+                "thread": node.get("id"),
+                "comment": first.get("databaseId"),
+                "path": first.get("path"),
+                "line": first.get("line") or first.get("originalLine"),
+                "body": first.get("body") or "",
+            }
+        )
+    return out
+
+
+def latest_summary(comments: list[dict], author: str = REVIEWER) -> Optional[dict]:
+    """The newest top-level comment by the reviewer, or None. `answered` says whether
+    anyone else has commented since, which counts as answering it."""
+    theirs = [c for c in comments if (c.get("user") or {}).get("login") == author]
+    if not theirs:
+        return None
+    newest = max(theirs, key=lambda c: c.get("created_at") or "")
+    when = newest.get("created_at") or ""
+    answered = any(
+        (c.get("user") or {}).get("login") != author and (c.get("created_at") or "") > when
+        for c in comments
+    )
+    return {"id": newest.get("id"), "body": newest.get("body") or "", "answered": answered}
+
+
+def needs_answer(threads: list[dict], summary: Optional[dict]) -> bool:
+    """Whether anything is left: an open thread, or a summary that counted findings (or
+    gave no counts, so can't be read as clean)."""
+    if threads:
+        return True
+    if summary is None or summary.get("answered"):
+        return False
+    counts = COUNTS.findall(summary["body"])
+    return not counts or counts[-1] != ("0", "0")
+
+
+# --- the shell ----------------------------------------------------------------------
+
+
+def _gh(*args: str) -> str:
+    done = subprocess.run(
+        ["gh", *args], capture_output=True, encoding="utf-8", errors="replace", timeout=60
+    )
+    if done.returncode != 0:
+        raise RuntimeError("gh %s failed: %s" % (args[0], done.stderr.strip()))
+    return done.stdout
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    top = argparse.ArgumentParser(prog="review-findings", description=__doc__.splitlines()[0])
+    top.add_argument("pr", type=int)
+    top.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", ""))
+    args = top.parse_args(argv)
+    if "/" not in args.repo:
+        print("review-findings: give --repo OWNER/NAME", file=sys.stderr)
+        return 2
+    owner, name = args.repo.split("/", 1)
+    try:
+        graphql = json.loads(
+            _gh(
+                "api",
+                "graphql",
+                "-f",
+                "query=%s" % THREADS,
+                "-F",
+                "owner=%s" % owner,
+                "-F",
+                "name=%s" % name,
+                "-F",
+                "number=%d" % args.pr,
+            )
+        )
+        pages = _gh(
+            "api", "--paginate", "--slurp", "repos/%s/issues/%d/comments" % (args.repo, args.pr)
+        )
+    except (RuntimeError, ValueError, subprocess.SubprocessError) as error:
+        print("review-findings: %s" % error, file=sys.stderr)
+        return 2
+    comments = [c for page in json.loads(pages) for c in page]
+    threads = unresolved(graphql)
+    summary = latest_summary(comments)
+    print(json.dumps({"threads": threads, "summary": summary}, indent=2))
+    return 0 if needs_answer(threads, summary) else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -9,6 +9,7 @@ Copy these into `.github/workflows/`, with `templates/CODEOWNERS` as
 | `intent-build.yml` | `/philosophy:build <slug> auto-merge` | A merged spec or change, when `next-change` says to build, in the same two hops |
 | `build-continue.yml` | `/philosophy:build <slug>` on the PR's branch | The owner's `@claude continue` on a build PR |
 | `claude-review.yml` | `/philosophy:review <pr>` | A PR opened as ready, or moved from draft to ready; fails while it has an Important finding |
+| `review-respond.yml` | `/philosophy:respond <pr>` | The review finishes on a build PR: fixes or declines each finding once, and resolves its thread |
 | `loop-bands.yml` | `band-check`, then a read-only diagnosis or `/philosophy:intent` | Daily; with `templates/bands.yaml` at the root |
 
 Before they work:

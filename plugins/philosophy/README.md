@@ -31,7 +31,7 @@ repositories: `git config --global init.defaultBranch main`.
 | `rules/python-tests-unit.md` | Unit tests: one pure function, nothing mocked | First time a file under `tests/unit/` is touched, in owner mode |
 | `rules/python-tests-integration.md` | Integration tests: the world faked at its edge and nowhere else | First time a file under `tests/integration/` is touched, in owner mode |
 | `rules/python-tests-e2e.md` | End-to-end tests: the real world, nothing faked | First time a file under `tests/e2e/` is touched, in owner mode |
-| The four plays | One command per play of the loop (below) | When a person or a workflow runs it |
+| The five plays | One command per play of the loop (below) | When a person or a workflow runs it |
 | `philosophy:python-idioms` | The full idiom dictionary and the yielded-effects example | On demand |
 | `templates/` | The shapes of an intent, a spec and a plan | When a play writes one |
 | `scripts/artefact-check` | The artefacts' shapes as checks | When an artefact is written, in CI, or when run |
@@ -54,6 +54,7 @@ stage reads, each handover is a merge, and the merge is the approval. An intent 
 | Write the spec | `/philosophy:spec <slug>` | `spec.md`, in a PR | Requirements and design |
 | Build one change | `/philosophy:build <slug> [auto-merge]` | `plans/NN-<change>.md`, then the code, in a PR | Plan mode, give Claude a feedback loop |
 | Review a PR | `/philosophy:review <pr>` | Findings on the PR, never an approval | AI in the PR review loop |
+| Answer the review | `/philosophy:respond <pr>` | Each finding fixed or declined, its thread resolved | AI in the PR review loop |
 
 Each play is a skill with model invocation turned off, so it runs only when a person or
 a workflow invokes it. The judgement is the model's; the mechanical steps are scripts:
@@ -64,6 +65,8 @@ python3 scripts/next-change intent/<slug>           # build NN, continue NN, tak
 python3 scripts/gated-paths intent/<slug>/plans/01-x.md   # plan files CODEOWNERS gates
 python3 scripts/run-check fast                      # the declared check, as evidence
 python3 scripts/branch-diff build/<slug>/01         # a branch's commits and diff, for a review
+python3 scripts/review-findings <pr>                # what a review left that needs an answer
+python3 scripts/answer-thread <pr> <thread> <comment> --body-file F   # reply, then resolve
 python3 scripts/dispatch-check spec <slug> --before <sha> --sha <sha>   # a dispatch is real and still due
 ```
 
@@ -93,6 +96,7 @@ to set up:
 | `intent-build.yml` | `/philosophy:build <slug> auto-merge` | A spec or a change merges, and `next-change` says build, in the same two hops |
 | `build-continue.yml` | `/philosophy:build <slug>` on the PR's branch | The owner replies `@claude continue` on a build PR that stopped at a gated path |
 | `claude-review.yml` | `/philosophy:review <pr>` | A PR opened as ready, or moved from draft to ready |
+| `review-respond.yml` | `/philosophy:respond <pr>` | The review finishes on a build PR: one round of fixes and answers |
 
 `intent-spec.yml` and `intent-build.yml` run the action under `repository_dispatch`, not
 `push`, because `claude-code-action` doesn't accept `push` as a triggering event. `find`
