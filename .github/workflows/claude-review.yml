@@ -20,12 +20,17 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: read
       pull-requests: write
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
+
+      - id: started
+        name: Note when the review started
+        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - id: review
         uses: anthropics/claude-code-action@f27be6b65a4652f08a2ba3cff79114829b588967 # v1.0.252
@@ -59,6 +64,7 @@ jobs:
           COUNTS: ${{ steps.review.outputs.structured_output }}
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
+          STARTED: ${{ steps.started.outputs.at }}
         run: |
           important=$(printf '%s' "$COUNTS" | jq -r '.important // empty')
           if [ -z "$important" ]; then
@@ -70,6 +76,16 @@ jobs:
               exit 0
             fi
             echo "The review returned no Important count, so it can't vouch for this PR."
+            exit 1
+          fi
+          # Counts with nothing posted means findings nobody can read or answer, and
+          # every comment must be answered before merge, so that isn't a pass.
+          # Read first, then count: a failed read stops the step with gh's own error
+          # instead of counting as nothing posted.
+          ids=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq ".[] | select(.user.login == \"claude[bot]\" and .created_at >= \"$STARTED\") | .id")
+          if [ -z "$ids" ]; then
+            echo "The review counted $COUNTS but posted no comment, so nobody can read or answer it. Its findings are in this run's execution log artifact."
             exit 1
           fi
           echo "Important findings: $important"
