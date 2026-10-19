@@ -85,6 +85,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          # No persisted GITHUB_TOKEN: the action then pushes with the Claude app's token,
+          # so the push's own pull_request runs aren't held for approval.
+          persist-credentials: false
 
       - id: verify
         name: Check the dispatch is real and the spec is still due
