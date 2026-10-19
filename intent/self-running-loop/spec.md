@@ -82,18 +82,20 @@ Gates
   asks for no one, so the approval is the spec I approved plus checks Claude can't
   loosen (R12). This gate is live from change 06; until then `main` requires a PR and
   nothing more.
-- **R12.** CODEOWNERS assigns `@brukhabtu` what starts work, what establishes the
-  architecture and what gates the work, and `main` requires code-owner review. I accept
-  each intent and approve the architecture once, in the spec, so a build that
-  implements an approved spec needs no review from me. The paths: `intent/*/intent.md`
-  and `intent/*/spec.md`; the gates themselves, so a build can't loosen what checks it
-  (`.github/`, which holds the workflows and CODEOWNERS, `REVIEW.md`,
-  `.claude/settings.json`, `.claude/checks.json`, `bands.yaml`, and in knowhere the
-  code that does the checking: `plugins/*/hooks/`, `plugins/*/scripts/`,
-  `plugins/*/evals/` and the review play, `plugins/*/skills/review/`, which the review
-  gate runs); and a repository's architecture definitions (LikeC4 models and
-  boundary configuration files). GitHub doesn't let me approve my own PRs, so mine
-  merge through admin bypass, as `main`'s protection allows today.
+- **R12.** CODEOWNERS assigns `@brukhabtu` what starts work and sets the architecture,
+  `intent/*/intent.md` and `intent/*/spec.md`, and what runs the loop in CI:
+  `.github/workflows/`, the scripts those workflows run in `.github/scripts/`,
+  `.claude/checks.json`, which names the check CI runs, and `.github/CODEOWNERS`
+  itself. `main` requires code-owner review. I accept each intent
+  and approve the architecture once, in the spec, so a build that implements an
+  approved spec needs no review from me: the plugin's code, its hooks, scripts, evals
+  and plays included, merges once its required checks pass and every review
+  conversation is resolved. That was narrowed on 2026-10-19 so the loop runs without
+  me; a build can now change the review play or the plugin's checks, held by the
+  review and resolved conversations rather than by me. The Claude app can't push
+  workflow files, so a change to `.github/workflows/` is built by hand. GitHub doesn't
+  let me approve my own PRs, so mine merge through admin bypass, as `main`'s
+  protection allows.
 
 - **R20.** Each workflow declares the minimal `permissions` its job needs. The
   `@claude` reply that continues a gated build (R6) acts only on a comment from

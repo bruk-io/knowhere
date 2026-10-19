@@ -127,9 +127,12 @@ build branch with no open PR, or by a PR open more than three days.
 A merge is the approval, so the gates are GitHub's. In knowhere:
 
 - **CODEOWNERS** (`templates/CODEOWNERS` for another repository) holds intents, specs,
-  the gates themselves (including the review play, which the review gate runs), and
-  architecture definitions for the owner. Anything else merges
-  on its checks, because the architecture it implements was approved in its spec.
+  the workflows, the scripts they run, `.claude/checks.json`, which names the check they
+  run, and CODEOWNERS itself for the owner. Anything
+  else, the plugin's code included, merges on its checks and resolved conversations,
+  because the architecture it implements was approved in its spec. That means a build
+  can change the review play or the plugin's checks, held by the review rather than by
+  the owner: the price of a loop that runs without them.
 - **Required checks:** the full check from `.claude/checks.json`, run by CI, and the
   evals, which skip themselves when the plugin didn't change.
 - **Resolved conversations:** the review runs once a PR is ready, and `main` requires
