@@ -809,13 +809,19 @@ def load_board(root: Path) -> Board:
     return Board(tasks, docs, strings(config, "types"), scalar(config, "task_prefix") or "task")
 
 
-def git(root: Path, *args: str) -> Optional[str]:
+def git(root: Path, *args: str, timeout: int = 30) -> Optional[str]:
+    """Run git. `commit` can run a pre-commit hook of arbitrary length (a full test
+    suite, under load from other work in the same repository); pass a longer `timeout`
+    for that call. A killed `git commit` leaves `.git/index.lock` behind - git never
+    gets the chance to remove its own lock file - so a short timeout here does not fail
+    safely, it wedges every later git command until someone finds and removes the lock.
+    """
     try:
         done = subprocess.run(
             ["git", "-C", str(root), "-c", "core.quotePath=false", *args],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=timeout,
         )
     except (OSError, subprocess.SubprocessError):
         return None

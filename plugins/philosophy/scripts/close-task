@@ -98,8 +98,11 @@ def main(argv: list[str] | None = None) -> int:
         print("closed %s; Backlog.md committed it" % task.id)
         return 0
     message = "Close %s: %s" % (task.id, task.title)
+    # A generous timeout: this commit can run a pre-commit hook (a full test suite), slower again
+    # under load from other work in the same repository, and a killed git commit leaves
+    # .git/index.lock behind for someone to find and remove by hand.
     if b.git(root, "add", "--", task.path) is None or (
-        b.git(root, "commit", "-q", "-m", message, "--", task.path) is None
+        b.git(root, "commit", "-q", "-m", message, "--", task.path, timeout=300) is None
     ):
         return fail("%s is Done, but the commit failed: commit %s by hand" % (task.id, task.path))
     print(

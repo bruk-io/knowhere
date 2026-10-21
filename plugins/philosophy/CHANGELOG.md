@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1
+
+- **`close-task`'s own commit no longer wedges the repository under load.** Its commit
+  can run a pre-commit hook of arbitrary length (a full test suite, slower again under
+  load from other work in the same repository); `git.`'s 30 s default killed that
+  commit and left `.git/index.lock` behind for someone to find and remove by hand, since
+  a killed `git commit` never gets the chance to clean up its own lock file. `git()`
+  takes an optional `timeout`, and `close-task`'s commit now asks for 300 s.
+
 ## 0.6.0
 
 - **The Backlog.md board version is back, and the self-running intent loop is gone.**

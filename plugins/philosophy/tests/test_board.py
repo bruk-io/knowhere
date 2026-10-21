@@ -595,6 +595,23 @@ def test_close_task_closes_and_commits_only_the_task(repo: Path) -> None:
 
 
 @needs_backlog
+def test_close_task_survives_a_slow_pre_commit_hook(repo: Path) -> None:
+    """A commit's own hook can run a full test suite, slower again under load from other
+    work in the same repository. git.'s default 30 s timeout used to kill that commit
+    and leave .git/index.lock behind - close-task's own commit now gets a longer one."""
+    sh(repo, "backlog", "task", "edit", "1.1", "--check-ac", "1")
+    hooks = repo / ".git" / "hooks"
+    hooks.mkdir(exist_ok=True)
+    hook = hooks / "pre-commit"
+    hook.write_text("#!/bin/sh\nsleep 32\n")
+    hook.chmod(0o755)
+    result = command(repo, "close-task", "1.1", "--notes", "Verdict: closes. No findings filed.")
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("closed TASK-1.1 in ")
+    assert not (repo / ".git" / "index.lock").exists()
+
+
+@needs_backlog
 @pytest.mark.parametrize("how", ["cli", "file"])
 def test_close_task_refuses_criteria_reworded_during_review(repo: Path, how: str) -> None:
     task_file = repo / "backlog" / "tasks" / "task-1.1 - Endpoint.md"
